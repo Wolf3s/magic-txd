@@ -11,10 +11,21 @@ void CalculateWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int m
 
     widget->setMinimumSize(minwidth, minHeight);
 
+    unsigned int new_w, new_h;
     if (minwidth < minBaseWidth)
-        widget->resize(minBaseWidth, baseHeight);
+        new_w = minBaseWidth;
     else
-        widget->resize(minwidth, baseHeight);
+        new_w = minwidth;
+
+    if (widget->width() > new_w)
+        new_w = widget->width();
+
+    new_h = baseHeight;
+
+    if (widget->height() > new_h)
+        new_h = widget->height();
+
+    widget->resize(new_w, new_h);
 }
 
 QHBoxLayout *CreateButtonsLayout(QWidget *Parent) {

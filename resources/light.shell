@@ -1,4 +1,4 @@
-QMenuBar
+﻿QMenuBar
 {
     min-height: 52px;
     background-color: transparent;

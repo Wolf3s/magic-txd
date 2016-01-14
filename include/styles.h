@@ -1,38 +1,29 @@
 #pragma once
 #include <QString>
-#include <stdio.h>
+#include <QFile>
+#include <QTextStream>
 
-class styles
-{
+class styles {
 public:
-    static QString get(QString appPath, QString filename)
-    {
-        FILE *file;
-        QString fullPath = appPath + "\\" + filename;
+    static QString get(QString appPath, QString filename) {
+        QFile file(appPath + "\\" + filename);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return QString();
+        QTextStream in(&file);
         QString newAppPath = appPath;
         newAppPath.replace('\\', '/');
-        errno_t errnum = fopen_s(&file, fullPath.toUtf8(), "rt");
-
-        QString str;
-
-        if ( errnum == 0 )
-        {
-            char line[512];
-            while (fgets(line, 512, file)) {
-                if (*line == '$') {
-                    QString tmp;
-                    tmp.append(&line[1]);
-                    tmp.replace("url(", "url(" + newAppPath + "/");
-                    str += tmp;
-                }
-                else {
-                    str += line;
-                }
+        QString result;
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            if (line[0] == '$') {
+                QString tmp;
+                tmp.append(line.mid(1));
+                tmp.replace("url(", "url(" + newAppPath + "/");
+                result += tmp;
             }
-
-            fclose(file);
+            else
+                result += line;
         }
-
-        return str;
+        return result;
     }
 };

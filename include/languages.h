@@ -81,4 +81,3 @@ QAction* CreateMnemonicActionL( QString systemToken, QObject *parent = NULL );
 
 // TODO: Maybe move it somewhere
 unsigned int GetTextWidthInPixels(QString &text, unsigned int fontSize);
-
