@@ -189,7 +189,7 @@ Tools.MassCnv.Convert  Konvertieren
 Tools.MassCnv.Cancel   Abbrechen
 
 # New txd
-New.Desc               !NT Create new txd
-New.Name               !NT Name
-New.Create             !NT Create
-New.Cancel             !NT Cancel
+New.Desc               Neue TXD Erstellen
+New.Name               Archivname
+New.Create             Erstelle
+New.Cancel             Abbrechen

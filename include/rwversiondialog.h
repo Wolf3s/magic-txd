@@ -246,7 +246,7 @@ public slots:
 
             // If platform was changed
             if (previousPlatform != currentPlatform) {
-                this->mainWnd->SetCurrentPlatform(currentPlatform);
+                this->mainWnd->SetRecommendedPlatform(currentPlatform);
                 this->mainWnd->ChangeTXDPlatform(currentTXD, currentPlatform);
 
                 // The user might want to be notified of the platform change.

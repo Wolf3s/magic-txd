@@ -668,13 +668,19 @@ QComboBox* TexAddDialog::createPlatformSelectComboBox(MainWindow *mainWnd)
 
     // Fill out the combo box with available platforms.
     {
-        rw::platformTypeNameList_t platforms = rw::GetAvailableNativeTextureTypes(mainWnd->rwEngine);
+        rw::platformTypeNameList_t unsortedPlatforms = rw::GetAvailableNativeTextureTypes(mainWnd->rwEngine);
 
-        for (rw::platformTypeNameList_t::const_reverse_iterator iter = platforms.crbegin(); iter != platforms.crend(); iter++)
+        // We want to reverse our list.
+        std::reverse( unsortedPlatforms.begin(), unsortedPlatforms.end() );
+
+        // We want to sort the platforms by importance.
+        std::vector <std::string> platforms = PlatformImportanceSort( mainWnd, unsortedPlatforms );
+
+        for (auto iter = platforms.cbegin(); iter != platforms.cend(); iter++)
         {
             const std::string& platName = *iter;
 
-            platformComboBox->addItem(platName.c_str());
+            platformComboBox->addItem( QString::fromStdString( platName ) );
         }
     }
 

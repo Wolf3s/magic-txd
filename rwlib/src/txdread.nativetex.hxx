@@ -320,8 +320,14 @@ bool RegisterNativeTextureType( Interface *engineInterface, const char *nativeNa
 bool UnregisterNativeTextureType( Interface *engineInterface, const char *nativeName );
 
 // Private native texture API.
+typedef void (*texNativeTypeProviderCallback_t)( texNativeTypeProvider *prov, void *ud );
+
+void ExploreNativeTextureTypeProviders( Interface *intf, texNativeTypeProviderCallback_t cb, void *ud );
 texNativeTypeProvider* GetNativeTextureTypeProvider( Interface *engineInterface, void *platformData );
 uint32 GetNativeTextureMipmapCount( Interface *engineInterface, PlatformTexture *nativeTexture, texNativeTypeProvider *texTypeProvider );
+
+// Private RW obj API.
+uint16 GetTexDictionaryRecommendedDriverID( Interface *engineInterface, const TexDictionary *txdObj, texNativeTypeProvider **driverOut = NULL );
 
 };
 

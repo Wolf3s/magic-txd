@@ -25,7 +25,7 @@ public:
         RWVS_DT_D3D9,
         RWVS_DT_PS2,
         RWVS_DT_XBOX,
-        RWVS_DT_AMD_COMPRESSED,
+        RWVS_DT_AMD_COMPRESS,
         RWVS_DT_S3TC_MOBILE,
         RWVS_DT_UNCOMPRESSED_MOBILE,
         RWVS_DT_POWERVR,
@@ -59,7 +59,7 @@ public:
         if (name == "XBOX")
             return RWVS_DT_XBOX;
         if (name == "AMD")
-            return RWVS_DT_AMD_COMPRESSED;
+            return RWVS_DT_AMD_COMPRESS;
         if (name == "S3TC")
             return RWVS_DT_S3TC_MOBILE;
         if (name == "UNCOMPRESSED")
@@ -98,8 +98,8 @@ public:
             return "PlayStation2";
         case RWVS_DT_XBOX:
             return "XBOX";
-        case RWVS_DT_AMD_COMPRESSED:
-            return "AMDCompressed";
+        case RWVS_DT_AMD_COMPRESS:
+            return "AMDCompress";
         case RWVS_DT_S3TC_MOBILE:
             return "s3tc_mobile";
         case RWVS_DT_UNCOMPRESSED_MOBILE:
@@ -121,8 +121,8 @@ public:
             return RWVS_DT_PS2;
         if (name == "XBOX")
             return RWVS_DT_XBOX;
-        if (name == "AMDCompressed")
-            return RWVS_DT_AMD_COMPRESSED;
+        if (name == "AMDCompress")
+            return RWVS_DT_AMD_COMPRESS;
         if (name == "s3tc_mobile")
             return RWVS_DT_S3TC_MOBILE;
         if (name == "uncompressed_mobile")
@@ -264,13 +264,18 @@ public:
         } 
     }
 
-    bool matchSet(rw::LibraryVersion &libVersion, eDataType dataTypeId, int &setIndex, int &platformIndex, int &dataTypeIndex) {
-        for (unsigned int set = 0; set < sets.size(); set++) {
+    bool matchSet(const rw::LibraryVersion &libVersion, eDataType dataTypeId, int &setIndex, int &platformIndex, int &dataTypeIndex) {
+        const int numSets = sets.size();
+        for (unsigned int set = 0; set < numSets; set++) {
             const RwVersionSets::Set& currentSet = sets[set];
-            for (unsigned int p = 0; p < currentSet.availablePlatforms.size(); p++) {
+            const int numAvailPlatforms = currentSet.availablePlatforms.size();
+
+            for (unsigned int p = 0; p < numAvailPlatforms; p++) {
                 const RwVersionSets::Set::Platform& platform = currentSet.availablePlatforms[p];
                 if (platform.versionMin.version <= libVersion.version && platform.versionMax.version >= libVersion.version) {
-                    for (unsigned int d = 0; d < platform.availableDataTypes.size(); d++) {
+                    const int numAvailDataTypes = platform.availableDataTypes.size();
+
+                    for (unsigned int d = 0; d < numAvailDataTypes; d++) {
                         if (platform.availableDataTypes[d] == dataTypeId) {
                             setIndex = set;
                             platformIndex = p;

@@ -3,7 +3,7 @@
 #include <regex>
 #include "testmessage.h"
 
-static const QRegExp forbPathChars("[/:?\"<>|\\\[\\\]\\\\]");
+static const QRegExp forbPathChars("[/:?\"<>|\\[\\]\\\\]");
 
 CreateTxdDialog::CreateTxdDialog(MainWindow *MainWnd) : QDialog(MainWnd) {
     this->mainWnd = MainWnd;
@@ -357,7 +357,7 @@ void CreateTxdDialog::OnRequestAccept(bool clicked)
 
     char const *currentPlatform = RwVersionSets::dataNameFromId(dataTypeId);
 
-    this->mainWnd->SetCurrentPlatform(currentPlatform);
+    this->mainWnd->SetRecommendedPlatform(currentPlatform);
 
     // Update the MainWindow stuff.
     this->mainWnd->updateWindowTitle();

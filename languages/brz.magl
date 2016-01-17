@@ -1,0 +1,193 @@
+﻿MAGL|1|Brazilian|Brasileiro|BRA|Magic.TXD Team
+
+# language
+Lang.Lang              Idioma:
+Lang.Authors           por _PARAM_1
+
+# textures list        
+Main.TexInfo.Level     nível
+Main.TexInfo.Levels    níveis
+Main.TexInfo.NoTex     Nenhuma Textura
+Main.TexInfo.Invalid   inválido
+
+# main menu            
+Main.File              Arquivo
+Main.Edit              Editar
+Main.Tools             Ferramentas
+Main.Export            Exportar
+Main.View              Ver
+Main.Info              Info
+
+# main menu - File     
+Main.File.New          Novo
+Main.File.Open         Abrir
+Main.File.Save         Salvar
+Main.File.SaveAs       Salvar como...
+Main.File.Close        Fechar
+Main.File.Quit         Sair
+
+# main menu - Edit   
+Main.Edit.Add          Adicionar
+Main.Edit.Replace      Substituir
+Main.Edit.Remove       Remover
+Main.Edit.Rename       Renomear
+Main.Edit.Resize       Redimensionar
+Main.Edit.Modify       Manipular
+Main.Edit.SetupML      Gerar mipmaps
+Main.Edit.ClearML      Limpar mipmaps
+Main.Edit.SetupRP      Propriedades de renderização
+Main.Edit.SetupTV      Mudar versão do TXD
+Main.Edit.Options      Opções
+
+# Rename
+Main.Rename.Desc       Nome da Textura
+Main.Rename.Name       Nome:
+Main.Rename.Set        Mudar
+Main.Rename.Cancel     Cancelar
+
+# Resize
+Main.Resize.Desc       Redimensionar Textura
+Main.Resize.Width      Largura:
+Main.Resize.Height     Altura:
+Main.Resize.Set        Mudar
+Main.Resize.Cancel     Cancelar
+
+# Modify
+Modify.Desc.Add        Adicionar textura...
+Modify.Desc.Replace    Substituir textura...
+Modify.Desc.Modify     Modificar textura...
+Modify.Add             Adicionar
+Modify.Replace         Substituir
+Modify.Modify          Modificar
+Modify.TexName         Nome da Textura:
+Modify.MskName         Nome da Máscara:
+Modify.Plat            Plataforma:
+Modify.RasFmt          Formato do Raster:
+Modify.Origin          Original
+Modify.RawRas          Raster Raw
+Modify.Comp            comprimido
+Modify.Pal             paletizado
+Modify.PixFmt          Formato dos Pixeis:
+Modify.GenML           Gerar mipmaps
+Modify.Scaled          Dimensionado
+Modify.Fill            Preencher
+Modify.Bckgr           Fundo
+Modify.Cancel          Cancelar
+
+# Render Props
+Main.SetupRP.Desc      Propriedades de Renderização
+Main.SetupRP.Filter    Filtragem:
+Main.SetupRP.UAddr     Endereçamento U:
+Main.SetupRP.VAddr     Endereçamento V:
+Main.SetupRP.Set       Mudar
+Main.SetupRP.Cancel    Cancelar
+
+# Setup TXD Version
+Main.SetupTV.Desc      Mudar Versão do TXD
+Main.SetupTV.Set       Configuração
+Main.SetupTV.Plat      Plataforma
+Main.SetupTV.Data      Tipo dos dados
+Main.SetupTV.Version   Versão
+Main.SetupTV.Build     Build
+Main.SetupTV.Accept    Aceitar
+Main.SetupTV.Cancel    Cancelar
+Main.SetupTV.Custom    Customizado
+
+# Options
+Main.Options.Desc      Opções do _MAGIC_TXD_NAME
+Main.Options.ShowLog   Mostrar log quando houver erros
+Main.Options.DispIcn   Mostrar ícone do jogo
+Main.Options.Accept    Aceitar
+Main.Options.Cancel    Cancelar
+
+# main menu - Tools    
+Main.Tools.MassCnv     Conversão em massa
+Main.Tools.MassExp     Exportação em massa
+Main.Tools.MassBld     Compilação em massa
+
+# main menu - Export   
+Main.Export.ExpAll     Exportar todas
+Main.Export.Desc       Salvar _PARAM_1 como...
+
+# Export All
+Main.ExpAll.Desc       Exportar todas as texturas...
+Main.ExpAll.Format     Formato:
+Main.ExpAll.Export     Exportar
+Main.ExpAll.Cancel     Cancelar
+Main.ExpAll.ExpTarg    Selecionar Pasta Destino...
+
+# Log
+Main.Log.Desc          Log
+Main.Log.Save          Salvar
+Main.Log.Copy          Copiar
+Main.Log.CopyAll       Copiar Tudo
+Main.Log.Clear         Limpar
+Main.Log.Close         Fechar
+Main.Log.SaveAs        Salvar Log como...
+
+# View   
+Main.View.FullImg      Ver imagem inteira
+Main.View.Backgr       Fundo
+Main.View.DispML       Mostrar mipmaps
+Main.View.ShowLog      Ver log
+Main.View.DarkThm      Tema escuro
+Main.View.LightTm      Tema claro
+
+# Info     
+Main.Info.Website      Website
+Main.Info.About        Sobre
+
+# File - Open
+Main.Open.Desc         Abrir arquivo TXD...
+
+# File - Save As
+Main.SaveAs.Desc       Salvar arquivo TXD...
+
+# Edit - Add
+Main.Edit.Add.Desc     Importar textura...
+
+# About
+Main.About.Desc        Sobre nós
+Main.About.Credits     criado por _AUTHOR_NAME_1 e _AUTHOR_NAME_2
+Main.About.ComUse1     Esta ferramenta NÃO PODE ser usada comercialmente sem autorização escrita de todos os terceiros que contribuiram para a mesma. Veja as licenças para mais informações.
+Main.About.ComUse2     A equipe do _MAGIC_TXD_NAME aguarda com expectativa a sua contribuição!
+
+# Tools
+Tools.Browse           Procurar
+Tools.BrwDesc          Procurar Pasta...
+Tools.GameRt           Pasta do jogo:
+Tools.Output           Pasta destino:
+Tools.Plat             Plataforma
+Tools.Game             Jogo
+Tools.GenMips          Gerar mipmaps
+Tools.MaxMips          Max:
+
+# Mass export
+Tools.MassExp.Desc     Exportação em Massa
+Tools.MassExp.ImgFmt   Formato das imagens:
+Tools.MassExp.TxNmOnl  apenas com o nome da textura
+Tools.MassExp.PrTxdNm  começar com o nome do TXD
+Tools.MassExp.SepFld   em pastas separadas
+Tools.MassExp.Export   Exportar
+Tools.MassExp.Cancel   Cancelar
+
+# Mass build
+Tools.MassBld.Desc     Compilação em Massa
+Tools.MassBld.Build    Compilar
+Tools.MassBld.Cancel   Cancelar
+
+# Mass convert
+Tools.MassCnv.Desc     Conversão em Massa
+Tools.MassCnv.ClearML  Limpar mipmaps
+Tools.MassCnv.ImpFilt  Melhorar filtragem
+Tools.MassCnv.CompTex  Comprimir texturas
+Tools.MassCnv.RecIMG   Reconstruir arquivos IMG
+Tools.MassCnv.CompIMG  IMG comprimido
+Tools.MassCnv.Convert  Converter
+Tools.MassCnv.Cancel   Cancelar
+
+# New txd
+New.Desc               !NT Create new txd
+New.Name               !NT Name
+New.Create             !NT Create
+New.Cancel             !NT Cancel

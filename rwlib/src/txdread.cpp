@@ -89,6 +89,7 @@ void texDictionaryStreamPlugin::Deserialize( Interface *intf, BlockProvider& inp
 
         uint32 textureBlockCount = 0;
         bool requiresRecommendedPlatform = true;
+        uint16 recDevicePlatID = 0;
 
         texDictMetaStructBlock.EnterContext();
 
@@ -110,6 +111,7 @@ void texDictionaryStreamPlugin::Deserialize( Interface *intf, BlockProvider& inp
 
                     // So if there is a recommended platform set, we will also give it one if we will write it.
                     requiresRecommendedPlatform = ( recommendedPlatform != 0 );
+                    recDevicePlatID = recommendedPlatform;  // we want to store it aswell.
                 }
             }
             else
@@ -128,6 +130,7 @@ void texDictionaryStreamPlugin::Deserialize( Interface *intf, BlockProvider& inp
         texDictMetaStructBlock.LeaveContext();
 
         txdObj->hasRecommendedPlatform = requiresRecommendedPlatform;
+        txdObj->recDevicePlatID = recDevicePlatID;
 
         // Now follow multiple TEXTURENATIVE blocks.
         // Deserialize all of them.
@@ -211,6 +214,7 @@ TexDictionary::TexDictionary( const TexDictionary& right ) : RwObject( right )
 {
     // Create a new dictionary with all the textures.
     this->hasRecommendedPlatform = right.hasRecommendedPlatform;
+    this->recDevicePlatID = right.recDevicePlatID;
     
     this->numTextures = 0;
 
@@ -240,8 +244,11 @@ TexDictionary::~TexDictionary( void )
     {
         TextureBase *theTexture = LIST_GETITEM( TextureBase, this->textures.root.next, texDictNode );
 
+        // Remove us from this TXD.
+        // This is done because we cannot be sure that the texture is actually destroyed.
+        theTexture->RemoveFromDictionary();
+
         // Delete us.
-        // This should automatically remove us from this TXD.
         this->engineInterface->DeleteRwObject( theTexture );
     }
 }
@@ -258,6 +265,21 @@ void TexDictionary::clear(void)
         // Call the texture's own removal.
         texture->RemoveFromDictionary();
     }
+}
+
+const char* TexDictionary::GetRecommendedDriverPlatform( void ) const
+{
+    EngineInterface *engineInterface = (EngineInterface*)this->engineInterface;
+
+    texNativeTypeProvider *provider = NULL;
+
+    uint16 driverID = GetTexDictionaryRecommendedDriverID( engineInterface, this, &provider );
+
+    if ( !provider )
+        return NULL;
+
+    // HACK: reach into the type system name info directly.
+    return provider->managerData.rwTexType->name;
 }
 
 TexDictionary* CreateTexDictionary( Interface *intf )
@@ -1277,6 +1299,23 @@ bool UnregisterNativeTextureType( Interface *engineInterface, const char *native
     }
 
     return success;
+}
+
+void ExploreNativeTextureTypeProviders( Interface *intf, texNativeTypeProviderCallback_t cb, void *ud )
+{
+    EngineInterface *engineInterface = (EngineInterface*)intf;
+
+    // We want to iterate through all native texture type providers and return them to the callback.
+    const nativeTextureStreamPlugin *nativeTexEnv = nativeTextureStreamStore.GetConstPluginStruct( engineInterface );
+
+    if ( nativeTexEnv )
+    {
+        LIST_FOREACH_BEGIN( texNativeTypeProvider, nativeTexEnv->texNativeTypes.root, managerData.managerNode )
+
+            cb( item, ud );
+
+        LIST_FOREACH_END
+    }
 }
 
 texNativeTypeProvider* GetNativeTextureTypeProvider( Interface *intf, void *objMem )
