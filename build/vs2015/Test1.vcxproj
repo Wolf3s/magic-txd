@@ -645,6 +645,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\aboutdialog.cpp" />
+    <ClCompile Include="..\..\src\createtxddlg.cpp" />
     <ClCompile Include="..\..\src\exportallwindow.cpp" />
     <ClCompile Include="..\..\src\friendlyicons.cpp" />
     <ClCompile Include="..\..\src\guiserialization.cpp" />
@@ -694,6 +695,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\aboutdialog.h" />
+    <ClInclude Include="..\..\include\createtxddlg.h" />
     <ClInclude Include="..\..\include\defs.h" />
     <ClInclude Include="..\..\include\exportallwindow.h" />
     <ClInclude Include="..\..\include\guiserialization.h" />

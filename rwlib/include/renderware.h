@@ -196,6 +196,35 @@ struct LibraryVersion
         return !( *this == right );
     }
 
+    inline bool operator >(const LibraryVersion& right) const
+    {
+        return this->version > right.version;
+    }
+
+    inline bool operator <(const LibraryVersion& right) const
+    {
+        return this->version < right.version;
+    }
+
+    inline bool operator >=(const LibraryVersion& right) const
+    {
+        return this->version >= right.version;
+    }
+
+    inline bool operator <=(const LibraryVersion& right) const
+    {
+        return this->version <= right.version;
+    }
+
+    void set(unsigned char LibMajor, unsigned char LibMinor, unsigned char RevMajor, unsigned char RevMinor, unsigned short buildNumber = 0xFFFF)
+    {
+        this->buildNumber = buildNumber;
+        this->rwLibMajor = LibMajor;
+        this->rwLibMinor = LibMinor;
+        this->rwRevMajor = RevMajor;
+        this->rwRevMinor = RevMinor;
+    }
+
     std::string toString(void) const
     {
         std::string returnVer;

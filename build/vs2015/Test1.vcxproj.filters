@@ -36,6 +36,7 @@
     <ClCompile Include="..\..\src\languages.cpp" />
     <ClCompile Include="..\..\src\qtutils.cpp" />
     <ClCompile Include="..\..\src\languages.common.cpp" />
+    <ClCompile Include="..\..\src\createtxddlg.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../../include/styles.h">
@@ -165,6 +166,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\languages.hxx">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\createtxddlg.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

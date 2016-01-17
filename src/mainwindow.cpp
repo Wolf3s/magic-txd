@@ -617,7 +617,7 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
         // Read data files
 
-        this->versionSets.readSetsFile(this->makeAppPath("data\\versionsets.dat").toStdWString().c_str());
+        this->versionSets.readSetsFile(this->makeAppPath("data\\versionsets.dat"));
 
         //
 
@@ -887,7 +887,7 @@ void MainWindow::updateWindowTitle( void )
             }
             else
             {
-                topLabelDisplayString = "New";
+                topLabelDisplayString = this->newTxdName;
             }
 
             this->txdNameLabel->setText( topLabelDisplayString );
@@ -958,31 +958,8 @@ void MainWindow::updateAllTextureMetaInfo( void )
 
 void MainWindow::onCreateNewTXD( bool checked )
 {
-    // Just create an empty TXD.
-    rw::TexDictionary *newTXD = NULL;
-
-    try
-    {
-        newTXD = rw::CreateTexDictionary( this->rwEngine );
-    }
-    catch( rw::RwException& except )
-    {
-        this->txdLog->showError( QString( "failed to create TXD: " ) + ansi_to_qt( except.message ) );
-
-        // We failed.
-        return;
-    }
-
-    if ( newTXD == NULL )
-    {
-        this->txdLog->showError( "unknown error in TXD creation" );
-
-        return;
-    }
-
-    this->setCurrentTXD( newTXD );
-
-    this->clearCurrentFilePath();
+    CreateTxdDialog *createDlg = new CreateTxdDialog(this);
+    createDlg->setVisible(true);
 }
 
 #include "tools/dirtools.h"
@@ -1052,6 +1029,8 @@ void MainWindow::openTxdFile(QString fileName) {
                             // Set it as our current object in the editor.
                             this->setCurrentTXD(newTXD);
 
+                            this->SetCurrentPlatform(this->GetTXDPlatform(newTXD));
+
                             this->setCurrentFilePath(fileName);
                         }
                         else
@@ -1106,6 +1085,8 @@ void MainWindow::onCloseCurrent( bool checked )
 
     // Make sure we got no TXD active.
     this->setCurrentTXD( NULL );
+
+    this->SetCurrentPlatform("");
 
     this->updateWindowTitle();
 }
@@ -1367,7 +1348,16 @@ void MainWindow::onRequestSaveAsTXD( bool checked )
 {
     if ( this->currentTXD != NULL )
     {
-        QString newSaveLocation = QFileDialog::getSaveFileName( this, MAGIC_TEXT("Main.SaveAs.Desc"), this->lastTXDSaveDir, tr( "RW Texture Dictionary (*.txd)" ) );
+        QString txdSavePath;
+        
+        if (!(this->lastTXDSaveDir.isEmpty()) && this->currentTXD) {
+            if (this->hasOpenedTXDFileInfo)
+                txdSavePath = this->lastTXDSaveDir + "/" + this->openedTXDFileInfo.fileName();
+            else
+                txdSavePath = this->lastTXDSaveDir + "/" + this->newTxdName;
+        }
+
+        QString newSaveLocation = QFileDialog::getSaveFileName( this, MAGIC_TEXT("Main.SaveAs.Desc"), txdSavePath, "RW Texture Dictionary (*.txd)" );
 
         if ( newSaveLocation.length() != 0 )
         {
@@ -1881,25 +1871,42 @@ void MainWindow::clearViewImage()
 	imageWidget->hide();
 }
 
-const char* MainWindow::GetTXDPlatformString( rw::TexDictionary *txd )
+// Set txd plaform when we open
+// or create new txd
+// Creating a txd with different platform textures doesn't make any sense.
+
+QString MainWindow::GetCurrentPlatform()
 {
-    // We return the platform of the first texture.
-    // Otherwise we return NULL.
-    rw::TexDictionary::texIter_t texIter = txd->GetTextureIterator();
-
-    if ( texIter.IsEnd() )
-        return NULL;
-
-    rw::Raster *texRaster = texIter.Resolve()->GetRaster();
-
-    if ( !texRaster )
-        return NULL;
-
-    return texRaster->getNativeDataTypeName();
+    return this->currentTxdPlatform;
 }
 
-void MainWindow::SetTXDPlatformString( rw::TexDictionary *txd, const char *platform )
+void MainWindow::SetCurrentPlatform(QString platform)
 {
+    this->currentTxdPlatform = platform;
+}
+
+QString MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
+{
+    if (txd->numTextures > 0) {
+        for (rw::TexDictionary::texIter_t iter(txd->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
+        {
+            rw::TextureBase *texHandle = iter.Resolve();
+
+            rw::Raster *texRaster = texHandle->GetRaster();
+
+            if (texRaster)
+            {
+                return texRaster->getNativeDataTypeName();
+            }
+        }
+    }
+    return QString();
+}
+
+void MainWindow::ChangeTXDPlatform( rw::TexDictionary *txd, QString platform )
+{
+    this->currentTxdPlatform = platform;
+
     // To change the platform of a TXD we have to set all of it's textures platforms.
     for ( rw::TexDictionary::texIter_t iter( txd->GetTextureIterator() ); !iter.IsEnd(); iter.Increment() )
     {
@@ -1911,7 +1918,7 @@ void MainWindow::SetTXDPlatformString( rw::TexDictionary *txd, const char *platf
         {
             try
             {
-                rw::ConvertRasterTo( texRaster, platform );
+                rw::ConvertRasterTo( texRaster, qt_to_ansi(platform).c_str() );
             }
             catch( rw::RwException& except )
             {
@@ -1964,12 +1971,12 @@ void MainWindow::onSetupTxdVersion(bool checked) {
         bool setFound = false;
         if (this->currentTXD) {
             rw::LibraryVersion version = currentTXD->GetEngineVersion();
-            const char *platformName = this->GetTXDPlatformString(this->currentTXD);
-            if (platformName) {
+            QString platformName = this->GetCurrentPlatform();
+            if (!platformName.isEmpty()) {
                 RwVersionSets::eDataType platformDataTypeId = RwVersionSets::dataIdFromEnginePlatformName(platformName);
                 if (platformDataTypeId != RwVersionSets::RWVS_DT_NOT_DEFINED) {
                     int setIndex, platformIndex, dataTypeIndex;
-                    if (this->versionSets.matchSet(version, platformDataTypeId, setIndex, platformIndex, dataTypeIndex)) {
+                    if (this->versionSets.matchExactSet(version, platformDataTypeId, setIndex, platformIndex, dataTypeIndex)) {
                         this->verDlg->gameSelectBox->setCurrentIndex(setIndex + 1);
                         this->verDlg->platSelectBox->setCurrentIndex(platformIndex);
                         this->verDlg->dataTypeSelectBox->setCurrentIndex(dataTypeIndex);

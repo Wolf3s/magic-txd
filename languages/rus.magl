@@ -188,3 +188,9 @@ Tools.MassCnv.RecIMG     Перестроить IMG-архивы
 Tools.MassCnv.CompIMG    Ужать IMG
 Tools.MassCnv.Convert    Конвертировать
 Tools.MassCnv.Cancel     Отмена
+
+# New txd
+New.Desc                 Создание нового TXD-архива
+New.Name                 Имя
+New.Create               Создать
+New.Cancel               Отмена

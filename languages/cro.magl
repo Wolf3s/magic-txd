@@ -1,4 +1,4 @@
-﻿MAGL|1|Croatian|Hrvatski|CRO|Magic.TXD Team
+﻿MAGL|1|Croatian|Hrvatski|CRO|GodFather
 
 # translated by GodFather (http://gtaforums.com/user/606114-nikdelgad/)
 
@@ -187,3 +187,9 @@ Tools.MassCnv.RecIMG   Rekonstruiraj IMG arhive
 Tools.MassCnv.CompIMG  Sažmi IMG
 Tools.MassCnv.Convert  Pretvori
 Tools.MassCnv.Cancel   Odustani
+
+# New txd
+New.Desc               !NT Create new txd
+New.Name               !NT Name
+New.Create             !NT Create
+New.Cancel             !NT Cancel

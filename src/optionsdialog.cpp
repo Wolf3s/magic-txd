@@ -25,6 +25,8 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
     // Display language select.
     this->languageBox = new QComboBox();
 
+    this->languageBox->setFixedWidth(300);
+
     for (unsigned int i = 0; i < ourLanguages.languages.size(); i++) {
         this->languageBox->addItem(ourLanguages.languages[i].info.nameInOriginal + " - " + ourLanguages.languages[i].info.name);
     }
@@ -107,6 +109,10 @@ void OptionsDialog::serialize( void )
 
 void OptionsDialog::OnChangeSelectedLanguage(int newIndex)
 {
+    this->languageAuthorLabel->setText("");
+
+    ourLanguages.selectLanguageByIndex( newIndex );
+
     if (newIndex >= 0 && ourLanguages.languages[newIndex].info.authors != "Magic.TXD Team") {
         QString names;
         bool found = false;
@@ -117,11 +123,5 @@ void OptionsDialog::OnChangeSelectedLanguage(int newIndex)
         else
             names = QString("by " + ourLanguages.languages[newIndex].info.authors);
         this->languageAuthorLabel->setText(names);
-
-        this->languageAuthorLabel->setDisabled(false);
     }
-    else
-        this->languageAuthorLabel->setDisabled(true);
-
-    ourLanguages.selectLanguageByIndex( newIndex );
 }

@@ -4,6 +4,7 @@
 
 #include "qtutils.h"
 #include "languages.h"
+#include "testmessage.h"
 
 static const bool _lockdownPlatform = false;        // SET THIS TO TRUE FOR RELEASE.
 static const size_t _recommendedPlatformMaxName = 32;
@@ -908,12 +909,12 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
             // If the current TXD already has a platform, we disable editing this platform and simply use it.
             bool lockdownPlatform = ( _lockdownPlatform && mainWnd->lockDownTXDPlatform );
 
-            const char *currentForcedPlatform = mainWnd->GetTXDPlatformString(mainWnd->currentTXD);
+            QString currentForcedPlatform = mainWnd->GetCurrentPlatform();
 
-            this->hasConfidentPlatform = ( currentForcedPlatform != NULL );
+            this->hasConfidentPlatform = ( !currentForcedPlatform.isEmpty() );
 
             QWidget *platformDisplayWidget;
-            if (lockdownPlatform == false || currentForcedPlatform == NULL)
+            if (lockdownPlatform == false || currentForcedPlatform.isEmpty())
             {
                 QComboBox *platformComboBox = createPlatformSelectComboBox(mainWnd);
                 //platformComboBox->setFixedWidth(LEFTPANELADDDIALOGWIDTH);
@@ -921,7 +922,7 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
                 connect(platformComboBox, (void (QComboBox::*)(const QString&))&QComboBox::activated, this, &TexAddDialog::OnPlatformSelect);
 
                 platformDisplayWidget = platformComboBox;
-                if (currentForcedPlatform != NULL)
+                if (!currentForcedPlatform.isEmpty())
                 {
                     platformComboBox->setCurrentText(currentForcedPlatform);
                 }

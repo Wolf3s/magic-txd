@@ -236,15 +236,18 @@ public slots:
             currentTXD->SetEngineVersion(libVer);
 
             // Maybe make SetEngineVersion sets the version for all children objects?
-            for (rw::TexDictionary::texIter_t iter(currentTXD->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
-                iter.Resolve()->SetEngineVersion(libVer);
+            if (currentTXD->numTextures > 0) {
+                for (rw::TexDictionary::texIter_t iter(currentTXD->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
+                    iter.Resolve()->SetEngineVersion(libVer);
+            }
 
-            char const *previousPlatform = this->mainWnd->GetTXDPlatformString(currentTXD);
-            char const *currentPlatform = RwVersionSets::dataNameFromId(dataTypeId);
+            QString previousPlatform = this->mainWnd->GetCurrentPlatform();
+            QString currentPlatform = RwVersionSets::dataNameFromId(dataTypeId);
 
             // If platform was changed
-            if (strcmp(previousPlatform, currentPlatform)) {
-                this->mainWnd->SetTXDPlatformString(currentTXD, currentPlatform);
+            if (previousPlatform != currentPlatform) {
+                this->mainWnd->SetCurrentPlatform(currentPlatform);
+                this->mainWnd->ChangeTXDPlatform(currentTXD, currentPlatform);
 
                 // The user might want to be notified of the platform change.
                 this->mainWnd->txdLog->addLogMessage(QString("changed the TXD platform to match version (") + previousPlatform + 
@@ -323,8 +326,6 @@ public:
         QComboBox *dataTypeComboBox = new QComboBox;
         dataTypeComboBox->setFixedWidth(300);
         this->dataTypeSelectBox = dataTypeComboBox;
-
-        //connect(dataTypeComboBox, (void (QComboBox::*)(const QString&))&QComboBox::activated, this, &RwVersionDialog::OnChangeSelectedGame);
 
         selectDataTypeLayout->addWidget(dataTypeLabel);
         selectDataTypeLayout->addWidget(dataTypeComboBox);

@@ -185,3 +185,9 @@ Tools.MassCnv.RecIMG   Reconstruct IMG archives
 Tools.MassCnv.CompIMG  Compressed IMG
 Tools.MassCnv.Convert  Convert
 Tools.MassCnv.Cancel   Cancel
+
+# New txd
+New.Desc               Create new txd
+New.Name               Name
+New.Create             Create
+New.Cancel             Cancel

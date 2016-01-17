@@ -187,3 +187,9 @@ Tools.MassCnv.RecIMG   Stelle IMG wieder her
 Tools.MassCnv.CompIMG  Komprimiere IMG
 Tools.MassCnv.Convert  Konvertieren
 Tools.MassCnv.Cancel   Abbrechen
+
+# New txd
+New.Desc               !NT Create new txd
+New.Name               !NT Name
+New.Create             !NT Create
+New.Cancel             !NT Cancel

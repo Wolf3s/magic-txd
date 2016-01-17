@@ -28,6 +28,8 @@ class MainWindow;
 #include "versionsets.h"
 #include "textureviewport.h"
 
+#include "testmessage.h"
+
 struct SystemEventHandlerWidget abstract
 {
     ~SystemEventHandlerWidget( void );
@@ -56,6 +58,7 @@ inline QString ansi_to_qt( const std::string& str )
 #include "guiserialization.h"
 #include "aboutdialog.h"
 #include "streamcompress.h"
+#include "createtxddlg.h"
 
 #include "MagicExport.h"
 
@@ -73,6 +76,7 @@ class MainWindow : public QMainWindow, public magicTextLocalizationItem
     friend class AboutDialog;
     friend class OptionsDialog;
     friend class mainWindowSerializationEnv;
+    friend class CreateTxdDialog;
 
 public:
     MainWindow(QString appPath, rw::Interface *rwEngine, CFileSystem *fsHandle, QWidget *parent = 0);
@@ -114,9 +118,13 @@ public:
 
     rw::Interface* GetEngine(void) { return this->rwEngine; }
 
-    static const char* GetTXDPlatformString(rw::TexDictionary *txd);
+    QString GetCurrentPlatform();
 
-    void SetTXDPlatformString(rw::TexDictionary *txd, const char *platform);
+    void SetCurrentPlatform(QString platform);
+
+    void ChangeTXDPlatform(rw::TexDictionary *txd, QString platform);
+
+    QString GetTXDPlatform(rw::TexDictionary *txd);
 
 private:
     void DoAddTexture(const TexAddDialog::texAddOperation& params);
@@ -212,6 +220,10 @@ private:
 
     QFileInfo openedTXDFileInfo;
     bool hasOpenedTXDFileInfo;
+
+    QString newTxdName;
+
+    QString currentTxdPlatform;
 
     QListWidget *textureListWidget;
 
