@@ -94,6 +94,8 @@ TxdLog::TxdLog(MainWindow *mainWnd, QString AppPath, QWidget *ParentWidget)
 	picError.load(AppPath + "\\resources\\error.png");
 	picInfo.load(AppPath + "\\resources\\info.png");
 
+    SetupWindowSize(logWidget, 450, 200, 450, 150);
+
     RegisterTextLocalizationItem( this );
 }
 
@@ -134,7 +136,7 @@ void TxdLog::updateContent( MainWindow *mainWnd )
     buttonClose->setText( sLogClose );
 
     // Okay.
-    CalculateWindowSize(logWidget, menuWidth, 450, 0, 150, 200);
+    RecalculateWindowSize(logWidget, menuWidth, 450, 150);
 }
 
 void TxdLog::show( void )

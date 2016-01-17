@@ -5,7 +5,9 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 
-void CalculateWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int minBaseWidth, unsigned int maxBaseWidth, unsigned int minHeight, unsigned int baseHeight);
+void SetupWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int baseHeight, unsigned int minWidth, unsigned int minHeight);
+
+void RecalculateWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int minWidth, unsigned int minHeight);
 
 QHBoxLayout *CreateButtonsLayout(QWidget *Parent = 0);
 

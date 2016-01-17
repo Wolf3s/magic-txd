@@ -3,29 +3,24 @@
 #include "mainwindow.h"
 #include "qtutils.h"
 
-void CalculateWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int minBaseWidth, unsigned int maxBaseWidth, unsigned int minHeight, unsigned int baseHeight) {
-    unsigned int minwidth = baseWidth;
+void RecalculateWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int minWidth, unsigned int minHeight) {
+    unsigned int minwidth = minWidth;
 
-    if (minwidth > maxBaseWidth)
-        minwidth = maxBaseWidth;
+    if (baseWidth > minWidth)
+        minwidth = baseWidth;
 
     widget->setMinimumSize(minwidth, minHeight);
 
-    unsigned int new_w, new_h;
-    if (minwidth < minBaseWidth)
-        new_w = minBaseWidth;
-    else
+    unsigned int new_w = widget->width();
+    if (new_w < minwidth)
         new_w = minwidth;
 
-    if (widget->width() > new_w)
-        new_w = widget->width();
+    widget->resize(new_w, widget->height());
+}
 
-    new_h = baseHeight;
-
-    if (widget->height() > new_h)
-        new_h = widget->height();
-
-    widget->resize(new_w, new_h);
+void SetupWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int baseHeight, unsigned int minWidth, unsigned int minHeight) {
+    widget->setMinimumSize(minWidth, minHeight);
+    widget->resize(baseWidth, baseHeight);
 }
 
 QHBoxLayout *CreateButtonsLayout(QWidget *Parent) {

@@ -32,8 +32,8 @@
 
 #define FONT_SIZE_MENU_PX 26
 
-#define MAIN_WIDTH_RANGE_A 750
-#define MAIN_WIDTH_RANGE_B 900
+#define MAIN_MIN_WIDTH 700
+#define MAIN_WIDTH 800
 #define MAIN_MIN_HEIGHT 300
 #define MAIN_HEIGHT 560
 
@@ -101,6 +101,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
         updateWindowTitle();
         //setMinimumSize(620, 300);
 	    //resize(800, 600);
+
+        SetupWindowSize(this, MAIN_WIDTH, MAIN_HEIGHT, MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT);
 
 	    /* --- Log --- */
 	    this->txdLog = new TxdLog(this, this->m_appPath, this);
@@ -693,7 +695,7 @@ void MainWindow::updateContent( MainWindow *mainWnd )
     menuLineWidth += 240; // space between menu items ( 5 * 40 ) + 20 + 20
     menuLineWidth += 100;  // buttons size
 
-    CalculateWindowSize(this, menuLineWidth, MAIN_WIDTH_RANGE_A, MAIN_WIDTH_RANGE_B, MAIN_MIN_HEIGHT, MAIN_HEIGHT);
+    RecalculateWindowSize(this, menuLineWidth, MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT);
 }
 
 void MainWindow::addTextureFormatExportLinkToMenu( QMenu *theMenu, const char *displayName, const char *defaultExt, const char *formatName )
