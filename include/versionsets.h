@@ -166,14 +166,12 @@ public:
             rw::LibraryVersion version;
             rw::LibraryVersion versionMin;
             rw::LibraryVersion versionMax;
-            bool rangesSet;
+            bool hasMinVersion, hasMaxVersion;
             QVector<eDataType> availableDataTypes;
 
             Platform() {
                 version.set(0, 0, 0, 0);
-                versionMin.set(3, 0, 0, 0);
-                versionMax.set(7, 0, 0, 0);
-                rangesSet = false;
+                hasMinVersion = hasMaxVersion = false;
             }
 
             QString Read(ePlatformType Type, QTextStream &stream) {
@@ -187,11 +185,11 @@ public:
                             lineToVersion(RwVersionSets::extractValue(line), version);
                         else if (line.startsWith("RWVERMIN")) {
                             lineToVersion(RwVersionSets::extractValue(line), versionMin);
-                            rangesSet = true;
+                            hasMinVersion = true;
                         }
                         else if (line.startsWith("RWVERMAX")) {
                             lineToVersion(RwVersionSets::extractValue(line), versionMax);
-                            rangesSet = true;
+                            hasMaxVersion = true;
                         }
                         else if (line.startsWith("RWBUILD"))
                             version.buildNumber = RwVersionSets::extractValue(line).toInt(NULL, 0);
@@ -225,7 +223,12 @@ public:
                         ePlatformType platformType = platformIdFromName(RwVersionSets::extractValue(line));
                         if (platformType != RWVS_PL_NOT_DEFINED) {
                             availablePlatforms.resize(availablePlatforms.size() + 1);
-                            line = availablePlatforms[availablePlatforms.size() - 1].Read(platformType, stream);
+                            Platform &platform = availablePlatforms[availablePlatforms.size() - 1];
+                            line = platform.Read(platformType, stream);
+                            if (!platform.hasMinVersion)
+                                platform.versionMin = platform.version;
+                            if (!platform.hasMaxVersion)
+                                platform.versionMax = platform.version;
                             continue;
                         }
                     }
@@ -261,32 +264,12 @@ public:
         } 
     }
 
-    bool matchExactSet(rw::LibraryVersion &libVersion, eDataType dataTypeId, int &setIndex, int &platformIndex, int &dataTypeIndex) {
-        for (unsigned int set = 0; set < sets.size(); set++) {
-            const RwVersionSets::Set& currentSet = sets[ set ];
-            for (unsigned int p = 0; p < currentSet.availablePlatforms.size(); p++) {
-                const RwVersionSets::Set::Platform& platform = currentSet.availablePlatforms[ p ];
-                if (platform.version.version == libVersion.version) {
-                    for (unsigned int d = 0; d < platform.availableDataTypes.size(); d++) {
-                        if (platform.availableDataTypes[d] == dataTypeId) {
-                            setIndex = set;
-                            platformIndex = p;
-                            dataTypeIndex = d;
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    bool matchSetInRanges(rw::LibraryVersion &minVersion, rw::LibraryVersion &maxVersion, eDataType dataTypeId, int &setIndex, int &platformIndex, int &dataTypeIndex) {
+    bool matchSet(rw::LibraryVersion &libVersion, eDataType dataTypeId, int &setIndex, int &platformIndex, int &dataTypeIndex) {
         for (unsigned int set = 0; set < sets.size(); set++) {
             const RwVersionSets::Set& currentSet = sets[set];
             for (unsigned int p = 0; p < currentSet.availablePlatforms.size(); p++) {
                 const RwVersionSets::Set::Platform& platform = currentSet.availablePlatforms[p];
-                if (platform.version.version >= minVersion.version && platform.version.version <= maxVersion.version) {
+                if (platform.versionMin.version <= libVersion.version && platform.versionMax.version >= libVersion.version) {
                     for (unsigned int d = 0; d < platform.availableDataTypes.size(); d++) {
                         if (platform.availableDataTypes[d] == dataTypeId) {
                             setIndex = set;

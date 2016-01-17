@@ -96,12 +96,7 @@ public:
     void setCurrentTXD(rw::TexDictionary *txdObj);
     void updateTextureList(bool selectLastItemInList);
 
-    void showFriendlyIcons(void);
-    void hideFriendlyIcons(void);
-    void updateFriendlyIcons(void);
-
-private:
-    void updateFriendlyVisibilityState(void);
+    void updateFriendlyIcons();
 
 public:
     void updateWindowTitle(void);
@@ -282,8 +277,7 @@ private:
     QWidget *friendlyIconSeparator;
     QLabel *friendlyIconPlatform;
     
-    bool areFriendlyIconsVisible;
-    bool shouldShowFriendlyIcons;
+    bool bShowFriendlyIcons;
 
     bool recheckingThemeItem;
 

@@ -59,9 +59,6 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
     this->rwVersionButton = NULL;
     this->recheckingThemeItem = false;
 
-    this->areFriendlyIconsVisible = false;
-    this->shouldShowFriendlyIcons = true;
-
     // Initialize configuration to default.
     {
         this->lastTXDOpenDir = QDir::current().absolutePath();
@@ -794,7 +791,7 @@ void MainWindow::setCurrentTXD( rw::TexDictionary *txdObj )
 		clearViewImage();
 
         // Since we have no selected texture, we can hide the friendly icons.
-        this->hideFriendlyIcons();
+        // this->hideFriendlyIcons();
 
         this->currentSelectedTexture = NULL;
 
@@ -828,7 +825,7 @@ void MainWindow::updateTextureList( bool selectLastItemInList )
     // We have no more selected texture item.
     this->currentSelectedTexture = NULL;
 
-    this->hideFriendlyIcons();
+    // this->hideFriendlyIcons();
     
     if ( txdObj )
     {
@@ -927,9 +924,6 @@ void MainWindow::updateTextureMetaInfo( void )
 
         // We also want to update the exportability, as the format may have changed.
         this->UpdateExportAccessibility();
-
-        // We also want to update the friendly icons.
-        this->updateFriendlyIcons();
     }
 }
 
@@ -950,9 +944,6 @@ void MainWindow::updateAllTextureMetaInfo( void )
             texInfo->updateInfo();
         }
     }
-
-    // Also update our friendly icons.
-    this->updateFriendlyIcons();
 
     // Make sure we update exportability.
     this->UpdateExportAccessibility();
@@ -1034,6 +1025,8 @@ void MainWindow::openTxdFile(QString fileName) {
                             this->SetCurrentPlatform(this->GetTXDPlatform(newTXD));
 
                             this->setCurrentFilePath(fileName);
+
+                            this->updateFriendlyIcons();
                         }
                         else
                         {
@@ -1091,6 +1084,8 @@ void MainWindow::onCloseCurrent( bool checked )
     this->SetCurrentPlatform("");
 
     this->updateWindowTitle();
+
+    this->updateFriendlyIcons();
 }
 
 void MainWindow::onTextureItemChanged(QListWidgetItem *listItem, QListWidgetItem *prevTexInfoItem)
@@ -1101,18 +1096,7 @@ void MainWindow::onTextureItemChanged(QListWidgetItem *listItem, QListWidgetItem
 
     TexInfoWidget *texItem = dynamic_cast <TexInfoWidget*> ( listItemWidget );
 
-    if ( this->currentSelectedTexture == NULL && texItem != NULL )
-    {
-        this->showFriendlyIcons();
-    }
-    if ( this->currentSelectedTexture != NULL && texItem == NULL )
-    {
-        this->hideFriendlyIcons();
-    }
-
     this->currentSelectedTexture = texItem;
-
-    this->updateFriendlyIcons();
 
     this->updateTextureView();
 
@@ -1679,7 +1663,7 @@ void MainWindow::onRemoveTexture( bool checked )
             this->clearViewImage();
 
             // We should also hide the friendly icons, since they only should show if a texture is selected.
-            this->hideFriendlyIcons();
+            // this->hideFriendlyIcons();
         }
     }
 }
@@ -1978,7 +1962,7 @@ void MainWindow::onSetupTxdVersion(bool checked) {
                 RwVersionSets::eDataType platformDataTypeId = RwVersionSets::dataIdFromEnginePlatformName(platformName);
                 if (platformDataTypeId != RwVersionSets::RWVS_DT_NOT_DEFINED) {
                     int setIndex, platformIndex, dataTypeIndex;
-                    if (this->versionSets.matchExactSet(version, platformDataTypeId, setIndex, platformIndex, dataTypeIndex)) {
+                    if (this->versionSets.matchSet(version, platformDataTypeId, setIndex, platformIndex, dataTypeIndex)) {
                         this->verDlg->gameSelectBox->setCurrentIndex(setIndex + 1);
                         this->verDlg->platSelectBox->setCurrentIndex(platformIndex);
                         this->verDlg->dataTypeSelectBox->setCurrentIndex(dataTypeIndex);
