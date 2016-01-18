@@ -111,20 +111,9 @@ void CreateTxdDialog::OnRequestAccept(bool clicked)
     rw::LibraryVersion libVer;
     this->versionGUI.GetSelectedVersion(libVer);
 
-    int set = this->versionGUI.gameSelectBox->currentIndex();
-    int platform = this->versionGUI.platSelectBox->currentIndex();
-    int dataType = this->versionGUI.dataTypeSelectBox->currentIndex();
-
-    RwVersionSets::eDataType dataTypeId;
-
-    if (set == 0) // Custom
-        dataTypeId = (RwVersionSets::eDataType)(dataType + 1);
-    else
-        dataTypeId = this->mainWnd->versionSets.sets[set - 1].availablePlatforms[platform].availableDataTypes[dataType];
-
     newTXD->SetEngineVersion(libVer);
 
-    char const *currentPlatform = RwVersionSets::dataNameFromId(dataTypeId);
+    char const *currentPlatform = this->versionGUI.GetSelectedEnginePlatform();
 
     this->mainWnd->SetRecommendedPlatform(currentPlatform);
 

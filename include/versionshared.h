@@ -192,6 +192,29 @@ struct VersionSetSelection abstract : public QObject
         return hasValidVersion;
     }
 
+    const char* GetSelectedEnginePlatform( void ) const
+    {
+        int set = this->gameSelectBox->currentIndex();
+        int platform = this->platSelectBox->currentIndex();
+        int dataType = this->dataTypeSelectBox->currentIndex();
+
+        RwVersionSets::eDataType dataTypeId;
+
+        if (set == 0) // Custom
+        {
+            dataTypeId = (RwVersionSets::eDataType)(dataType + 1);
+        }
+        else
+        {
+            const RwVersionSets::Set& selectedSet = this->mainWnd->versionSets.sets[set - 1];
+            const RwVersionSets::Set::Platform& selectedPlatform = selectedSet.availablePlatforms[platform];
+
+            dataTypeId = selectedPlatform.availableDataTypes[dataType];
+        }
+
+        return RwVersionSets::dataNameFromId(dataTypeId);
+    }
+
     void InitializeVersionSelect( void )
     {
         this->OnChangeSelectedGame( 0 );

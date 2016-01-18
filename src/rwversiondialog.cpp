@@ -71,24 +71,6 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
     // Also patch the platform if feasible.
     if ( rw::TexDictionary *currentTXD = this->mainWnd->currentTXD )
     {
-        int set = this->versionGUI.gameSelectBox->currentIndex();
-        int platform = this->versionGUI.platSelectBox->currentIndex();
-        int dataType = this->versionGUI.dataTypeSelectBox->currentIndex();
-
-        RwVersionSets::eDataType dataTypeId;
-
-        if (set == 0) // Custom
-        {
-            dataTypeId = (RwVersionSets::eDataType)(dataType + 1);
-        }
-        else
-        {
-            const RwVersionSets::Set& selectedSet = this->mainWnd->versionSets.sets[set - 1];
-            const RwVersionSets::Set::Platform& selectedPlatform = selectedSet.availablePlatforms[platform];
-
-            dataTypeId = selectedPlatform.availableDataTypes[dataType];
-        }
-
         // todo: Maybe make SetEngineVersion sets the version for all children objects?
         currentTXD->SetEngineVersion(libVer);
 
@@ -100,7 +82,7 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
         }
 
         QString previousPlatform = this->mainWnd->GetCurrentPlatform();
-        QString currentPlatform = RwVersionSets::dataNameFromId(dataTypeId);
+        QString currentPlatform = this->versionGUI.GetSelectedEnginePlatform();
 
         // If platform was changed
         if (previousPlatform != currentPlatform)
