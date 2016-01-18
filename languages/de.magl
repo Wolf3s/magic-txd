@@ -86,7 +86,7 @@ Main.SetupRP.Cancel    Abbrechen
 
 # Setup TXD Version
 Main.SetupTV.Desc      TXD Version Setup
-Main.SetupTV.Set       Setzen
+Main.SetupTV.Set       Umgebung
 Main.SetupTV.Plat      Architektur
 Main.SetupTV.Data      Datentyp
 Main.SetupTV.Version   Version

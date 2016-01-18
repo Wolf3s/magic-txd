@@ -58,7 +58,6 @@ inline QString ansi_to_qt( const std::string& str )
 #include "guiserialization.h"
 #include "aboutdialog.h"
 #include "streamcompress.h"
-#include "createtxddlg.h"
 
 #include "MagicExport.h"
 

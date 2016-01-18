@@ -65,16 +65,18 @@ inline std::vector <std::string> PlatformImportanceSort( MainWindow *mainWnd, co
     try
     {
         // Initialize the nodes.
-        auto iter = platformNames.begin();
-
-        for ( size_t n = 0; n < platCount; n++ )
         {
-            const auto& curPlatName = *iter++;
+            auto iter = platformNames.begin();
 
-            weightedNode& curNode = nodes[ n ];
+            for ( size_t n = 0; n < platCount; n++ )
+            {
+                const auto& curPlatName = *iter++;
 
-            curNode.platName = curPlatName;
-            curNode.weight = 0;
+                weightedNode& curNode = nodes[ n ];
+
+                curNode.platName = curPlatName;
+                curNode.weight = 0;
+            }
         }
 
         // Cache some things we are going to need.
@@ -105,7 +107,7 @@ inline std::vector <std::string> PlatformImportanceSort( MainWindow *mainWnd, co
             }
 
             // If the platform makes sense in the TXD's version configuration, it is kinda important.
-            RwVersionSets::eDataType curDataType = RwVersionSets::dataIdFromEnginePlatformName( QString::fromStdString( name ) );
+            RwVersionSets::eDataType curDataType = RwVersionSets::dataIdFromEnginePlatformName( ansi_to_qt( name ) );
 
             if ( curDataType != RwVersionSets::RWVS_DT_NOT_DEFINED )
             {

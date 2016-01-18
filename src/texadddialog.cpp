@@ -680,7 +680,7 @@ QComboBox* TexAddDialog::createPlatformSelectComboBox(MainWindow *mainWnd)
         {
             const std::string& platName = *iter;
 
-            platformComboBox->addItem( QString::fromStdString( platName ) );
+            platformComboBox->addItem( ansi_to_qt( platName ) );
         }
     }
 
