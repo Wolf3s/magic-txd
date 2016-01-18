@@ -53,6 +53,7 @@ QVBoxLayout *CreateTopLevelVBoxLayout(QWidget *Parent) {
     return topLevelLayout;
 }
 
+// See CreateButtonL for localized version.
 QPushButton *CreateButton(QString Text, QWidget *Parent) {
     QPushButton *button = new QPushButton(Text, Parent);
     button->setMinimumWidth(90);

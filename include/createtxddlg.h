@@ -6,11 +6,13 @@
 
 class MainWindow;
 
-class CreateTxdDialog : public QDialog
+class CreateTxdDialog : public QDialog, public magicTextLocalizationItem
 {
 public:
     CreateTxdDialog(MainWindow *MainWnd);
-    //~CreateTxdDialog(void);
+    ~CreateTxdDialog(void);
+
+    void updateContent( MainWindow *mainWnd ) override;
 
     void UpdateAccessibility(void);
 

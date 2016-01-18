@@ -11,8 +11,6 @@ CreateTxdDialog::CreateTxdDialog(MainWindow *mainWnd) : QDialog(mainWnd), versio
 {
     this->mainWnd = mainWnd;
 
-    this->setWindowTitle(MAGIC_TEXT("New.Desc"));
-
     this->setAttribute(Qt::WA_DeleteOnClose);
     this->setWindowModality(Qt::WindowModality::WindowModal);
     this->setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -21,7 +19,7 @@ CreateTxdDialog::CreateTxdDialog(MainWindow *mainWnd) : QDialog(mainWnd), versio
     MagicLayout<QVBoxLayout> layout(this);
 
     QHBoxLayout *nameLayout = new QHBoxLayout;
-    QLabel *nameLabel = new QLabel(MAGIC_TEXT("New.Name"));
+    QLabel *nameLabel = CreateLabelL("New.Name");
     nameLabel->setObjectName("label25px");
     QLineEdit *nameEdit = new QLineEdit();
 
@@ -37,8 +35,8 @@ CreateTxdDialog::CreateTxdDialog(MainWindow *mainWnd) : QDialog(mainWnd), versio
 
     layout.top->addLayout( this->versionGUI.GetVersionRootLayout() );
 
-    QPushButton *buttonAccept = CreateButton(MAGIC_TEXT("New.Create"));
-    QPushButton *buttonCancel = CreateButton(MAGIC_TEXT("New.Cancel"));
+    QPushButton *buttonAccept = CreateButtonL("New.Create");
+    QPushButton *buttonCancel = CreateButtonL("New.Cancel");
 
     this->applyButton = buttonAccept;
 
@@ -52,6 +50,18 @@ CreateTxdDialog::CreateTxdDialog(MainWindow *mainWnd) : QDialog(mainWnd), versio
     this->versionGUI.InitializeVersionSelect();
     
     this->UpdateAccessibility();
+
+    RegisterTextLocalizationItem( this );
+}
+
+CreateTxdDialog::~CreateTxdDialog( void )
+{
+    UnregisterTextLocalizationItem( this );
+}
+
+void CreateTxdDialog::updateContent( MainWindow *mainWnd )
+{
+    this->setWindowTitle(MAGIC_TEXT("New.Desc"));
 }
 
 void CreateTxdDialog::UpdateAccessibility(void)
