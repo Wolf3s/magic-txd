@@ -58,7 +58,6 @@ inline QString ansi_to_qt( const std::string& str )
 #include "guiserialization.h"
 #include "aboutdialog.h"
 #include "streamcompress.h"
-#include "createtxddlg.h"
 
 #include "MagicExport.h"
 
@@ -94,6 +93,7 @@ private:
 public:
     void openTxdFile(QString fileName);
     void setCurrentTXD(rw::TexDictionary *txdObj);
+    rw::TexDictionary* getCurrentTXD(void)              { return this->currentTXD; }
     void updateTextureList(bool selectLastItemInList);
 
     void updateFriendlyIcons();
@@ -115,11 +115,11 @@ public:
 
     QString GetCurrentPlatform();
 
-    void SetCurrentPlatform(QString platform);
+    void SetRecommendedPlatform(QString platform);
 
     void ChangeTXDPlatform(rw::TexDictionary *txd, QString platform);
 
-    QString GetTXDPlatform(rw::TexDictionary *txd);
+    const char* GetTXDPlatform(rw::TexDictionary *txd);
 
 private:
     void DoAddTexture(const TexAddDialog::texAddOperation& params);
@@ -139,7 +139,7 @@ private:
         this->updateWindowTitle();
     }
 
-    public slots:
+public slots:
     void onCreateNewTXD(bool checked);
     void onOpenFile(bool checked);
     void onCloseCurrent(bool checked);
@@ -211,14 +211,12 @@ private:
 
     TexInfoWidget *currentSelectedTexture;
 
-    RwVersionSets versionSets;
-
     QFileInfo openedTXDFileInfo;
     bool hasOpenedTXDFileInfo;
 
     QString newTxdName;
 
-    QString currentTxdPlatform;
+    QString recommendedTxdPlatform;
 
     QListWidget *textureListWidget;
 
@@ -342,6 +340,8 @@ public:
 
     // Use this if you need to get a path relatively to app directory
     QString makeAppPath(QString subPath);
+
+    RwVersionSets versionSets;  // we need access to this in utilities.
 
     // NOTE: there are multiple ways to get absolute path to app directory coded in this editor!
 

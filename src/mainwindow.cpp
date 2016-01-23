@@ -24,6 +24,7 @@
 #include "massexport.h"
 #include "massbuild.h"
 #include "optionsdialog.h"
+#include "createtxddlg.h"
 #include "languages.h"
 
 #include "tools/txdgen.h"
@@ -58,6 +59,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
     this->optionsDlg = NULL;
     this->rwVersionButton = NULL;
     this->recheckingThemeItem = false;
+
+    this->recommendedTxdPlatform = "Direct3D9";
 
     // Initialize configuration to default.
     {
@@ -1022,8 +1025,6 @@ void MainWindow::openTxdFile(QString fileName) {
                             // Set it as our current object in the editor.
                             this->setCurrentTXD(newTXD);
 
-                            this->SetCurrentPlatform(this->GetTXDPlatform(newTXD));
-
                             this->setCurrentFilePath(fileName);
 
                             this->updateFriendlyIcons();
@@ -1080,8 +1081,6 @@ void MainWindow::onCloseCurrent( bool checked )
 
     // Make sure we got no TXD active.
     this->setCurrentTXD( NULL );
-
-    this->SetCurrentPlatform("");
 
     this->updateWindowTitle();
 
@@ -1367,6 +1366,8 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
 {
     TexAddDialog::texAddOperation::eAdditionType add_type = params.add_type;
 
+    bool hadEmptyTXD = ( this->currentTXD->GetTextureCount() == 0 );
+
     if ( add_type == TexAddDialog::texAddOperation::ADD_TEXCHUNK )
     {
         // This is just adding the texture chunk to our TXD.
@@ -1417,6 +1418,12 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
                 // Just continue.
             }
         }
+    }
+
+    // Update the friendly icons, since if TXD was empty, platform was set by giving first texture to TXD.
+    if ( hadEmptyTXD )
+    {
+        this->updateFriendlyIcons();
     }
 }
 
@@ -1863,15 +1870,27 @@ void MainWindow::clearViewImage()
 
 QString MainWindow::GetCurrentPlatform()
 {
-    return this->currentTxdPlatform;
+    // Attempt to get the platform from the current TXD, if present.
+    if ( rw::TexDictionary *currentTXD = this->currentTXD )
+    {
+        if ( const char *txdPlatName = this->GetTXDPlatform( currentTXD ) )
+        {
+            return txdPlatName;
+        }
+    }
+
+    // If we cannot get it from the actual TXD, the user's choice is just as important.
+    return this->recommendedTxdPlatform;
 }
 
-void MainWindow::SetCurrentPlatform(QString platform)
+void MainWindow::SetRecommendedPlatform(QString platform)
 {
-    this->currentTxdPlatform = platform;
+    // Please use this function only to set the user's preference.
+    // User selects something in GUI that should be honored by the editor.
+    this->recommendedTxdPlatform = platform;
 }
 
-QString MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
+const char* MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
 {
     if (txd->numTextures > 0) {
         for (rw::TexDictionary::texIter_t iter(txd->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
@@ -1886,13 +1905,11 @@ QString MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
             }
         }
     }
-    return QString();
+    return NULL;
 }
 
 void MainWindow::ChangeTXDPlatform( rw::TexDictionary *txd, QString platform )
 {
-    this->currentTxdPlatform = platform;
-
     // To change the platform of a TXD we have to set all of it's textures platforms.
     for ( rw::TexDictionary::texIter_t iter( txd->GetTextureIterator() ); !iter.IsEnd(); iter.Increment() )
     {
@@ -1952,49 +1969,7 @@ void MainWindow::onSetupTxdVersion(bool checked) {
         this->verDlg = dialog;
     }
 
-    if (this->verDlg) {
-        // Try to find a set for current txd version
-        bool setFound = false;
-        if (this->currentTXD) {
-            rw::LibraryVersion version = currentTXD->GetEngineVersion();
-            QString platformName = this->GetCurrentPlatform();
-            if (!platformName.isEmpty()) {
-                RwVersionSets::eDataType platformDataTypeId = RwVersionSets::dataIdFromEnginePlatformName(platformName);
-                if (platformDataTypeId != RwVersionSets::RWVS_DT_NOT_DEFINED) {
-                    int setIndex, platformIndex, dataTypeIndex;
-                    if (this->versionSets.matchSet(version, platformDataTypeId, setIndex, platformIndex, dataTypeIndex)) {
-                        this->verDlg->gameSelectBox->setCurrentIndex(setIndex + 1);
-                        this->verDlg->platSelectBox->setCurrentIndex(platformIndex);
-                        this->verDlg->dataTypeSelectBox->setCurrentIndex(dataTypeIndex);
-                        setFound = true;
-                    }
-                }
-            }
-        }
-
-        if (!setFound) {
-            if (this->verDlg->gameSelectBox->currentIndex() != 0)
-                this->verDlg->gameSelectBox->setCurrentIndex(0);
-            else
-                this->verDlg->OnChangeSelectedGame(0);
-            if (this->currentTXD) {
-                std::string verString =
-                    std::to_string(this->currentTXD->GetEngineVersion().rwLibMajor) + "." +
-                    std::to_string(this->currentTXD->GetEngineVersion().rwLibMinor) + "." +
-                    std::to_string(this->currentTXD->GetEngineVersion().rwRevMajor) + "." +
-                    std::to_string(this->currentTXD->GetEngineVersion().rwRevMinor);
-                std::string buildString;
-                if (this->currentTXD->GetEngineVersion().buildNumber != 0xFFFF)
-                {
-                    std::stringstream hex_stream;
-                    hex_stream << std::hex << this->currentTXD->GetEngineVersion().buildNumber;
-                    buildString = hex_stream.str();
-                }
-                this->verDlg->versionLineEdit->setText(ansi_to_qt(verString));
-                this->verDlg->buildLineEdit->setText(ansi_to_qt(buildString));
-            }
-        }
-    }
+    this->verDlg->updateVersionConfig();
 }
 
 void MainWindow::onShowOptions(bool checked)

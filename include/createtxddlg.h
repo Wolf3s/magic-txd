@@ -2,21 +2,41 @@
 
 #include <QDialog>
 
+#include "versionshared.h"
+
 class MainWindow;
 
-class CreateTxdDialog : public QDialog {
+class CreateTxdDialog : public QDialog, public magicTextLocalizationItem
+{
 public:
     CreateTxdDialog(MainWindow *MainWnd);
-    //~CreateTxdDialog(void);
+    ~CreateTxdDialog(void);
 
-    bool GetSelectedVersion(rw::LibraryVersion& verOut);
+    void updateContent( MainWindow *mainWnd ) override;
 
     void UpdateAccessibility(void);
 
+private:
+    struct CreateTxdVersionSet : public VersionSetSelection
+    {
+        inline CreateTxdVersionSet( MainWindow *mainWnd, CreateTxdDialog *dialog ) : VersionSetSelection( mainWnd )
+        {
+            this->dialog = dialog;
+        }
+
+        void NotifyUpdate( void ) override
+        {
+            // Update the button state of the main dialog.
+            dialog->UpdateAccessibility();
+        }
+
+    private:
+        CreateTxdDialog *dialog;
+    };
+
+    CreateTxdVersionSet versionGUI;
+
 public slots:
-    void OnChangeVersion(const QString& newText);
-    void OnChangeSelectedGame(int newIndex);
-    void OnChangeSelecteedPlatform(int newIndex);
     void OnRequestAccept(bool clicked);
     void OnRequestCancel(bool clicked);
     void OnUpdateTxdName(const QString& newText);
@@ -25,9 +45,4 @@ public slots:
 
     QLineEdit *txdName;
     QPushButton *applyButton;
-    QLineEdit *versionLineEdit;
-    QLineEdit *buildLineEdit;
-    QComboBox *gameSelectBox;
-    QComboBox *platSelectBox;
-    QComboBox *dataTypeSelectBox;
 };

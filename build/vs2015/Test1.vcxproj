@@ -680,6 +680,7 @@
     <ClCompile Include="..\..\src\qtutils.cpp" />
     <ClCompile Include="..\..\src\renderpropwindow.cpp" />
     <ClCompile Include="..\..\src\rwfswrap.cpp" />
+    <ClCompile Include="..\..\src\rwversiondialog.cpp" />
     <ClCompile Include="..\..\src\streamcompress.cpp" />
     <ClCompile Include="..\..\src\streamcompress.lzo.cpp" />
     <ClCompile Include="..\..\src\streamcompress.mh2z.cpp" />
@@ -722,6 +723,7 @@
     <ClInclude Include="..\..\include\txdlog.h" />
     <ClInclude Include="..\..\include\txdlogwindow.h" />
     <ClInclude Include="..\..\include\versionsets.h" />
+    <ClInclude Include="..\..\include\versionshared.h" />
     <ClInclude Include="..\..\magic_api\magfapi.h" />
     <ClInclude Include="..\..\magic_api\MagicFormats.h" />
     <ClInclude Include="..\..\src\guiserialization.hxx" />

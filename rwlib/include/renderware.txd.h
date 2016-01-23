@@ -591,6 +591,7 @@ struct TexDictionary : public RwObject
     inline TexDictionary( Interface *engineInterface, void *construction_params ) : RwObject( engineInterface, construction_params )
     {
         this->hasRecommendedPlatform = false;
+        this->recDevicePlatID = 0;  // zero means none.
 
         this->numTextures = 0;
 
@@ -601,6 +602,7 @@ struct TexDictionary : public RwObject
 	~TexDictionary( void );
 
     bool hasRecommendedPlatform;
+    uint16 recDevicePlatID;
 
     uint32 numTextures;
 
@@ -620,6 +622,11 @@ struct TexDictionary : public RwObject
     {
         return this->numTextures;
     }
+
+    // Returns the recommended texture platform for this TXD archive.
+    // Use this if you want to add textures in a format that the framework recommends.
+    // Can be NULL if there is no recommendation.
+    const char* GetRecommendedDriverPlatform( void ) const;
 };
 
 // Pixel capabilities are required for transporting data properly.
