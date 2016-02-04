@@ -840,20 +840,13 @@ struct SquareMatrix
 private:
     AINLINE static void multiplyWith( SquareMatrix& newMat, const SquareMatrix& left, const SquareMatrix& right )
     {
-        for ( size_t y_pos = 0; y_pos < dimm; y_pos++ )
+        // Optimized multiply based on linear combination of vectors.
+        // After all, the computer is very good at mutating things.
+        const SquareMatrix cachedLeftMat( left );
+
+        for ( size_t n = 0; n < dimm; n++ )
         {
-            for ( size_t x_pos = 0; x_pos < dimm; x_pos++ )
-            {
-                // Cross product of row and column vectors.
-                numberType val = numberType();
-
-                for ( size_t dimiter = 0; dimiter < dimm; dimiter++ )
-                {
-                    val += ( left[y_pos][dimiter] * right[dimiter][x_pos] );
-                }
-
-                newMat[ y_pos ][ x_pos ] = val;
-            }
+            newMat[n] = ( cachedLeftMat * right[ n ] );
         }
     }
 
@@ -879,18 +872,6 @@ public:
 
     // Transforming vectors.
     AINLINE vec_t operator * ( const vec_t& right ) const
-    {
-        vec_t newVec;
-
-        for ( size_t n = 0; n < dimm; n++ )
-        {
-            newVec += ( this->vecs[ n ] * right[ n ] );
-        }
-
-        return newVec;
-    }
-
-    AINLINE vec_t operator * ( vec_t&& right ) const
     {
         vec_t newVec;
 
