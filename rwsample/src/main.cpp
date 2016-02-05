@@ -34,6 +34,31 @@ namespace rw
 
     int32 rwmain( Interface *engineInterface )
     {
+        // Matrix test.
+        {
+            static RwMatrix newMat =
+            {
+                { 1, 2, 3, 4 },
+                { 6, 5, 3, 7 },
+                { 2, 7, 5, 4 },
+                { 2, 5, 4, 6 }
+            };
+
+            static RwMatrix srcIdent =
+            {
+                { 4, 5, 3, 4 },
+                { 8, 3, 7, 5 },
+                { 2, 1, 6, 3 },
+                { 5, 8, 4, 5 }
+            };
+
+            static RwMatrix target( newMat * srcIdent );
+
+            target *= 4.5;
+
+            __debugbreak();
+        }
+
         // Give information about the running application to the runtime.
         softwareMetaInfo metaInfo;
         metaInfo.applicationName = "RenderWare Sample";
