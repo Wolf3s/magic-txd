@@ -640,6 +640,7 @@ struct NativeTexturePS2
                 engineInterface->PixelFree( texels );
 
                 this->texels = NULL;
+                this->dataSize = 0;
             }
         }
 
