@@ -318,7 +318,7 @@ bool NativeTexturePS2::generatePS2GPUData(
     uint32 finalTexBasePointer = 0;
     uint32 finalClutBasePointer = 0;
 
-    if (gameVersion.rwLibMinor <= 3)
+    if (gameVersion.rwLibMinor <= 2)
     {
         // We actually preallocate the textures on the game engine GS memory.
         uint32 totalMemOffset = this->recommendedBufferBasePointer;
