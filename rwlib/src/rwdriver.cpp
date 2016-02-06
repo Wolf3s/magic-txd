@@ -567,6 +567,7 @@ void Driver::DestroyGraphicsState( DriverGraphicsState *pso )
 
 // Registration of driver general sub modules.
 extern void registerDriverResourceEnvironment( void );
+extern void registerDriverProgramManagerEnv( void );
 
 // Registration of driver implementations.
 extern void registerD3D12DriverImplementation( void );
@@ -578,6 +579,7 @@ void registerDriverEnvironment( void )
 
     // Now register important sub modules.
     registerDriverResourceEnvironment();
+    registerDriverProgramManagerEnv();
 
     // TODO: register all driver implementations.
     registerD3D12DriverImplementation();

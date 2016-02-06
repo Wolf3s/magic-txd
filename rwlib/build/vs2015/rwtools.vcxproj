@@ -404,6 +404,7 @@
     <ClInclude Include="..\..\src\rwdriver.d3d12.hxx" />
     <ClInclude Include="..\..\src\rwdriver.hxx" />
     <ClInclude Include="..\..\src\rwdriver.immbuf.hxx" />
+    <ClInclude Include="..\..\src\rwdriver.progman.hxx" />
     <ClInclude Include="..\..\src\rwendian.h" />
     <ClInclude Include="..\..\src\rwimaging.hxx" />
     <ClInclude Include="..\..\src\rwinterface.hxx" />
@@ -479,6 +480,8 @@
     <ClCompile Include="..\..\src\rwdriver.d3d12.raster.cpp" />
     <ClCompile Include="..\..\src\rwdriver.d3d12.swap.cpp" />
     <ClCompile Include="..\..\src\rwdriver.immbuf.cpp" />
+    <ClCompile Include="..\..\src\rwdriver.progman.cpp" />
+    <ClCompile Include="..\..\src\rwdriver.progman.hlsl.cpp" />
     <ClCompile Include="..\..\src\rwevents.cpp" />
     <ClCompile Include="..\..\src\rwfile.cpp" />
     <ClCompile Include="..\..\src\rwimaging.bmp.cpp" />
