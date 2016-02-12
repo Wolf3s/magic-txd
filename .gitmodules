@@ -1,0 +1,6 @@
+[submodule "rwlib/vendor/eirrepo"]
+	path = rwlib/vendor/eirrepo
+	url = https://github.com/quiret/eirshared
+[submodule "rwlib/vendor/NativeExecutive"]
+	path = rwlib/vendor/NativeExecutive
+	url = https://github.com/quiret/NativeExecutive.git
