@@ -12,9 +12,10 @@
 #ifndef _GLOBAL_MEMORY_UTILITIES_
 #define _GLOBAL_MEMORY_UTILITIES_
 
+#include <assert.h>
 #include <list>
 #include "rwlist.hpp"
-#include <CFileSystem.common.h>
+#include "MemoryRaw.h"
 #include <atomic>
 
 template <typename numberType>

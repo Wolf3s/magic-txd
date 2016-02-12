@@ -20,7 +20,7 @@
 #include <math.h>
 
 // Include some special vendor libraries.
-#include <CFileSystem.common.h>
+#include <sdk/MemoryRaw.h>
 #include <sdk/rwlist.hpp>
 #include <sdk/Endian.h>
 

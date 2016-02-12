@@ -1,6 +1,10 @@
 #ifndef _NATIVE_EXECUTIVE_MAIN_HEADER_
 #define _NATIVE_EXECUTIVE_MAIN_HEADER_
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+
 #include <assert.h>
 #include <algorithm>
 
