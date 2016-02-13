@@ -20,7 +20,7 @@
 #include <sdk/MemoryUtils.h>
 #include <sdk/rwlist.hpp>
 
-// test :)
+// test :(
 
 // Namespace simplification definitions.
 #define BEGIN_NATIVE_EXECUTIVE      namespace NativeExecutive {
