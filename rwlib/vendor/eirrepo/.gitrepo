@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/quiret/eirshared.git
+	branch = master
+	commit = a3c16ada8c86733cf04e0ad07d0249c4e12b2f27
+	parent = db2cfa34bcc446df809422727a9f1e10146c072a
+	cmdver = 0.3.0
