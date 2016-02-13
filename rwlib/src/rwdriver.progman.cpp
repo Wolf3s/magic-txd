@@ -164,13 +164,15 @@ bool UnregisterNativeProgramManager( EngineInterface *engineInterface, const cha
 }
 
 // Program API :)
-driverProgramHandle* CompileNativeProgram( EngineInterface *engineInterface, const char *nativeName, eDriverProgType progType, Stream *fileStream )
+driverProgramHandle* CompileNativeProgram( Interface *intf, const char *nativeName, eDriverProgType progType, const void *shaderSrc, size_t shaderSize )
 {
+    EngineInterface *engineInterface = (EngineInterface*)intf;
+
     driverProgramHandle *handle = NULL;
 
     if ( driverProgramManager *progMan = driverProgramManagerReg.GetPluginStruct( engineInterface ) )
     {
-
+        
     }
 
     return handle;
