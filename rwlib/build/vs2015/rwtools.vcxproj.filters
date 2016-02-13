@@ -216,6 +216,9 @@
     <ClInclude Include="..\..\src\rwdriver.progman.hxx">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\rwfile.system.hxx">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\dffread.cpp" />
@@ -294,6 +297,7 @@
     <ClCompile Include="..\..\src\txdwrite.psp.cpp" />
     <ClCompile Include="..\..\src\rwdriver.progman.cpp" />
     <ClCompile Include="..\..\src\rwdriver.progman.hlsl.cpp" />
+    <ClCompile Include="..\..\src\rwfile.system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="rwtools.natvis">

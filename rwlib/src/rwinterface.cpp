@@ -616,6 +616,7 @@ extern void registerTXDPlugins( void );
 extern void registerObjectExtensionsPlugins( void );
 extern void registerSerializationPlugins( void );
 extern void registerStreamGlobalPlugins( void );
+extern void registerFileSystemDataRepository( void );
 extern void registerImagingPlugin( void );
 extern void registerWindowingSystem( void );
 extern void registerDriverEnvironment( void );
@@ -664,6 +665,7 @@ Interface* CreateEngine( LibraryVersion theVersion )
             registerRasterConsistency();
             registerEventSystem();
             registerStreamGlobalPlugins();
+            registerFileSystemDataRepository();
             registerSerializationPlugins();
             registerObjectExtensionsPlugins();
             registerTXDPlugins();
