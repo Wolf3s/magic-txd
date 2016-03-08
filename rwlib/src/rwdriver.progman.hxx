@@ -107,7 +107,7 @@ extern PluginDependantStructRegister <driverProgramManager, RwInterfaceFactory_t
 bool RegisterNativeProgramManager( EngineInterface *engineInterface, const char *nativeName, driverNativeProgramManager *manager, size_t programSize );
 bool UnregisterNativeProgramManager( EngineInterface *engineInterface, const char *nativeName );
 
-driverProgramHandle* CompileNativeProgram( Interface *engineInterface, const char *nativeName, eDriverProgType progType, const void *shaderSource, size_t shaderSize );
+driverProgramHandle* CompileNativeProgram( Interface *engineInterface, const char *nativeName, eDriverProgType progType, const char *shaderSource, size_t shaderSize );
 
 void DeleteDriverProgram( driverProgramHandle *handle );
 

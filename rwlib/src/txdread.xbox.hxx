@@ -147,7 +147,7 @@ struct NativeTextureXBOX
     static void unswizzleMipmap( Interface *engineInterface, swizzleMipmapTraversal& pixelData );
 };
 
-inline eCompressionType getDXTCompressionTypeFromXBOX( uint32 xboxCompressionType )
+inline bool getDXTCompressionTypeFromXBOX( uint32 xboxCompressionType, eCompressionType& typeOut )
 {
     eCompressionType rwCompressionType = RWCOMPRESS_NONE;
 
@@ -175,11 +175,13 @@ inline eCompressionType getDXTCompressionTypeFromXBOX( uint32 xboxCompressionTyp
         }
         else
         {
-            assert( 0 );
+            // We have no idea.
+            return false;
         }
     }
 
-    return rwCompressionType;
+    typeOut = rwCompressionType;
+    return true;
 }
 
 inline void getXBOXNativeTextureSizeRules( nativeTextureSizeRules& rulesOut )
@@ -284,7 +286,16 @@ struct xboxNativeTextureTypeProvider : public texNativeTypeProvider
     {
         const NativeTextureXBOX *nativeTex = (const NativeTextureXBOX*)objMem;
 
-        return getDXTCompressionTypeFromXBOX( nativeTex->dxtCompression );
+        eCompressionType actualType;
+
+        bool gotType = getDXTCompressionTypeFromXBOX( nativeTex->dxtCompression, actualType );
+
+        if ( !gotType )
+        {
+            throw RwException( "invalid compression type in valid XBOX native texture" );
+        }
+
+        return actualType;
     }
 
     bool DoesTextureHaveAlpha( const void *objMem ) override

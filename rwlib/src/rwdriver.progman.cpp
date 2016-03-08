@@ -164,7 +164,7 @@ bool UnregisterNativeProgramManager( EngineInterface *engineInterface, const cha
 }
 
 // Program API :)
-driverProgramHandle* CompileNativeProgram( Interface *intf, const char *nativeName, eDriverProgType progType, const void *shaderSrc, size_t shaderSize )
+driverProgramHandle* CompileNativeProgram( Interface *intf, const char *nativeName, eDriverProgType progType, const char *shaderSrc, size_t shaderSize )
 {
     EngineInterface *engineInterface = (EngineInterface*)intf;
 
@@ -172,7 +172,7 @@ driverProgramHandle* CompileNativeProgram( Interface *intf, const char *nativeNa
 
     if ( driverProgramManager *progMan = driverProgramManagerReg.GetPluginStruct( engineInterface ) )
     {
-        
+        // Find the native compiler for this shader code.
     }
 
     return handle;
