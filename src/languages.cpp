@@ -57,10 +57,15 @@ bool RegisterTextLocalizationItem( magicTextLocalizationItem *provider )
         // Register this.
         ourLanguages.culturalItems.push_back( provider );
 
-        // If we have a loaded language, notify the item.
-        if ( ourLanguages.currentLanguage != -1 )
+        // Need to be initialized to update any content.
+        if ( ourLanguages.isInitialized )
         {
-            provider->updateContent( ourLanguages.mainWnd );
+            // Update the text in the language item.
+            // We do that all the time.
+            //if ( ourLanguages.currentLanguage != -1 )
+            {
+                provider->updateContent( ourLanguages.mainWnd );
+            }
         }
 
         success = true;

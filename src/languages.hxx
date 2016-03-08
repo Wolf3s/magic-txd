@@ -55,6 +55,8 @@ public:
 
     inline MagicLanguages( void )
     {
+        this->isInitialized = false;
+
         this->mainWnd = NULL;
 
         this->currentLanguage = -1;
@@ -67,17 +69,30 @@ public:
         // read languages
         scanForLanguages(mainWnd->makeAppPath("languages"));
 
+        bool hasAcquiredLanguage = false;
+
         if (mainWnd->lastLanguageFileName.isEmpty() || !selectLanguageByFileName(mainWnd->lastLanguageFileName)) // try to select previously saved language
         {
             if (!selectLanguageByLanguageName(DEFAULT_LANGUAGE)) // then try to set the language to default
             {
-                selectLanguageByIndex(0); // ok, enough
+                hasAcquiredLanguage = selectLanguageByIndex(0); // ok, enough
             }
         }
+
+        if ( !hasAcquiredLanguage )
+        {
+            // If we have not acquired a language, we must initialize using the placeholders.
+            updateLanguageContext();
+        }
+
+        // Allow initialization of language items during registration.
+        this->isInitialized = true;
     }
 
     inline void Shutdown( MainWindow *mainWnd )
     {
+        this->isInitialized = false;
+
         this->mainWnd = NULL;
     }
 
@@ -90,13 +105,17 @@ public:
         mainWnd->lastLanguageFileName = QString::fromStdWString( langfile_str );
 
         // Load the language.
-        selectLanguageByFileName( mainWnd->lastLanguageFileName );
+        bool loadedLanguage = selectLanguageByFileName( mainWnd->lastLanguageFileName );
+
+        // Since loading the configuration is optional, we do not care if we failed to load a language here.
     }
 
     void Save( const MainWindow *mainWnd, rw::BlockProvider& configBlock ) const
     {
         RwWriteUnicodeString( configBlock, mainWnd->lastLanguageFileName.toStdWString() );
     }
+
+    bool isInitialized;
 
     MainWindow *mainWnd;
 

@@ -48,9 +48,9 @@ TexDictionary* texDictionaryStreamPlugin::CreateTexDictionary( EngineInterface *
     return txdObj;
 }
 
-inline bool isRwObjectInheritingFrom( EngineInterface *engineInterface, RwObject *rwObj, RwTypeSystem::typeInfoBase *baseType )
+inline bool isRwObjectInheritingFrom( EngineInterface *engineInterface, const RwObject *rwObj, RwTypeSystem::typeInfoBase *baseType )
 {
-    GenericRTTI *rtObj = engineInterface->typeSystem.GetTypeStructFromAbstractObject( rwObj );
+    const GenericRTTI *rtObj = engineInterface->typeSystem.GetTypeStructFromConstAbstractObject( rwObj );
 
     if ( rtObj )
     {
@@ -71,6 +71,16 @@ TexDictionary* texDictionaryStreamPlugin::ToTexDictionary( EngineInterface *engi
     if ( isRwObjectInheritingFrom( engineInterface, rwObj, this->txdTypeInfo ) )
     {
         return (TexDictionary*)rwObj;
+    }
+
+    return NULL;
+}
+
+const TexDictionary* texDictionaryStreamPlugin::ToConstTexDictionary( EngineInterface *engineInterface, const RwObject *rwObj )
+{
+    if ( isRwObjectInheritingFrom( engineInterface, rwObj, this->txdTypeInfo ) )
+    {
+        return (const TexDictionary*)rwObj;
     }
 
     return NULL;
@@ -302,16 +312,28 @@ TexDictionary* ToTexDictionary( Interface *intf, RwObject *rwObj )
 {
     EngineInterface *engineInterface = (EngineInterface*)intf;
 
-    TexDictionary *texDictOut = NULL;
+    texDictionaryStreamPlugin *txdStream = texDictionaryStreamStore.GetPluginStruct( engineInterface );
+
+    if ( txdStream )
+    {
+        return txdStream->ToTexDictionary( engineInterface, rwObj );
+    }
+
+    return NULL;
+}
+
+const TexDictionary* ToConstTexDictionary( Interface *intf, const RwObject *rwObj )
+{
+    EngineInterface *engineInterface = (EngineInterface*)intf;
 
     texDictionaryStreamPlugin *txdStream = texDictionaryStreamStore.GetPluginStruct( engineInterface );
 
     if ( txdStream )
     {
-        texDictOut = txdStream->ToTexDictionary( engineInterface, rwObj );
+        return txdStream->ToConstTexDictionary( engineInterface, rwObj );
     }
 
-    return texDictOut;
+    return NULL;
 }
 
 /*
@@ -426,6 +448,18 @@ TextureBase* ToTexture( Interface *intf, RwObject *rwObj )
     if ( isRwObjectInheritingFrom( engineInterface, rwObj, engineInterface->textureTypeInfo ) )
     {
         return (TextureBase*)rwObj;
+    }
+
+    return NULL;
+}
+
+const TextureBase* ToConstTexture( Interface *intf, const RwObject *rwObj )
+{
+    EngineInterface *engineInterface = (EngineInterface*)intf;
+
+    if ( isRwObjectInheritingFrom( engineInterface, rwObj, engineInterface->textureTypeInfo ) )
+    {
+        return (const TextureBase*)rwObj;
     }
 
     return NULL;
@@ -2788,13 +2822,30 @@ inline bool isValidTexAddressingMode( uint32 binary_addressing )
 
 inline void SetFormatInfoToTexture(
     TextureBase& outTex,
-    uint32 binaryFilterMode, uint32 binary_uAddressing, uint32 binary_vAddressing
+    uint32 binaryFilterMode, uint32 binary_uAddressing, uint32 binary_vAddressing,
+    bool isLikelyToFail
 )
 {
     eRasterStageFilterMode rwFilterMode = RWFILTER_LINEAR;
 
     eRasterStageAddressMode rw_uAddressing = RWTEXADDRESS_WRAP;
     eRasterStageAddressMode rw_vAddressing = RWTEXADDRESS_WRAP;
+
+    // If we are likely to fail, we should check if we should even output warnings.
+    bool doOutputWarnings = true;
+
+    if ( isLikelyToFail )
+    {
+        // If we are likely to fail, we do not want to print as many warnings to the user.
+        doOutputWarnings = false;
+
+        const uint32 reqWarningLevel = 4;
+
+        if ( outTex.engineInterface->GetWarningLevel() >= reqWarningLevel )
+        {
+            doOutputWarnings = true;
+        }
+    }
 
     // Make sure they are valid.
     if ( isValidFilterMode( binaryFilterMode ) )
@@ -2803,7 +2854,10 @@ inline void SetFormatInfoToTexture(
     }
     else
     {
-        outTex.engineInterface->PushWarning( "texture " + outTex.GetName() + " has an invalid filter mode; defaulting to linear" );
+        if ( doOutputWarnings )
+        {
+            outTex.engineInterface->PushObjWarningVerb( &outTex, "has an invalid filter mode; defaulting to linear" );
+        }
     }
 
     if ( isValidTexAddressingMode( binary_uAddressing ) )
@@ -2812,7 +2866,10 @@ inline void SetFormatInfoToTexture(
     }
     else
     {
-        outTex.engineInterface->PushWarning( "texture " + outTex.GetName() + " has an invalid uAddressing mode; defaulting to wrap" );
+        if ( doOutputWarnings )
+        {
+            outTex.engineInterface->PushObjWarningVerb( &outTex, "has an invalid uAddressing mode; defaulting to wrap" );
+        }
     }
 
     if ( isValidTexAddressingMode( binary_vAddressing ) )
@@ -2821,7 +2878,10 @@ inline void SetFormatInfoToTexture(
     }
     else
     {
-        outTex.engineInterface->PushWarning( "texture " + outTex.GetName() + " has an invalid vAddressing mode; defaulting to wrap" );
+        if ( doOutputWarnings )
+        {
+            outTex.engineInterface->PushObjWarningVerb( &outTex, "has an invalid vAddressing mode; defaulting to wrap" );
+        }
     }
 
     // Put the fields.
@@ -2830,7 +2890,7 @@ inline void SetFormatInfoToTexture(
     outTex.SetVAddressing( rw_vAddressing );
 }
 
-void texFormatInfo::parse(TextureBase& outTex) const
+void texFormatInfo::parse(TextureBase& outTex, bool isLikelyToFail) const
 {
     // Read our fields, which are from a binary stream.
     uint32 binaryFilterMode = this->filterMode;
@@ -2840,7 +2900,8 @@ void texFormatInfo::parse(TextureBase& outTex) const
 
     SetFormatInfoToTexture(
         outTex,
-        binaryFilterMode, binary_uAddressing, binary_vAddressing
+        binaryFilterMode, binary_uAddressing, binary_vAddressing,
+        isLikelyToFail
     );
 }
 
@@ -2879,7 +2940,8 @@ void wardrumFormatInfo::parse(TextureBase& outTex) const
 
     SetFormatInfoToTexture(
         outTex,
-        binaryFilterMode, binary_uAddressing, binary_vAddressing
+        binaryFilterMode, binary_uAddressing, binary_vAddressing,
+        false
     );
 }
 

@@ -56,7 +56,7 @@ private:
     uint32 pad1 : 16;
 
 public:
-    void parse(TextureBase& theTexture) const;
+    void parse(TextureBase& theTexture, bool isLikelyToFail = false) const;
     void set(const TextureBase& inTex);
 
     void writeToBlock(BlockProvider& outputProvider) const;
@@ -791,9 +791,11 @@ struct RwUnsupportedOperationException : public RwException
 // Plugin methods.
 TexDictionary* CreateTexDictionary( Interface *engineInterface );
 TexDictionary* ToTexDictionary( Interface *engineInterface, RwObject *rwObj );
+const TexDictionary* ToConstTexDictionary( Interface *engineInterface, const RwObject *rwObj );
 
 TextureBase* CreateTexture( Interface *engineInterface, Raster *theRaster );
 TextureBase* ToTexture( Interface *engineInterface, RwObject *rwObj );
+const TextureBase* ToConstTexture( Interface *engineInterface, const RwObject *rwObj );
 
 typedef std::list <std::string> platformTypeNameList_t;
 

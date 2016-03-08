@@ -149,6 +149,59 @@ void Interface::PushWarning( std::string&& message )
     }
 }
 
+void Interface::PushObjWarningVerb( const RwObject *theObj, const std::string& verbMsg )
+{
+    // TODO: actually make this smarter.
+
+    EngineInterface *engineInterface = (EngineInterface*)this;
+
+    // Print the appropriate warning depending on object type.
+    // We can use the object type information for that.
+    std::string printMsg;
+    {
+        const GenericRTTI *rtObj = engineInterface->typeSystem.GetTypeStructFromConstAbstractObject( theObj );
+
+        if ( rtObj )
+        {
+            RwTypeSystem::typeInfoBase *objTypeInfo = RwTypeSystem::GetTypeInfoFromTypeStruct( rtObj );
+
+            printMsg += objTypeInfo->name;
+        }
+        else
+        {
+            printMsg += "unknown-obj";
+        }
+    }
+
+    printMsg += ' ';
+
+    // Print some sort of name if available.
+    bool hasName = false;
+
+    if ( const TextureBase *texHandle = ToConstTexture( engineInterface, theObj ) )
+    {
+        const std::string& texName = texHandle->GetName();
+
+        if ( texName.empty() == false )
+        {
+            printMsg += "'" + texName + "'";
+
+            hasName = true;
+        }
+    }
+
+    if ( hasName )
+    {
+        printMsg += ' ';
+    }
+
+    // Now comes the verbual message.
+    printMsg += verbMsg;
+
+    // Give the message to the warning system.
+    PushWarning( std::move( printMsg ) );
+}
+
 void GlobalPushWarningHandler( EngineInterface *engineInterface, WarningHandler *theHandler )
 {
     warningHandlerPlugin *whandlerEnv = warningHandlerPluginRegister.GetPluginStruct( engineInterface );

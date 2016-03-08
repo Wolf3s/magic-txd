@@ -865,6 +865,12 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
 
                 strTargetVersion = "Bully";
             }
+            else if ( targetGame == GAME_LCS )
+            {
+                targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::LCS_PSP );
+
+                strTargetVersion = "Liberty City Stories";
+            }
             else
             {
                 targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::SA );
@@ -884,6 +890,10 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         else if ( cfg.c_targetPlatform == PLATFORM_PS2 )
         {
             strTargetPlatform = "PS2";
+        }
+        else if ( cfg.c_targetPlatform == PLATFORM_PSP )
+        {
+            strTargetPlatform = "PSP";
         }
         else if ( cfg.c_targetPlatform == PLATFORM_XBOX )
         {

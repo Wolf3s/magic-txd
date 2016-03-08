@@ -33,6 +33,7 @@ struct texDictionaryStreamPlugin : public serializationProvider
     // Creation functions.
     TexDictionary*  CreateTexDictionary( EngineInterface *engineInterface ) const;
     TexDictionary*  ToTexDictionary( EngineInterface *engineInterface, RwObject *rwObj );
+    const TexDictionary* ToConstTexDictionary( EngineInterface *engineInterface, const RwObject *rwObj );
 
     // Serialization functions.
     void        Serialize( Interface *engineInterface, BlockProvider& outputProvider, RwObject *objectToSerialize ) const;

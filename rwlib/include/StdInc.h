@@ -122,7 +122,7 @@ struct EngineInterface : public Interface
 
 typedef EngineInterface::RwTypeSystem RwTypeSystem;
 
-// Use this function is you need a string that describes the currently running RenderWare environment.
+// Use this function if you need a string that describes the currently running RenderWare environment.
 // It uses the application variables of EngineInterface.
 std::string GetRunningSoftwareInformation( EngineInterface *engineInterface, bool outputShort = false );
 
@@ -451,6 +451,38 @@ AINLINE void moveDataByDepth( void *dstArrayData, const void *srcArrayData, rw::
     else if (depth == 32)
     {
         typedef PixelFormat::typedcolor <uint32> theColor;
+
+        // Get the src item.
+        theColor *srcData = (theColor*)srcArrayData;
+
+        theColor::trav_t travItem;
+
+        srcData->getvalue(srcArrayIndex, travItem);
+
+        // Put the dst item.
+        theColor *dstData = (theColor*)dstArrayData;
+
+        dstData->setvalue(targetArrayIndex, travItem);
+    }
+    else if (depth == 64)
+    {
+        typedef PixelFormat::typedcolor <uint64> theColor;
+
+        // Get the src item.
+        theColor *srcData = (theColor*)srcArrayData;
+
+        theColor::trav_t travItem;
+
+        srcData->getvalue(srcArrayIndex, travItem);
+
+        // Put the dst item.
+        theColor *dstData = (theColor*)dstArrayData;
+
+        dstData->setvalue(targetArrayIndex, travItem);
+    }
+    else if (depth == 128)
+    {
+        typedef PixelFormat::typedcolor <__m128> theColor;
 
         // Get the src item.
         theColor *srcData = (theColor*)srcArrayData;

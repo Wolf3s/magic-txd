@@ -56,6 +56,10 @@ LibraryVersion KnownVersions::getGameVersion( KnownVersions::eGameVersion gameVe
         outVer.rwRevMinor = 2;
         outVer.buildNumber = 10;
     }
+    else if ( gameVer == LCS_PSP )
+    {
+        outVer.rwLibMinor = 1;
+    }
 
     return outVer;
 }

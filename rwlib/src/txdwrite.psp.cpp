@@ -169,6 +169,156 @@ void pspNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
     engineInterface->SerializeExtensions( theTexture, inputProvider );
 }
 
+inline bool TranscodePermutePSPMipmapLayer_native(
+    Interface *engineInterface,
+    uint32 layerWidth, uint32 layerHeight, const void *srcTexels,
+    uint32 srcDepth, uint32 srcRowAlignment,
+    uint32 dstDepth, uint32 dstRowAlignment,
+    eFormatEncodingType swizzlePermutationEncoding,
+    bool doSwizzleOrUnswizzle,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+)
+{
+    void *dstTexels = NULL;
+    uint32 dstDataSize = 0;
+
+    bool success = false;
+
+    if ( swizzlePermutationEncoding == eFormatEncodingType::FORMAT_TEX32 )
+    {
+        assert( srcDepth == dstDepth );
+        assert( srcDepth == 32 );
+
+        // TODO: we can generalize this routine into a pixel-block-unpacker algorithm based on little-data.
+
+        // In contrast to the Graphics Synthesizer memory encoding, the PSP appears to have a mixture
+        // between column-based encoding and binary buffer linear placement encoding.
+        // The strength of the latter is that ít permute things differently based on the image dimensions.
+        // It is what we want to implement here.
+        const uint32 permDepth = 128;
+
+        const uint32 permItemCount = ( permDepth / srcDepth );
+
+        uint32 permutePane_width = ( layerWidth / permItemCount );
+        uint32 permutePane_height = ( layerHeight );
+
+        const uint32 psmct32_permCluster_width = 1;
+        const uint32 psmct32_permCluster_height = 8;
+
+        uint32 cols_width = ( ALIGN_SIZE( permutePane_width, psmct32_permCluster_width ) / psmct32_permCluster_width );
+        uint32 cols_height = ( ALIGN_SIZE( permutePane_height, psmct32_permCluster_height ) / psmct32_permCluster_height );
+
+        // Allocate the destination array.
+        uint32 dstRowSize = getRasterDataRowSize( layerWidth, dstDepth, dstRowAlignment );
+
+        dstDataSize = getRasterDataSizeByRowSize( dstRowSize, layerHeight );
+
+        dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+        if ( !dstTexels )
+        {
+            throw RwException( "failed to allocate pixel buffer for PSP native texture decoding" );
+        }
+
+        uint32 srcRowSize = getRasterDataRowSize( layerWidth, srcDepth, srcRowAlignment );
+
+        try
+        {
+            uint32 packedData_xOff = 0;
+            uint32 packedData_yOff = 0;
+
+            for ( uint32 colY = 0; colY < cols_height; colY++ )
+            {
+                uint32 col_y_pixelOff = ( colY * psmct32_permCluster_height );
+
+                for ( uint32 colX = 0; colX < cols_width; colX++ )
+                {
+                    uint32 col_x_pixelOff = ( colX * psmct32_permCluster_width );
+
+                    for ( uint32 cluster_y = 0; cluster_y < psmct32_permCluster_height; cluster_y++ )
+                    {
+                        uint32 perm_y_off = ( col_y_pixelOff + cluster_y );
+
+                        for ( uint32 cluster_x = 0; cluster_x < psmct32_permCluster_width; cluster_x++ )
+                        {
+                            uint32 perm_x_off = ( col_x_pixelOff + cluster_x );
+
+                            // Move the item.
+                            const void *srcDataPtr = NULL;
+                            void *dstDataPtr = NULL;
+
+                            // Determine the pointer configuration.
+                            uint32 src_pos_x = 0;
+                            uint32 src_pos_y = 0;
+
+                            uint32 dst_pos_x = 0;
+                            uint32 dst_pos_y = 0;
+
+                            if ( doSwizzleOrUnswizzle )
+                            {
+                                // We want to swizzle.
+                                // This means the source is raw 2D plane, the destination is linear aligned binary buffer.
+                                src_pos_x = perm_x_off;
+                                src_pos_y = perm_y_off;
+
+                                dst_pos_x = packedData_xOff;
+                                dst_pos_y = packedData_yOff;
+                            }
+                            else
+                            {
+                                // We want to unswizzle.
+                                // This means the source is linear aligned binary buffer, dest is raw 2D plane.
+                                src_pos_x = packedData_xOff;
+                                src_pos_y = packedData_yOff;
+
+                                dst_pos_x = perm_x_off;
+                                dst_pos_y = perm_y_off;
+                            }
+
+                            if ( src_pos_x <= permutePane_width && src_pos_y <= permutePane_height &&
+                                 dst_pos_x <= permutePane_width && dst_pos_y <= permutePane_height )
+                            {
+                                // Move data if in valid bounds.
+                                const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
+                                void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
+
+                                moveDataByDepth( dstRow, srcRow, permDepth, dst_pos_x, src_pos_x );
+                            }
+
+                            // Advance the packed pointer.
+                            packedData_xOff++;
+
+                            if ( packedData_xOff >= permutePane_width )
+                            {
+                                packedData_xOff = 0;
+                                packedData_yOff++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch( ... )
+        {
+            engineInterface->PixelFree( dstTexels );
+
+            throw;
+        }
+
+        success = true;
+    }
+    // Otherwise we have encountered an unknown permutation strategy.
+    // Should not happen, but we handle it safely in case.
+
+    if ( success )
+    {
+        dstTexelsOut = dstTexels;
+        dstDataSizeOut = dstDataSize;
+    }
+
+    return success;
+}
+
 inline bool DecodePSPMipmapLayer(
     Interface *engineInterface,
     uint32 layerWidth, uint32 layerHeight, const void *srcTexels, uint32 srcDataSize,
@@ -184,47 +334,74 @@ inline bool DecodePSPMipmapLayer(
     uint32 dstDataSize = 0;
 
     // If the texture is swizzled, we want to unswizzle it.
+    // If requiresTexelCopy == true, then color data has already been copied in destination
+    // row format into dstTexels.
     bool requiresTexelCopy = false;
 
     if ( isSwizzled )
     {
-        // We want to get pseudo-packed dimensions.
-        // Unfortunately we cannot use the correct method of obtaining the packed dimensions,
-        // because the lowest mipmap levels must be handled broken.
-        uint32 packedWidth, packedHeight;
-
-        // Get the broken ones.
-        bool gotBrokenDimms = getPSPBrokenPackedFormatDimensions(
-            swizzleRawFormatEncoding, swizzleColorBufferFormat,
-            layerWidth, layerHeight,
-            packedWidth, packedHeight
-        );
-
-        if ( !gotBrokenDimms )
+        // Unswizzling depends on whether we are handling a packing-conversion or a simple permutation-conversion.
+        if ( swizzleRawFormatEncoding == swizzleColorBufferFormat )
         {
-            // We can abort fetching mipmaps at any time.
-            // It goes well with direct acquisition too, because not getting one layer
-            // does not change the end result, as long as the result is not empty.
-            return false;
+            // This is the permutation convention. Texture data is not packed into smaller units but permuted on a large panel.
+            bool couldTranscode =
+                TranscodePermutePSPMipmapLayer_native(
+                    engineInterface, layerWidth, layerHeight, srcTexels,
+                    srcDepth, srcRowAlignment,
+                    dstDepth, dstRowAlignment,
+                    swizzleRawFormatEncoding,
+                    false,
+                    dstTexels, dstDataSize
+                );
+
+            if ( !couldTranscode )
+            {
+                // Something went wrong, so bail.
+                return false;
+            }
+
+            requiresTexelCopy = false;
         }
-
-        dstTexels = pspMemoryEncoding::transformImageData(
-            engineInterface,
-            swizzleColorBufferFormat, swizzleRawFormatEncoding,
-            srcTexels, packedWidth, packedHeight,
-            srcRowAlignment, dstRowAlignment,
-            layerWidth, layerHeight,
-            dstDataSize, true,
-            true
-        );
-
-        if ( !dstTexels )
+        else
         {
-            throw RwException( "failed to unswizzle PSP native texture color buffer" );
-        }
+            // We want to get pseudo-packed dimensions.
+            // Unfortunately we cannot use the correct method of obtaining the packed dimensions,
+            // because the lowest mipmap levels must be handled broken.
+            uint32 packedWidth, packedHeight;
 
-        // Since we already have the texels in the destination buffer, we do not require a copy anymore.
-        requiresTexelCopy = false;
+            // Get the broken ones.
+            bool gotBrokenDimms = getPSPBrokenPackedFormatDimensions(
+                swizzleRawFormatEncoding, swizzleColorBufferFormat,
+                layerWidth, layerHeight,
+                packedWidth, packedHeight
+            );
+
+            if ( !gotBrokenDimms )
+            {
+                // We can abort fetching mipmaps at any time.
+                // It goes well with direct acquisition too, because not getting one layer
+                // does not change the end result, as long as the result is not empty.
+                return false;
+            }
+
+            dstTexels = pspMemoryEncoding::transformImageData(
+                engineInterface,
+                swizzleColorBufferFormat, swizzleRawFormatEncoding,
+                srcTexels, packedWidth, packedHeight,
+                srcRowAlignment, dstRowAlignment,
+                layerWidth, layerHeight,
+                dstDataSize, true,
+                true
+            );
+
+            if ( !dstTexels )
+            {
+                throw RwException( "failed to unswizzle PSP native texture color buffer" );
+            }
+
+            // Since we already have the texels in the destination buffer, we do not require a copy anymore.
+            requiresTexelCopy = false;
+        }
     }
     else
     {
@@ -339,13 +516,11 @@ void pspNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
 
     uint32 srcRowAlignment = getPSPTextureDataRowAlignment();
 
-    bool isSwizzled = nativeTex->isSwizzled;
+    size_t mipmapCount = nativeTex->mipmaps.size();
 
     // If data is swizzled, we need to know about the color buffer format conversions.
     eFormatEncodingType swizzleColorBufferFormat = FORMAT_UNKNOWN;
     eFormatEncodingType swizzleRawFormatEncoding = FORMAT_UNKNOWN;
-
-    if ( isSwizzled )
     {
         swizzleColorBufferFormat = nativeTex->colorBufferFormat;
         swizzleRawFormatEncoding = getFormatEncodingFromRasterFormat( srcRasterFormat, srcPaletteType );
@@ -360,8 +535,6 @@ void pspNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
     ePaletteType dstPaletteType = srcPaletteType;
 
     // Convert the mipmap layers.
-    size_t mipmapCount = nativeTex->mipmaps.size();
-
     try
     {
         size_t mip_index = 0;
@@ -379,6 +552,9 @@ void pspNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
             void *dstTexels = NULL;
             uint32 dstDataSize = 0;
 
+            // Check if this layer is swizzled.
+            bool isLayerSwizzled = srcLayer.isSwizzled;
+
             bool couldDecodeLayer = 
                 DecodePSPMipmapLayer(
                     engineInterface,
@@ -386,7 +562,7 @@ void pspNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
                     srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
                     dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType,
                     srcPaletteSize,
-                    isSwizzled,
+                    isLayerSwizzled,
                     swizzleRawFormatEncoding, swizzleColorBufferFormat,
                     dstTexels, dstDataSize
                 );
@@ -578,36 +754,62 @@ inline bool TranscodeMipmapToPSPFormat(
 
         if ( requiresSwizzle )
         {
-            // We simply swizzle the data.
-            // For that we need the packed dimensions.
-            uint32 packedWidth, packedHeight;
+            void *swizzleTexels = NULL;
+            uint32 swizzleDataSize = 0;
 
-            bool gotBrokenPackedDimms = getPSPBrokenPackedFormatDimensions(
-                swizzleRawFormatEncoding, swizzleColorBufferFormat,
-                layerWidth, layerHeight,
-                packedWidth, packedHeight
-            );
+            bool swizzleSuccess = false;
 
-            if ( gotBrokenPackedDimms )
+            // Decide whether we need a permutation or packing conversion.
+            if ( swizzleRawFormatEncoding == swizzleColorBufferFormat )
             {
-                // Do it!
-                uint32 swizzleDataSize;
+                // Do the permutation, eh.
+                TranscodePermutePSPMipmapLayer_native(
+                    engineInterface, layerWidth, layerHeight, linearTransColors,
+                    dstDepth, transRowAlignment,
+                    dstDepth, dstRowAlignment,
+                    swizzleRawFormatEncoding,
+                    true,
+                    swizzleTexels, swizzleDataSize
+                );
+                
+                swizzleSuccess = true;
+            }
+            else
+            {
+                // We simply swizzle the data.
+                // For that we need the packed dimensions.
+                uint32 packedWidth, packedHeight;
 
-                void *swizzleTexels = pspMemoryEncoding::transformImageData(
-                    engineInterface,
+                bool gotBrokenPackedDimms = getPSPBrokenPackedFormatDimensions(
                     swizzleRawFormatEncoding, swizzleColorBufferFormat,
-                    linearTransColors, layerWidth, layerHeight,
-                    transRowAlignment, dstRowAlignment,
-                    packedWidth, packedHeight,
-                    swizzleDataSize,
-                    true, true
+                    layerWidth, layerHeight,
+                    packedWidth, packedHeight
                 );
 
-                if ( !swizzleTexels )
+                if ( gotBrokenPackedDimms )
                 {
-                    throw RwException( "failed to swizzle mipmap data for PSP native texture" );
-                }
+                    // Do it!
+                    swizzleTexels = pspMemoryEncoding::transformImageData(
+                        engineInterface,
+                        swizzleRawFormatEncoding, swizzleColorBufferFormat,
+                        linearTransColors, layerWidth, layerHeight,
+                        transRowAlignment, dstRowAlignment,
+                        packedWidth, packedHeight,
+                        swizzleDataSize,
+                        true, true
+                    );
 
+                    if ( !swizzleTexels )
+                    {
+                        throw RwException( "failed to swizzle mipmap data for PSP native texture" );
+                    }
+
+                    swizzleSuccess = true;
+                }
+            }
+
+            if ( swizzleSuccess )
+            {
                 if ( linearTransColors == allocatedTexels )
                 {
                     // Free the old texels.
@@ -759,11 +961,15 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
     {
         // I suspect that the PSP native texture supports RASTER_1555 and RASTER_8888 only.
         // This is the featureset of the PS2 native texture aswell.
+
+        // TODO: if there is ever gonna be a 16bit texture, then add support for it.
+#if 0
         if ( srcRasterFormat == RASTER_555 || srcRasterFormat == RASTER_1555 )
         {
             dstDepth = 16;
         }
         else
+#endif
         {
             dstDepth = 32;
         }
@@ -771,19 +977,9 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
         dstRasterFormat = decodeDepthRasterFormat( dstDepth, dstColorOrder, dstPaletteType );
     }
 
-    // Decide whether we have to swizzle things.
-    bool requiresSwizzle = false;
-    {
-        const pixelDataTraversal::mipmapResource& baseLayer = pixelsIn.mipmaps[ 0 ];
-
-        requiresSwizzle = isPSPSwizzlingRequired( baseLayer.mipWidth, baseLayer.mipHeight, dstDepth );
-    }
-
     // If we want to swizzle, we also want to know the color buffer format conversion parameters.
     eFormatEncodingType swizzleColorBufferFormat = FORMAT_UNKNOWN;
     eFormatEncodingType swizzleRawFormatEncoding = FORMAT_UNKNOWN;
-
-    if ( requiresSwizzle )
     {
         swizzleColorBufferFormat = getPSPHardwareColorBufferFormat( dstDepth );
 
@@ -819,6 +1015,9 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
         void *dstTexels = NULL;
         uint32 dstDataSize = 0;
 
+        // Does this layer need swizzling?
+        bool doesLayerNeedSwizzling = isPSPSwizzlingRequired( layerWidth, layerHeight, dstDepth );
+
         bool couldTranscodeLayer =
             TranscodeMipmapToPSPFormat(
                 engineInterface,
@@ -826,7 +1025,7 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
                 srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
                 dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType,
                 srcPaletteSize, // == dstPaletteSize
-                requiresSwizzle, requiresMipmapDestinationConversion,
+                doesLayerNeedSwizzling, requiresMipmapDestinationConversion,
                 swizzleRawFormatEncoding, swizzleColorBufferFormat,
                 dstTexels, dstDataSize
             );
@@ -839,6 +1038,8 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
             newLayer.height = layerHeight;
             newLayer.texels = dstTexels;
             newLayer.dataSize = dstDataSize;
+
+            newLayer.isSwizzled = doesLayerNeedSwizzling;
 
             nativeTex->mipmaps.push_back( std::move( newLayer ) );
         }
@@ -896,7 +1097,6 @@ void pspNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
     }
 
     nativeTex->depth = dstDepth;
-    nativeTex->isSwizzled = requiresSwizzle;
     nativeTex->colorBufferFormat = swizzleColorBufferFormat;
     nativeTex->palette = dstPaletteData;
     nativeTex->unk = 0;
@@ -996,7 +1196,7 @@ struct pspMipmapManager
 
         uint32 paletteSize = getPaletteItemCount( paletteType );
 
-        bool isSwizzled = nativeTex->isSwizzled;
+        bool isSwizzled = mipLayer.isSwizzled;
 
         eFormatEncodingType swizzleColorBufferFormat = FORMAT_UNKNOWN;
         eFormatEncodingType swizzleRawFormatEncoding = FORMAT_UNKNOWN;
@@ -1092,7 +1292,8 @@ struct pspMipmapManager
 
         eRasterFormat dstRasterFormat = decodeDepthRasterFormat( dstDepth, dstColorOrder, dstPaletteType );
 
-        bool isSwizzled = nativeTex->isSwizzled;
+        // Calculate whether this layer needs swizzling.
+        bool isSwizzled = isPSPSwizzlingRequired( layerWidth, layerHeight, dstDepth );
 
         eFormatEncodingType swizzleColorBufferFormat = FORMAT_UNKNOWN;
         eFormatEncodingType swizzleRawFormatEncoding = FORMAT_UNKNOWN;
@@ -1177,6 +1378,8 @@ struct pspMipmapManager
                 mipLayer.height = surfHeight;
                 mipLayer.texels = encodedTexels;
                 mipLayer.dataSize = encodedDataSize;
+
+                mipLayer.isSwizzled = isSwizzled;
             }
             catch( ... )
             {

@@ -21,7 +21,7 @@ namespace permutationUtilities
         const uint32 *permutationData_primCol, const uint32 *permutationData_secCol, uint32 permWidth, uint32 permHeight,
         uint32 permutationStride, uint32 permHoriSplit,
         uint32 srcRowAlignment, uint32 dstRowAlignment,
-        bool revert
+        bool revert, bool isPackingConvention = true
         )
     {
         // Get the dimensions of a column as expressed in units of the permutation format.
@@ -104,17 +104,34 @@ namespace permutationUtilities
                         uint32 local_pixel_yOff = ( newPixelLoc / permIterWidth );
 
                         // Get the combined pixel position.
-                        uint32 source_pixel_xOff = ( source_colX_pixeloff + local_pixel_xOff );
-                        uint32 source_pixel_yOff = ( source_colY_pixeloff + local_pixel_yOff );
+                        uint32 source_pixel_xOff = ( source_colX_pixeloff );
+                        uint32 source_pixel_yOff = ( source_colY_pixeloff );
 
-                        uint32 target_pixel_xOff = ( target_colX_pixeloff + permX );
-                        uint32 target_pixel_yOff = ( target_colY_pixeloff + permY );
+                        uint32 target_pixel_xOff = ( target_colX_pixeloff );
+                        uint32 target_pixel_yOff = ( target_colY_pixeloff );
+
+                        if ( isPackingConvention )
+                        {
+                            source_pixel_xOff += local_pixel_xOff;
+                            source_pixel_yOff += local_pixel_yOff;
+
+                            target_pixel_xOff += permX;
+                            target_pixel_yOff += permY;
+                        }
+                        else
+                        {
+                            source_pixel_xOff += permX;
+                            source_pixel_yOff += permY;
+
+                            target_pixel_xOff += local_pixel_xOff;
+                            target_pixel_yOff += local_pixel_yOff;
+                        }
 
                         if ( source_pixel_xOff < permSourceWidth && source_pixel_yOff < permSourceHeight &&
                              target_pixel_xOff < packedTransformedStride &&
                              target_pixel_yOff < packedTargetHeight )
                         {
-                            // Determine the 2D array coordinates for source and destionation arrays.
+                            // Determine the 2D array coordinates for source and destination arrays.
                             uint32 source_xOff, source_yOff;
                             uint32 target_xOff, target_yOff;
 

@@ -93,8 +93,6 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
     this->fileSystem = fsHandle;
 
-    RegisterTextLocalizationItem( this );
-
     try
     {
 	    /* --- Window --- */
@@ -628,6 +626,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
         // Initialize the GUI.
         this->UpdateAccessibility();
+
+        RegisterTextLocalizationItem( this );
     }
     catch( ... )
     {
@@ -639,6 +639,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
 MainWindow::~MainWindow()
 {
+    UnregisterTextLocalizationItem( this );
+
     // If we have a loaded TXD, get rid of it.
     if ( this->currentTXD )
     {
@@ -654,8 +656,6 @@ MainWindow::~MainWindow()
 
     // Shutdown the native format handlers.
     this->shutdownNativeFormats();
-
-    UnregisterTextLocalizationItem( this );
 }
 
 void MainWindow::updateContent( MainWindow *mainWnd )

@@ -30,6 +30,7 @@ static platformToNaturalList_t platformToNaturalList =
 {
     { rwkind::PLATFORM_PC, "PC" },
     { rwkind::PLATFORM_PS2, "PS2" },
+    { rwkind::PLATFORM_PSP, "PSP" },
     { rwkind::PLATFORM_XBOX, "XBOX" },
     { rwkind::PLATFORM_DXT_MOBILE, "S3TC mobile" },
     { rwkind::PLATFORM_PVR, "PowerVR" },
@@ -61,7 +62,8 @@ static gameToNaturalList_t gameToNaturalList =
     { rwkind::GAME_GTAVC, "GTA VC" },
     { rwkind::GAME_GTASA, "GTA SA" },
     { rwkind::GAME_MANHUNT, "Manhunt" },
-    { rwkind::GAME_BULLY, "Bully" }
+    { rwkind::GAME_BULLY, "Bully" },
+    { rwkind::GAME_LCS, "LCS" }
 };
 
 template <typename layoutClass>

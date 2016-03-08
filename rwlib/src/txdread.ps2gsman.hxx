@@ -89,11 +89,6 @@ namespace ps2GSMemoryLayoutArrangements
         { 20u, 22u, 28u, 30u },
         { 21u, 23u, 29u, 31u }
     };
-
-    namespace pixels
-    {
-
-    };
 };
 
 // There structs define how blocks of pixels of smaller size get packed into blocks of pixels of bigger size.

@@ -293,7 +293,8 @@ namespace KnownVersions
         SA,
         MANHUNT_PC,
         MANHUNT_PS2,
-        BULLY
+        BULLY,
+        LCS_PSP
     };
 
     LibraryVersion  getGameVersion( eGameVersion gameVer );
@@ -541,7 +542,9 @@ public:
     void                SetIgnoreSecureWarnings ( bool doIgnore );
     bool                GetIgnoreSecureWarnings ( void ) const;
 
+    // Warning system.
     void                PushWarning             ( std::string&& message );
+    void                PushObjWarningVerb      ( const RwObject *theObj, const std::string& verbMsg );
 
     bool                SetPaletteRuntime       ( ePaletteRuntimeType palRunType );
     ePaletteRuntimeType GetPaletteRuntime       ( void ) const;
