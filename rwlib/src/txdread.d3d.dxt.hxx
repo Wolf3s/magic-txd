@@ -36,7 +36,7 @@ AINLINE numType indexlist_lookup( const numType& indexList, numType index, numTy
 
     numType shiftCount = ( index * bit_count );
 
-    return ( indexList & ( bitMask << shiftCount ) ) >> shiftCount;
+    return ( ( indexList >> shiftCount ) & bitMask );
 }
 
 AINLINE uint32 fetchDXTIndexList( const uint32& indexList, uint32 local_x, uint32 local_y )
@@ -45,6 +45,27 @@ AINLINE uint32 fetchDXTIndexList( const uint32& indexList, uint32 local_x, uint3
 
     return indexlist_lookup( indexList, coord_index, 2u );
 }
+
+template <typename numType>
+AINLINE void indexlist_put( numType& indexList, numType index, numType bit_count, numType value )
+{
+    numType bitMask = ( (numType)std::pow( (numType)2, bit_count ) - 1 );
+
+    numType shiftCount = ( index * bit_count );
+
+    indexList |= ( ( value & bitMask ) << shiftCount );
+}
+
+AINLINE void putDXTIndexList( uint32& indexList, uint32 local_x, uint32 local_y, uint32 value )
+{
+    uint32 coord_index = getDXTLocalBlockIndex( local_x, local_y );
+
+    indexlist_put( indexList, coord_index, 2u, value );
+}
+
+// TODO: maybe force these to be little-endian?
+// We might want to convert them to the architecture format before passing
+// to SQUISH and other libraries, tbh. Something to think about.
 
 struct dxt1_block
 {

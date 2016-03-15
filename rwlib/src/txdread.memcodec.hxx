@@ -164,6 +164,146 @@ namespace permutationUtilities
             }
         }
     }
+
+    template <typename callbackType>
+    AINLINE void ProcessTextureLayerTiles(
+        uint32 surfWidth, uint32 surfHeight,
+        uint32 clusterWidth, uint32 clusterHeight,
+        uint32 clusterCount,
+        callbackType& cb
+    )
+    {
+        uint32 cols_width = ( ALIGN_SIZE( surfWidth, clusterWidth ) / clusterWidth );
+        uint32 cols_height = ( ALIGN_SIZE( surfHeight, clusterHeight ) / clusterHeight );
+
+        uint32 packedData_xOff = 0;
+        uint32 packedData_yOff = 0;
+
+        uint32 packed_surfWidth = surfWidth * clusterCount;
+        uint32 packed_surfHeight = surfHeight;
+
+        for ( uint32 colY = 0; colY < cols_height; colY++ )
+        {
+            uint32 col_y_pixelOff = ( colY * clusterHeight );
+
+            for ( uint32 colX = 0; colX < cols_width; colX++ )
+            {
+                uint32 col_x_pixelOff = ( colX * clusterWidth );
+
+                for ( uint32 cluster_index = 0; cluster_index < clusterCount; cluster_index++ )
+                {
+                    for ( uint32 cluster_y = 0; cluster_y < clusterHeight; cluster_y++ )
+                    {
+                        uint32 perm_y_off = ( col_y_pixelOff + cluster_y );
+
+                        for ( uint32 cluster_x = 0; cluster_x < clusterWidth; cluster_x++ )
+                        {
+                            uint32 perm_x_off = ( col_x_pixelOff + cluster_x );
+
+                            // Notify the runtime.
+                            cb( perm_x_off, perm_y_off, packedData_xOff, packedData_yOff, cluster_index );
+
+                            // Advance the packed pointer.
+                            packedData_xOff++;
+
+                            if ( packedData_xOff >= packed_surfWidth )
+                            {
+                                packedData_xOff = 0;
+                                packedData_yOff++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    inline bool TranscodeTextureLayerTiles(
+        Interface *engineInterface,
+        uint32 surfWidth, uint32 surfHeight, const void *srcTexels,
+        uint32 permDepth,
+        uint32 srcRowAlignment, uint32 dstRowAlignment,
+        uint32 clusterWidth, uint32 clusterHeight,
+        bool doSwizzleOrUnswizzle,
+        void*& dstTexelsOut, uint32 dstDataSizeOut
+    )
+    {
+        // Allocate the destination array.
+        uint32 dstRowSize = getRasterDataRowSize( surfWidth, permDepth, dstRowAlignment );
+
+        uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, surfHeight );
+
+        void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+        if ( !dstTexels )
+        {
+            return false;
+        }
+
+        uint32 srcRowSize = getRasterDataRowSize( surfWidth, permDepth, srcRowAlignment );
+
+        try
+        {
+            ProcessTextureLayerTiles(
+                surfWidth, surfHeight,
+                clusterWidth, clusterHeight, 1,
+                [&]( uint32 perm_x_off, uint32 perm_y_off, uint32 packedData_xOff, uint32 packedData_yOff, uint32 cluster_index )
+            {
+                // Move the item.
+                const void *srcDataPtr = NULL;
+                void *dstDataPtr = NULL;
+
+                // Determine the pointer configuration.
+                uint32 src_pos_x = 0;
+                uint32 src_pos_y = 0;
+
+                uint32 dst_pos_x = 0;
+                uint32 dst_pos_y = 0;
+
+                if ( doSwizzleOrUnswizzle )
+                {
+                    // We want to swizzle.
+                    // This means the source is raw 2D plane, the destination is linear aligned binary buffer.
+                    src_pos_x = perm_x_off;
+                    src_pos_y = perm_y_off;
+
+                    dst_pos_x = packedData_xOff;
+                    dst_pos_y = packedData_yOff;
+                }
+                else
+                {
+                    // We want to unswizzle.
+                    // This means the source is linear aligned binary buffer, dest is raw 2D plane.
+                    src_pos_x = packedData_xOff;
+                    src_pos_y = packedData_yOff;
+
+                    dst_pos_x = perm_x_off;
+                    dst_pos_y = perm_y_off;
+                }
+
+                if ( src_pos_x <= surfWidth && src_pos_y <= surfHeight &&
+                     dst_pos_x <= surfWidth && dst_pos_y <= surfHeight )
+                {
+                    // Move data if in valid bounds.
+                    const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
+                    void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
+
+                    moveDataByDepth( dstRow, srcRow, permDepth, dst_pos_x, src_pos_x );
+                }
+            });
+        }
+        catch( ... )
+        {
+            engineInterface->PixelFree( dstTexels );
+
+            throw;
+        }
+
+        // Return the data to the runtime.
+        dstTexelsOut = dstTexels;
+        dstDataSizeOut = dstDataSize;
+        return true;
+    }
 };
 
 // Class factory for creating a memory permutation engine.

@@ -1986,10 +1986,15 @@ void d3d9NativeTextureTypeProvider::DeserializeNativeImage( Interface *engineInt
     {
         assert( hasBitDepth == true );
 
+        bool desireWorkingFormat = engineInterface->GetFixIncompatibleRasters();
+
         // Ask the runtime about a proper format to encode to.
         dstDepth = bitDepth;
 
-        convertCompatibleRasterFormat( dstRasterFormat, dstColorOrder, dstDepth, dstPaletteType, d3dFormat );
+        convertCompatibleRasterFormat(
+            desireWorkingFormat,
+            dstRasterFormat, dstColorOrder, dstDepth, dstPaletteType, d3dFormat
+        );
 
         // Check for direct acquisition.
         canRawDirectlyAcquire =

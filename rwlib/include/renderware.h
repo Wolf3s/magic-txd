@@ -161,13 +161,13 @@ enum
 // Decoded RenderWare version management struct.
 struct LibraryVersion
 {
-    inline LibraryVersion( void )
+    inline LibraryVersion( uint8 libMajor = 3, uint8 libMinor = 0, uint8 revMajor = 0, uint8 revMinor = 0 )
     {
         this->buildNumber = 0xFFFF;
-        this->rwLibMajor = 3;
-        this->rwLibMinor = 0;
-        this->rwRevMajor = 0;
-        this->rwRevMinor = 0;
+        this->rwLibMajor = libMajor;
+        this->rwLibMinor = libMinor;
+        this->rwRevMajor = revMajor;
+        this->rwRevMinor = revMinor;
     }
 
     uint16 buildNumber;
@@ -194,6 +194,42 @@ struct LibraryVersion
     inline bool operator !=( const LibraryVersion& right ) const
     {
         return !( *this == right );
+    }
+
+    inline bool isNewerThan( const LibraryVersion& right, bool allowEqual = true ) const
+    {
+        // Check *.-.-.-
+        if ( this->rwLibMajor > right.rwLibMajor )
+            return true;
+
+        if ( this->rwLibMajor == right.rwLibMajor )
+        {
+            // Check -.*.-.-
+            if ( this->rwLibMinor > right.rwLibMinor )
+                return true;
+
+            if ( this->rwLibMinor == right.rwLibMinor )
+            {
+                // Check -.-.*.-
+                if ( this->rwRevMajor > right.rwRevMajor )
+                    return true;
+
+                if ( this->rwRevMajor == right.rwRevMajor )
+                {
+                    // Check -.-.-.*
+                    if ( this->rwRevMinor > right.rwRevMinor )
+                        return true;
+
+                    if ( this->rwRevMinor == right.rwRevMinor )
+                    {
+                        if ( allowEqual )
+                            return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     void set(unsigned char LibMajor, unsigned char LibMinor, unsigned char RevMajor, unsigned char RevMinor, unsigned short buildNumber = 0xFFFF)
@@ -294,7 +330,8 @@ namespace KnownVersions
         MANHUNT_PC,
         MANHUNT_PS2,
         BULLY,
-        LCS_PSP
+        LCS_PSP,
+        SHEROES_GC
     };
 
     LibraryVersion  getGameVersion( eGameVersion gameVer );

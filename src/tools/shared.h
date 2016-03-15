@@ -18,6 +18,7 @@ namespace rwkind
         PLATFORM_PS2,
         PLATFORM_PSP,
         PLATFORM_XBOX,
+        PLATFORM_GC,
         PLATFORM_DXT_MOBILE,
         PLATFORM_PVR,
         PLATFORM_ATC,
@@ -31,7 +32,8 @@ namespace rwkind
         GAME_GTASA,
         GAME_MANHUNT,
         GAME_BULLY,
-        GAME_LCS
+        GAME_LCS,
+        GAME_SHEROES
     };
 
     static inline eTargetPlatform GetRasterPlatform( rw::Raster *texRaster )
@@ -53,6 +55,10 @@ namespace rwkind
         else if ( texRaster->hasNativeDataOfType( "PSP" ) )
         {
             thePlatform = PLATFORM_PSP;
+        }
+        else if ( texRaster->hasNativeDataOfType( "Gamecube" ) )
+        {
+            thePlatform = PLATFORM_GC;
         }
         else if ( texRaster->hasNativeDataOfType( "s3tc_mobile" ) )
         {
@@ -93,6 +99,10 @@ namespace rwkind
         else if ( platform == PLATFORM_PSP )
         {
             quality = 1.0;
+        }
+        else if ( platform == PLATFORM_GC )
+        {
+            quality = 0.95;
         }
         else if ( platform == PLATFORM_DXT_MOBILE )
         {
@@ -177,6 +187,10 @@ namespace rwkind
         else if ( targetPlatform == PLATFORM_PSP )
         {
             return "PSP";
+        }
+        else if ( targetPlatform == PLATFORM_GC )
+        {
+            return "Gamecube";
         }
         else if ( targetPlatform == PLATFORM_DXT_MOBILE )
         {

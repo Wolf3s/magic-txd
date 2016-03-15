@@ -197,7 +197,7 @@ struct bmpImagingEnv : public imagingFormatExtension
         }
         else if ( infoHeader.biBitCount == 4 || infoHeader.biBitCount == 8 )
         {
-            rasterFormat = RASTER_8888;
+            rasterFormat = RASTER_888;
             depth = 32;
 
             if ( infoHeader.biBitCount == 4 )
@@ -268,7 +268,8 @@ struct bmpImagingEnv : public imagingFormatExtension
 
             if ( paletteSize == 0 )
             {
-                throw RwException( "malformed .bmp; invalid palette item count" );
+                // In this case we assume the maximum color count.
+                paletteSize = getPaletteItemCount( paletteType );
             }
 
             uint32 paletteDataSize = getPaletteDataSize( paletteSize, depth );
@@ -443,7 +444,7 @@ struct bmpImagingEnv : public imagingFormatExtension
                 dstPaletteType = PALETTE_8BIT;
             }
 
-            dstRasterFormat = RASTER_8888;
+            dstRasterFormat = RASTER_888;
             dstDepth = 32;
 
             colorUseCount = dstPaletteSize;

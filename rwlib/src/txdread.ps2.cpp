@@ -610,6 +610,11 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                                 uint32 readCount = newMipmap.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
 
+                                if ( readCount > remainingImageData )
+                                {
+                                    throw RwException( "invalid image data bounds for PS2 native texture" );
+                                }
+
                                 remainingImageData -= readCount;
 
                                 if ( !hasCorruptedHeaders )
@@ -675,6 +680,11 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                                 bool hasCorruptedHeaders = false;
 
                                 uint32 readCount = palTex.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
+
+                                if ( readCount > remainingPaletteData )
+                                {
+                                    throw RwException( "invalid palette texture data in PS2 native texture" );
+                                }
 
                                 if ( !hasCorruptedHeaders )
                                 {

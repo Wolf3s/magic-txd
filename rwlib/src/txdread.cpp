@@ -110,7 +110,7 @@ void texDictionaryStreamPlugin::Deserialize( Interface *intf, BlockProvider& inp
                 // Read the header block depending on version.
                 LibraryVersion libVer = texDictMetaStructBlock.getBlockVersion();
 
-                if (libVer.rwLibMinor <= 5)
+                if (libVer.rwLibMajor <= 2 || libVer.rwLibMajor == 3 && libVer.rwLibMinor <= 5)
                 {
                     textureBlockCount = texDictMetaStructBlock.readUInt32();
                 }

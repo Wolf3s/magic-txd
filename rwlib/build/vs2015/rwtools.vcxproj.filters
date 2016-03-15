@@ -219,6 +219,9 @@
     <ClInclude Include="..\..\src\rwfile.system.hxx">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\txdread.gc.miptrans.hxx">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\dffread.cpp" />

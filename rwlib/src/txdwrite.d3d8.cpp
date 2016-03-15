@@ -220,6 +220,7 @@ void d3d8NativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineIn
 }
 
 inline void convertCompatibleRasterFormat(
+    bool desireWorkingFormat,
     eRasterFormat& rasterFormat, eColorOrdering& colorOrder, uint32& depth, ePaletteType& paletteType
 )
 {
@@ -252,15 +253,34 @@ inline void convertCompatibleRasterFormat(
 
         // Also verify raster formats.
         // Should be fairly similar to XBOX compatibility.
-        if ( srcRasterFormat != RASTER_1555 &&
-             srcRasterFormat != RASTER_565 &&
-             srcRasterFormat != RASTER_4444 &&
-             srcRasterFormat != RASTER_LUM &&
-             srcRasterFormat != RASTER_8888 &&
-             srcRasterFormat != RASTER_888 &&
-             srcRasterFormat != RASTER_555 )
+        bool hasValidPaletteRasterFormat = false;
+
+        if ( srcRasterFormat == RASTER_8888 ||
+             srcRasterFormat == RASTER_888 )
         {
-            // Anything unknown should be expanded to full color.
+            hasValidPaletteRasterFormat = true;
+        }
+
+        // We can allow more complicated types if compatibility of old
+        // implementations is not desired.
+        if ( desireWorkingFormat == false )
+        {
+            if ( srcRasterFormat == RASTER_1555 ||
+                 srcRasterFormat == RASTER_565 ||
+                 srcRasterFormat == RASTER_4444 ||
+                 srcRasterFormat == RASTER_LUM ||
+                 srcRasterFormat == RASTER_8888 ||
+                 srcRasterFormat == RASTER_888 ||
+                 srcRasterFormat == RASTER_555 )
+            {
+                // Allow those more advanced palette raster formats.
+                hasValidPaletteRasterFormat = true;
+            }
+        }
+
+        if ( !hasValidPaletteRasterFormat )
+        {
+            // Anything invalid should be expanded to full color.
             rasterFormat = RASTER_8888;
         }
     }
@@ -356,10 +376,13 @@ void d3d8NativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInte
         // new pixel information, instead in a compatible format. The same has to be
         // made for the XBOX implementation.
 
+        bool fixIncompatibleRasters = engineInterface->GetFixIncompatibleRasters();
+
         // Make sure this texture is writable.
         // If we are on D3D, we have to avoid typical configurations that may come from
         // other hardware.
         convertCompatibleRasterFormat(
+            ( fixIncompatibleRasters == true ),
             dstRasterFormat, dstColorOrder, dstDepth, dstPaletteType
         );
  

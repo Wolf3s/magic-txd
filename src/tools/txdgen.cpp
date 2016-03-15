@@ -523,6 +523,12 @@ TxdGenModule::run_config TxdGenModule::ParseConfig( CFileTranslator *root, const
                     {
                         cfg.c_targetPlatform = PLATFORM_XBOX;
                     }
+                    else if ( stricmp( targetPlatform, "Gamecube" ) == 0 ||
+                              stricmp( targetPlatform, "GCube" ) == 0 ||
+                              stricmp( targetPlatform, "GC" ) == 0 )
+                    {
+                        cfg.c_targetPlatform = PLATFORM_GC;
+                    }
                     else if ( stricmp( targetPlatform, "DXT_MOBILE" ) == 0 ||
                                 stricmp( targetPlatform, "S3TC_MOBILE" ) == 0 ||
                                 stricmp( targetPlatform, "MOBILE_DXT" ) == 0 ||
@@ -601,6 +607,14 @@ TxdGenModule::run_config TxdGenModule::ParseConfig( CFileTranslator *root, const
                     else if ( stricmp( targetVersion, "BULLY" ) == 0 )
                     {
                         gameType = GAME_BULLY;
+
+                        hasGameType = true;
+                    }
+                    else if ( stricmp( targetVersion, "SHEROES" ) == 0 ||
+                              stricmp( targetVersion, "Sonic Heroes" ) == 0 ||
+                              stricmp( targetVersion, "SonicHeroes" ) == 0 )
+                    {
+                        gameType = GAME_SHEROES;
 
                         hasGameType = true;
                     }
@@ -870,6 +884,12 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
                 targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::LCS_PSP );
 
                 strTargetVersion = "Liberty City Stories";
+            }
+            else if ( targetGame == GAME_SHEROES )
+            {
+                targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::SHEROES_GC );
+
+                strTargetVersion = "Sonic Heroes";
             }
             else
             {

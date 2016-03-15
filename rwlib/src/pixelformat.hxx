@@ -102,6 +102,34 @@ AINLINE void setpaletteindex(
     }
 }
 
+// Generic palette item copy routine.
+// This is not a routine without problems; if we ever decide to support bigger palette indice than 8bit,
+// we have to update this.
+AINLINE void copyPaletteItemGeneric(
+    const void *srcTexels, void *dstTexels,
+    uint32 srcIndex, uint32 srcDepth, ePaletteType srcPaletteType,
+    uint32 dstIndex, uint32 dstDepth, ePaletteType dstPaletteType,
+    uint32 paletteSize
+)
+{
+    uint8 palIndex;
+
+    // Fetch the index
+    {
+        bool gotPaletteIndex = getpaletteindex(srcTexels, srcPaletteType, paletteSize, srcDepth, srcIndex, palIndex);
+
+        if ( !gotPaletteIndex )
+        {
+            palIndex = 0;
+        }
+    }
+
+    // Put the index.
+    {
+        setpaletteindex(dstTexels, dstIndex, dstDepth, dstPaletteType, palIndex);
+    }
+}
+
 AINLINE uint8 scalecolor(uint8 color, uint32 curMax, uint32 newMax)
 {
     return (uint8)( (double)color / (double)curMax * (double)newMax );
@@ -973,6 +1001,13 @@ public:
     {
         // TODO.
         this->setLuminance( texelSource, index, 0, 0 );
+    }
+
+    AINLINE void setClearedColor( abstractColorItem& item ) const
+    {
+        eColorModel model = this->usedColorModel;
+
+        item.setClearedColor( model );
     }
 };
 

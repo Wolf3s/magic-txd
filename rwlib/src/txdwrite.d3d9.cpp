@@ -349,10 +349,13 @@ void d3d9NativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInte
         // new pixel information, instead in a compatible format. The same has to be
         // made for the XBOX implementation.
 
+        bool desireWorkingFormat = engineInterface->GetFixIncompatibleRasters();
+
         // Make sure this texture is writable.
         // If we are on D3D, we have to avoid typical configurations that may come from
         // other hardware.
         convertCompatibleRasterFormat(
+            desireWorkingFormat,
             dstRasterFormat, dstColorOrder, dstDepth, dstPaletteType, d3dTargetFormat
         );
 

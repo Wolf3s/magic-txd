@@ -179,7 +179,7 @@ void texDictionaryStreamPlugin::Serialize( Interface *intf, BlockProvider& outpu
             txdMetaInfoBlock.setBlockID( CHUNK_STRUCT );
 
             // Write depending on version.
-            if (version.rwLibMinor <= 5)
+            if (version.rwLibMajor <= 2 || version.rwLibMajor == 3 && version.rwLibMinor <= 5)
             {
                 txdMetaInfoBlock.writeUInt32(numTextures);
             }

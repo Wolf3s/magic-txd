@@ -99,6 +99,29 @@ struct abstractColorItem
             uint8 alpha;
         } luminance;
     };
+
+    AINLINE void setClearedColor( eColorModel model )
+    {
+        this->model = model;
+
+        if ( model == COLORMODEL_RGBA )
+        {
+            this->rgbaColor.r = 0;
+            this->rgbaColor.g = 0;
+            this->rgbaColor.b = 0;
+            this->rgbaColor.a = 0;
+        }
+        else if ( model == COLORMODEL_LUMINANCE )
+        {
+            this->luminance.lum = 0;
+            this->luminance.alpha = 0;
+        }
+        else
+        {
+            // TODO.
+            throw RwException( "failed to clear color data for unsupported color model" );
+        }
+    }
 };
 
 // Bitmap software rendering includes.

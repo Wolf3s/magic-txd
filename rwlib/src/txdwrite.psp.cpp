@@ -172,8 +172,8 @@ void pspNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
 inline bool TranscodePermutePSPMipmapLayer_native(
     Interface *engineInterface,
     uint32 layerWidth, uint32 layerHeight, const void *srcTexels,
-    uint32 srcDepth, uint32 srcRowAlignment,
-    uint32 dstDepth, uint32 dstRowAlignment,
+    uint32 itemDepth,
+    uint32 srcRowAlignment, uint32 dstRowAlignment,
     eFormatEncodingType swizzlePermutationEncoding,
     bool doSwizzleOrUnswizzle,
     void*& dstTexelsOut, uint32& dstDataSizeOut
@@ -186,18 +186,17 @@ inline bool TranscodePermutePSPMipmapLayer_native(
 
     if ( swizzlePermutationEncoding == eFormatEncodingType::FORMAT_TEX32 )
     {
-        assert( srcDepth == dstDepth );
-        assert( srcDepth == 32 );
+        assert( itemDepth == 32 );
 
         // TODO: we can generalize this routine into a pixel-block-unpacker algorithm based on little-data.
 
         // In contrast to the Graphics Synthesizer memory encoding, the PSP appears to have a mixture
         // between column-based encoding and binary buffer linear placement encoding.
-        // The strength of the latter is that ít permute things differently based on the image dimensions.
+        // The strength of the latter is that ít permutes things differently based on the image dimensions.
         // It is what we want to implement here.
         const uint32 permDepth = 128;
 
-        const uint32 permItemCount = ( permDepth / srcDepth );
+        const uint32 permItemCount = ( permDepth / itemDepth );
 
         uint32 permutePane_width = ( layerWidth / permItemCount );
         uint32 permutePane_height = ( layerHeight );
@@ -205,107 +204,15 @@ inline bool TranscodePermutePSPMipmapLayer_native(
         const uint32 psmct32_permCluster_width = 1;
         const uint32 psmct32_permCluster_height = 8;
 
-        uint32 cols_width = ( ALIGN_SIZE( permutePane_width, psmct32_permCluster_width ) / psmct32_permCluster_width );
-        uint32 cols_height = ( ALIGN_SIZE( permutePane_height, psmct32_permCluster_height ) / psmct32_permCluster_height );
-
-        // Allocate the destination array.
-        uint32 dstRowSize = getRasterDataRowSize( layerWidth, dstDepth, dstRowAlignment );
-
-        dstDataSize = getRasterDataSizeByRowSize( dstRowSize, layerHeight );
-
-        dstTexels = engineInterface->PixelAllocate( dstDataSize );
-
-        if ( !dstTexels )
-        {
-            throw RwException( "failed to allocate pixel buffer for PSP native texture decoding" );
-        }
-
-        uint32 srcRowSize = getRasterDataRowSize( layerWidth, srcDepth, srcRowAlignment );
-
-        try
-        {
-            uint32 packedData_xOff = 0;
-            uint32 packedData_yOff = 0;
-
-            for ( uint32 colY = 0; colY < cols_height; colY++ )
-            {
-                uint32 col_y_pixelOff = ( colY * psmct32_permCluster_height );
-
-                for ( uint32 colX = 0; colX < cols_width; colX++ )
-                {
-                    uint32 col_x_pixelOff = ( colX * psmct32_permCluster_width );
-
-                    for ( uint32 cluster_y = 0; cluster_y < psmct32_permCluster_height; cluster_y++ )
-                    {
-                        uint32 perm_y_off = ( col_y_pixelOff + cluster_y );
-
-                        for ( uint32 cluster_x = 0; cluster_x < psmct32_permCluster_width; cluster_x++ )
-                        {
-                            uint32 perm_x_off = ( col_x_pixelOff + cluster_x );
-
-                            // Move the item.
-                            const void *srcDataPtr = NULL;
-                            void *dstDataPtr = NULL;
-
-                            // Determine the pointer configuration.
-                            uint32 src_pos_x = 0;
-                            uint32 src_pos_y = 0;
-
-                            uint32 dst_pos_x = 0;
-                            uint32 dst_pos_y = 0;
-
-                            if ( doSwizzleOrUnswizzle )
-                            {
-                                // We want to swizzle.
-                                // This means the source is raw 2D plane, the destination is linear aligned binary buffer.
-                                src_pos_x = perm_x_off;
-                                src_pos_y = perm_y_off;
-
-                                dst_pos_x = packedData_xOff;
-                                dst_pos_y = packedData_yOff;
-                            }
-                            else
-                            {
-                                // We want to unswizzle.
-                                // This means the source is linear aligned binary buffer, dest is raw 2D plane.
-                                src_pos_x = packedData_xOff;
-                                src_pos_y = packedData_yOff;
-
-                                dst_pos_x = perm_x_off;
-                                dst_pos_y = perm_y_off;
-                            }
-
-                            if ( src_pos_x <= permutePane_width && src_pos_y <= permutePane_height &&
-                                 dst_pos_x <= permutePane_width && dst_pos_y <= permutePane_height )
-                            {
-                                // Move data if in valid bounds.
-                                const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
-                                void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
-
-                                moveDataByDepth( dstRow, srcRow, permDepth, dst_pos_x, src_pos_x );
-                            }
-
-                            // Advance the packed pointer.
-                            packedData_xOff++;
-
-                            if ( packedData_xOff >= permutePane_width )
-                            {
-                                packedData_xOff = 0;
-                                packedData_yOff++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch( ... )
-        {
-            engineInterface->PixelFree( dstTexels );
-
-            throw;
-        }
-
-        success = true;
+        success =
+            memcodec::permutationUtilities::TranscodeTextureLayerTiles(
+                engineInterface, permutePane_width, permutePane_height, srcTexels,
+                permDepth,
+                srcRowAlignment, dstRowAlignment,
+                psmct32_permCluster_width, psmct32_permCluster_height,
+                doSwizzleOrUnswizzle,
+                dstTexels, dstDataSize
+            );
     }
     // Otherwise we have encountered an unknown permutation strategy.
     // Should not happen, but we handle it safely in case.
@@ -343,12 +250,18 @@ inline bool DecodePSPMipmapLayer(
         // Unswizzling depends on whether we are handling a packing-conversion or a simple permutation-conversion.
         if ( swizzleRawFormatEncoding == swizzleColorBufferFormat )
         {
+            // We must have the same depth in raw and packed format.
+            if ( srcDepth != dstDepth )
+            {
+                throw RwException( "invalid srcDepth and dstDepth in PSP native texture mipmap encoding" );
+            }
+
             // This is the permutation convention. Texture data is not packed into smaller units but permuted on a large panel.
             bool couldTranscode =
                 TranscodePermutePSPMipmapLayer_native(
                     engineInterface, layerWidth, layerHeight, srcTexels,
-                    srcDepth, srcRowAlignment,
-                    dstDepth, dstRowAlignment,
+                    srcDepth,
+                    srcRowAlignment, dstRowAlignment,
                     swizzleRawFormatEncoding,
                     false,
                     dstTexels, dstDataSize
@@ -765,8 +678,8 @@ inline bool TranscodeMipmapToPSPFormat(
                 // Do the permutation, eh.
                 TranscodePermutePSPMipmapLayer_native(
                     engineInterface, layerWidth, layerHeight, linearTransColors,
-                    dstDepth, transRowAlignment,
-                    dstDepth, dstRowAlignment,
+                    dstDepth, 
+                    transRowAlignment, dstRowAlignment,
                     swizzleRawFormatEncoding,
                     true,
                     swizzleTexels, swizzleDataSize
@@ -1268,8 +1181,16 @@ struct pspMipmapManager
         dstTexelsOut = dstTexels;
         dstDataSizeOut = dstDataSize;
 
-        isNewlyAllocatedOut = true;
-        isPaletteNewlyAllocatedOut = true;
+        // Just like the PS2 native texture, we must calculate the alpha flag ourselves.
+        hasAlphaOut =
+            rawMipmapCalculateHasAlpha(
+                layerWidth, layerHeight, dstTexels, dstDataSize,
+                rasterFormat, depth, dstRowAlignment, colorOrder,
+                paletteType, dstPaletteData, paletteSize
+            );
+
+        isNewlyAllocatedOut = true; // we have to newly allocate the texels because they come "swizzled"
+        isPaletteNewlyAllocatedOut = true;  // we always newly allocate the palette; because it comes "swizzled"
     }
 
     inline void Internalize(
@@ -1283,6 +1204,14 @@ struct pspMipmapManager
         bool& hasDirectlyAcquiredOut
     )
     {
+        // If we do not receive any raw mipmap layers, we bail out.
+        // It is very tedious if you'd have to convert the mipmap layer yourself on each function call.
+        // So we should handle those pretty rare cases inside the framework itself.
+        if ( compressionType != RWCOMPRESS_NONE )
+        {
+            throw RwException( "cannot receive mipmap layer in compressed format for PSP native texture" );
+        }
+
         // We want to encode the mipmap layer into our format.
 
         uint32 dstDepth = nativeTex->depth;
@@ -1398,6 +1327,7 @@ struct pspMipmapManager
         }
         catch( ... )
         {
+            // On error, remember to clean up things we allocated for ourselves.
             if ( dstPaletteData )
             {
                 engineInterface->PixelFree( dstPaletteData );
@@ -1411,6 +1341,9 @@ struct pspMipmapManager
         {
             engineInterface->PixelFree( dstPaletteData );
         }
+
+        // We never directly acquire, because we have to swizzle the data.
+        hasDirectlyAcquiredOut = false;
     }
 };
 

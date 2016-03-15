@@ -357,26 +357,12 @@ void ConvertPaletteDepthEx(
 
         for ( uint32 col = 0; col < texProcessWidth; col++ )
         {
-            uint8 palIndex;
-
-            // Fetch the index
-            {
-                uint32 realSrcPalIndex = ( col + srcTexelOffX );
-
-                bool gotPaletteIndex = getpaletteindex(srcRow, srcPaletteType, paletteSize, srcDepth, realSrcPalIndex, palIndex);
-
-                if ( !gotPaletteIndex )
-                {
-                    palIndex = 0;
-                }
-            }
-
-            // Put the index.
-            {
-                uint32 realDstPalIndex = ( col + dstTexelOffX );
-
-                setpaletteindex(dstRow, realDstPalIndex, dstDepth, dstPaletteType, palIndex);
-            }
+            copyPaletteItemGeneric(
+                srcRow, dstRow,
+                col + srcTexelOffX, srcDepth, srcPaletteType,
+                col + dstTexelOffX, dstDepth, dstPaletteType,
+                paletteSize
+            );
         }
     }
 }

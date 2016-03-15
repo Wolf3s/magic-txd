@@ -423,6 +423,7 @@
     <ClInclude Include="..\..\src\txdread.d3d9.hxx" />
     <ClInclude Include="..\..\src\txdread.dxtmobile.hxx" />
     <ClInclude Include="..\..\src\txdread.gc.hxx" />
+    <ClInclude Include="..\..\src\txdread.gc.miptrans.hxx" />
     <ClInclude Include="..\..\src\txdread.memcodec.hxx" />
     <ClInclude Include="..\..\src\txdread.miputil.hxx" />
     <ClInclude Include="..\..\src\txdread.natcompat.hxx" />

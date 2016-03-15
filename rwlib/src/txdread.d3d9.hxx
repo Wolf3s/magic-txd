@@ -842,6 +842,7 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
 };
 
 inline void convertCompatibleRasterFormat(
+    bool desireWorkingFormat,
     eRasterFormat& rasterFormat, eColorOrdering& colorOrder, uint32& depth, ePaletteType& paletteType, D3DFORMAT& d3dFormatOut
 )
 {
@@ -877,15 +878,35 @@ inline void convertCompatibleRasterFormat(
         d3dFormatOut = D3DFMT_P8;
 
         // Also verify raster formats.
-        if ( srcRasterFormat != RASTER_1555 &&
-             srcRasterFormat != RASTER_565 &&
-             srcRasterFormat != RASTER_4444 &&
-             srcRasterFormat != RASTER_LUM &&
-             srcRasterFormat != RASTER_8888 &&
-             srcRasterFormat != RASTER_888 &&
-             srcRasterFormat != RASTER_555 )
+        // Should be fairly similar to XBOX compatibility.
+        bool hasValidPaletteRasterFormat = false;
+
+        if ( srcRasterFormat == RASTER_8888 ||
+             srcRasterFormat == RASTER_888 )
         {
-            // Anything unknown should be expanded to full color.
+            hasValidPaletteRasterFormat = true;
+        }
+
+        // We can allow more complicated types if compatibility of old
+        // implementations is not desired.
+        if ( desireWorkingFormat == false )
+        {
+            if ( srcRasterFormat == RASTER_1555 ||
+                 srcRasterFormat == RASTER_565 ||
+                 srcRasterFormat == RASTER_4444 ||
+                 srcRasterFormat == RASTER_LUM ||
+                 srcRasterFormat == RASTER_8888 ||
+                 srcRasterFormat == RASTER_888 ||
+                 srcRasterFormat == RASTER_555 )
+            {
+                // Allow those more advanced palette raster formats.
+                hasValidPaletteRasterFormat = true;
+            }
+        }
+
+        if ( !hasValidPaletteRasterFormat )
+        {
+            // Anything invalid should be expanded to full color.
             rasterFormat = RASTER_8888;
         }
     }

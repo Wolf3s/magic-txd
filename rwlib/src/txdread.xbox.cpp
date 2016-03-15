@@ -95,7 +95,7 @@ void xboxNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                     // Move over the texture name.
                     memcpy( tmpbuf, metaInfo.name, sizeof( metaInfo.name ) );
-
+                    
                     theTexture->SetName( tmpbuf );
 
                     // Move over the texture mask name.
@@ -690,15 +690,19 @@ void xboxNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInte
                 assert( 0 );
             }
 
-            // Make sure we have a supported raster format aswell.
-            if ( srcRasterFormat != RASTER_1555 &&
-                 srcRasterFormat != RASTER_565 &&
-                 srcRasterFormat != RASTER_4444 &&
-                 srcRasterFormat != RASTER_LUM &&
-                 srcRasterFormat != RASTER_8888 &&
-                 srcRasterFormat != RASTER_888 &&
-                 srcRasterFormat != RASTER_555 )
+            // Make sure we have a supported palette raster format.
+            // We do not care about advanced raster formats on console architecture.
+            bool hasValidPaletteRasterFormat = false;
+
+            if ( srcRasterFormat == RASTER_8888 ||
+                 srcRasterFormat == RASTER_888 )
             {
+                hasValidPaletteRasterFormat = true;
+            }
+
+            if ( !hasValidPaletteRasterFormat )
+            {
+                // Anything invalid should be expanded to full color.
                 dstRasterFormat = RASTER_8888;
             }
         }

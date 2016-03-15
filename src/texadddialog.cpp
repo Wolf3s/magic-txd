@@ -873,8 +873,6 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
         textureBaseName = *overwriteTexName;
     }
 
-    // TODO: verify that the texture name is full ANSI.
-
     this->setWindowTitle(MAGIC_TEXT(create_params.actionDesc));
 
     QString curPlatformText;

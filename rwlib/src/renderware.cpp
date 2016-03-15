@@ -60,6 +60,10 @@ LibraryVersion KnownVersions::getGameVersion( KnownVersions::eGameVersion gameVe
     {
         outVer.rwLibMinor = 1;
     }
+    else if ( gameVer == SHEROES_GC )
+    {
+        outVer.rwLibMinor = 5;
+    }
 
     return outVer;
 }

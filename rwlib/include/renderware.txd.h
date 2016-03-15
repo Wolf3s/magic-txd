@@ -224,15 +224,43 @@ enum rwSerializedRasterFormat_3
     RWFORMAT3_555
 };
 
-// Useful routine to generate generic raster format flags.
-inline uint32 generateRasterFormatFlags( eRasterFormat rasterFormat, ePaletteType paletteType, bool hasMipmaps, bool autoMipmaps )
+enum rwSerializedPaletteType
 {
-    uint32 rasterFlags = 0;
+    RWSER_PALETTE_NONE,
+    RWSER_PALETTE_PAL8,
+    RWSER_PALETTE_PAL4
+};
 
-    // bits 0..3 can be (alternatively) used for the raster type
-    // bits 4..8 are stored in the raster private flags.
+inline rwSerializedPaletteType genericFindPaletteTypeForFramework( ePaletteType palType )
+{
+    if ( palType == PALETTE_4BIT )
+    {
+        return RWSER_PALETTE_PAL4;
+    }
+    else if ( palType == PALETTE_8BIT )
+    {
+        return RWSER_PALETTE_PAL8;
+    }
 
-    // Map the raster format for RenderWare3.
+    return RWSER_PALETTE_NONE;
+}
+
+inline ePaletteType genericFindPaletteTypeForSerialized( rwSerializedPaletteType palType )
+{
+    if ( palType == RWSER_PALETTE_PAL8 )
+    {
+        return PALETTE_8BIT;
+    }
+    else if ( palType == RWSER_PALETTE_PAL4 )
+    {
+        return PALETTE_4BIT;
+    }
+
+    return PALETTE_NONE;
+}
+
+inline rwSerializedRasterFormat_3 genericFindRasterFormatForFramework( eRasterFormat rasterFormat )
+{
     rwSerializedRasterFormat_3 serFormat = RWFORMAT3_UNKNOWN;
 
     if ( rasterFormat != RASTER_DEFAULT )
@@ -282,35 +310,11 @@ inline uint32 generateRasterFormatFlags( eRasterFormat rasterFormat, ePaletteTyp
         // hopefully the implementation knows what it is doing!
     }
 
-    rasterFlags |= ( (uint32)serFormat << 8 );
-
-    if ( paletteType == PALETTE_4BIT )
-    {
-        rasterFlags |= RASTER_PAL4;
-    }
-    else if ( paletteType == PALETTE_8BIT )
-    {
-        rasterFlags |= RASTER_PAL8;
-    }
-
-    if ( hasMipmaps )
-    {
-        rasterFlags |= RASTER_MIPMAP;
-    }
-
-    if ( autoMipmaps )
-    {
-        rasterFlags |= RASTER_AUTOMIPMAP;
-    }
-
-    return rasterFlags;
+    return serFormat;
 }
 
-// Useful routine to read generic raster format flags.
-inline void readRasterFormatFlags( uint32 rasterFormatFlags, eRasterFormat& rasterFormat, ePaletteType& paletteType, bool& hasMipmaps, bool& autoMipmaps )
+inline eRasterFormat genericFindRasterFormatForSerialized( rwSerializedRasterFormat_3 serFormat )
 {
-    rwSerializedRasterFormat_3 serFormat = (rwSerializedRasterFormat_3)( ( rasterFormatFlags & 0xF00 ) >> 8 );
-    
     // Map the serialized format to our raster format.
     // We should be backwards compatible to every RenderWare3 format.
     eRasterFormat formatOut = RASTER_DEFAULT;
@@ -357,23 +361,68 @@ inline void readRasterFormatFlags( uint32 rasterFormatFlags, eRasterFormat& rast
     }
     // anything else will be an unknown raster mapping.
 
-    rasterFormat = formatOut;
+    return formatOut;
+}
 
-    if ( ( rasterFormatFlags & RASTER_PAL4 ) != 0 )
+struct rwGenericRasterFormatFlags
+{
+    union
     {
-        paletteType = PALETTE_4BIT;
-    }
-    else if ( ( rasterFormatFlags & RASTER_PAL8 ) != 0 )
-    {
-        paletteType = PALETTE_8BIT;
-    }
-    else
-    {
-        paletteType = PALETTE_NONE;
-    }
+        struct
+        {
+            uint32 rasterType : 4;
+            uint32 privateFlags : 4;
+            uint32 formatNum : 4;
+            uint32 autoMipmaps : 1;
+            uint32 palType : 2;
+            uint32 hasMipmaps : 1;
+            uint32 pad : 16;
+        } data;
 
-    hasMipmaps = ( rasterFormatFlags & RASTER_MIPMAP ) != 0;
-    autoMipmaps = ( rasterFormatFlags & RASTER_AUTOMIPMAP ) != 0;
+        uint32 value;
+    };
+};
+static_assert( sizeof( rwGenericRasterFormatFlags ) == sizeof( uint32 ), "rwGenericRasterFormatFlags wrong size!" );
+
+// Useful routine to generate generic raster format flags.
+inline uint32 generateRasterFormatFlags( eRasterFormat rasterFormat, ePaletteType paletteType, bool hasMipmaps, bool autoMipmaps )
+{
+    rwGenericRasterFormatFlags rf_data;
+    rf_data.value = 0;
+
+    // bits 0..3 can be (alternatively) used for the raster type
+    // bits 4..7 are stored in the raster private flags.
+
+    // Map the raster format for RenderWare3.
+    rf_data.data.formatNum = genericFindRasterFormatForFramework( rasterFormat );
+
+    // Decide if we have a palette.
+    rf_data.data.palType = genericFindPaletteTypeForFramework( paletteType );
+
+    rf_data.data.hasMipmaps = hasMipmaps;
+    rf_data.data.autoMipmaps = autoMipmaps;
+
+    return rf_data.value;
+}
+
+// Useful routine to read generic raster format flags.
+inline void readRasterFormatFlags( uint32 rasterFormatFlags, eRasterFormat& rasterFormat, ePaletteType& paletteType, bool& hasMipmaps, bool& autoMipmaps )
+{
+    rwGenericRasterFormatFlags rf_data;
+    rf_data.value = rasterFormatFlags;
+
+    // Read the format region of the raster format flags.
+    rwSerializedRasterFormat_3 serFormat = (rwSerializedRasterFormat_3)rf_data.data.formatNum;
+
+    rasterFormat = genericFindRasterFormatForSerialized( serFormat );
+
+    // Process palette.
+    rwSerializedPaletteType serPalType = (rwSerializedPaletteType)rf_data.data.palType;
+
+    paletteType = genericFindPaletteTypeForSerialized( serPalType );
+
+    hasMipmaps = rf_data.data.hasMipmaps;
+    autoMipmaps = rf_data.data.autoMipmaps;
 }
 
 enum eMipmapGenerationMode

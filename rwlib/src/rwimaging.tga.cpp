@@ -313,6 +313,20 @@ struct tgaImagingExtension : public imagingFormatExtension
                 {
                     dstItemDepth = headerData.PixelDepth;
 
+                    // Set correct palette type.
+                    if ( dstItemDepth == 4 )
+                    {
+                        dstPaletteType = PALETTE_4BIT;
+                    }
+                    else if ( dstItemDepth == 8 )
+                    {
+                        dstPaletteType = PALETTE_8BIT;
+                    }
+                    else
+                    {
+                        assert( 0 );
+                    }
+
                     hasRasterFormat = true;
                 }
             }
@@ -570,7 +584,7 @@ struct tgaImagingExtension : public imagingFormatExtension
             outputTexels.dataSize = rasterDataSize;
             
             outputTexels.rasterFormat = dstRasterFormat;
-            outputTexels.depth = dstDepth;
+            outputTexels.depth = dstItemDepth;
             outputTexels.rowAlignment = getTGATexelDataRowAlignment();
             outputTexels.colorOrder = dstColorOrder;
             outputTexels.paletteType = dstPaletteType;

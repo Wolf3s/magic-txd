@@ -705,6 +705,8 @@ struct pngImagingExtension : public imagingFormatExtension
                 uint32 wantedItemDepth;
                 eColorOrdering wantedColorOrder = COLOR_RGBA;
 
+                ePaletteType wantedPaletteType = PALETTE_NONE;
+                
                 uint32 wantedDepth;
 
                 if ( isPalette )
@@ -716,8 +718,25 @@ struct pngImagingExtension : public imagingFormatExtension
                         color_type = 3;
 
                         wantedRasterFormat = RASTER_888;
-                        wantedItemDepth = depth;
                         wantedDepth = 24;
+
+                        if ( paletteType == PALETTE_4BIT ||
+                             paletteType == PALETTE_4BIT_LSB )
+                        {
+                            wantedPaletteType = PALETTE_4BIT;
+                            wantedItemDepth = 4;
+                        }
+                        else if ( paletteType == PALETTE_8BIT )
+                        {
+                            wantedPaletteType = PALETTE_8BIT;
+                            wantedItemDepth = 8;
+                        }
+                        else
+                        {
+                            // No idea here. We just write best possible.
+                            wantedPaletteType = PALETTE_8BIT;
+                            wantedItemDepth = 8;
+                        }
                     }
                     else
                     {
@@ -785,6 +804,11 @@ struct pngImagingExtension : public imagingFormatExtension
                 if ( paletteType == PALETTE_NONE )
                 {
                     isAlreadyTransformed = ( rasterFormat == wantedRasterFormat && depth == wantedItemDepth && colorOrder == wantedColorOrder );
+                }
+                else
+                {
+                    // If we are a palette texture, we must ensure that our palette indice are correctly formatted.
+                    isAlreadyTransformed = ( paletteType == wantedPaletteType && depth == wantedItemDepth );
                 }
 
                 // Store that information into the PNG stream.
@@ -941,7 +965,7 @@ struct pngImagingExtension : public imagingFormatExtension
                                     mipWidth, 1,
                                     mipWidth, mipHeight,
                                     rasterFormat, depth, rowAlignment, colorOrder, paletteType, paletteSize,
-                                    wantedRasterFormat, wantedItemDepth, getPNGTexelDataRowAlignment(), wantedColorOrder, paletteType, paletteSize
+                                    wantedRasterFormat, wantedItemDepth, getPNGTexelDataRowAlignment(), wantedColorOrder, wantedPaletteType, paletteSize
                                 );
 
                                 // Write our row.
