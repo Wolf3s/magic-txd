@@ -35,7 +35,7 @@ inline void nativePaletteRemap(
     if ( convItemDepth != 4 && convItemDepth != 8 )
     {
         // Unsupported depth.
-        assert( 0 );
+        throw RwException( "unsupported palette item depth in native palette remapping algorithm" );
     }
 
     uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcItemDepth, srcRowAlignment );
@@ -47,32 +47,46 @@ inline void nativePaletteRemap(
 
     void *newTexelData = engineInterface->PixelAllocate( dstDataSize );
 
-    colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
-
-    for ( uint32 row = 0; row < mipHeight; row++ )
+    if ( !newTexelData )
     {
-        const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, row );
-        void *dstRow = getTexelDataRow( newTexelData, dstRowSize, row );
+        throw RwException( "failed to allocate destination texel buffer in native palette remapping algorithm" );
+    }
 
-        for ( uint32 col = 0; col < mipWidth; col++ )
+    try
+    {
+        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
+
+        for ( uint32 row = 0; row < mipHeight; row++ )
         {
-            // Browse each texel of the original image and link it to a palette entry.
-            uint8 red, green, blue, alpha;
-            bool hasColor = fetchDispatch.getRGBA(srcRow, col, red, green, blue, alpha);
+            const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, row );
+            void *dstRow = getTexelDataRow( newTexelData, dstRowSize, row );
 
-            if ( !hasColor )
+            for ( uint32 col = 0; col < mipWidth; col++ )
             {
-                red = 0;
-                green = 0;
-                blue = 0;
-                alpha = 0;
+                // Browse each texel of the original image and link it to a palette entry.
+                uint8 red, green, blue, alpha;
+                bool hasColor = fetchDispatch.getRGBA(srcRow, col, red, green, blue, alpha);
+
+                if ( !hasColor )
+                {
+                    red = 0;
+                    green = 0;
+                    blue = 0;
+                    alpha = 0;
+                }
+
+                uint32 paletteIndex = conv.getclosestlink(red, green, blue, alpha);
+
+                // Store it in the palette data.
+                setpaletteindex(dstRow, col, convItemDepth, convPaletteFormat, paletteIndex);
             }
-
-            uint32 paletteIndex = conv.getclosestlink(red, green, blue, alpha);
-
-            // Store it in the palette data.
-            setpaletteindex(dstRow, col, convItemDepth, convPaletteFormat, paletteIndex);
         }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( newTexelData );
+
+        throw;
     }
 
     // Give the parameters to the runtime.
@@ -320,6 +334,8 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
             if (srcPaletteData != NULL)
             {
                 engineInterface->PixelFree( srcPaletteData );
+
+                pixelData.paletteData = NULL;
             }
 
             // Store the new palette texels.
@@ -333,192 +349,279 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
         {
             liq_attr *quant_attr = liq_attr_create();
 
-            assert( quant_attr != NULL );
-
-            liq_set_max_colors(quant_attr, maxPaletteEntries);
-
-            _fetch_texel_libquant_traverse main_traverse;
-
-            main_traverse.pixelData = &pixelData;
-            main_traverse.mipIndex = 0;
-
-            pixelDataTraversal::mipmapResource& mainLayer = pixelData.mipmaps[ 0 ];
-
-            liq_image *quant_image = liq_image_create_custom(
-                quant_attr, _fetch_image_data_libquant, &main_traverse,
-                mainLayer.width, mainLayer.height,
-                1.0
-            );
-
-            assert( quant_image != NULL );
-
-            // Quant it!
-            liq_result *quant_result = liq_quantize_image(quant_attr, quant_image);
-
-            if (quant_result != NULL)
+            if ( quant_attr == NULL )
             {
-                // Get the palette and remap all mipmaps.
-                for (uint32 n = 0; n < mipmapCount; n++)
+                throw RwException( "failed to allocate libimagequant attribute struct in image palettization" );
+            }
+
+            try
+            {
+                liq_set_max_colors(quant_attr, maxPaletteEntries);
+
+                _fetch_texel_libquant_traverse main_traverse;
+
+                main_traverse.pixelData = &pixelData;
+                main_traverse.mipIndex = 0;
+
+                pixelDataTraversal::mipmapResource& mainLayer = pixelData.mipmaps[ 0 ];
+
+                liq_image *quant_image = liq_image_create_custom(
+                    quant_attr, _fetch_image_data_libquant, &main_traverse,
+                    mainLayer.width, mainLayer.height,
+                    1.0
+                );
+
+                if ( quant_image == NULL )
                 {
-                    pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ n ];
-
-                    uint32 mipWidth = mipLayer.width;
-                    uint32 mipHeight = mipLayer.height;
-
-                    size_t liqPaletteSize = ( mipWidth * mipHeight ) * sizeof(unsigned char);
-
-                    unsigned char *newPalItems = (unsigned char*)engineInterface->PixelAllocate( liqPaletteSize );
-
-                    assert( newPalItems != NULL );
-
-                    liq_image *srcImage = NULL;
-                    bool newImage = false;
-
-                    _fetch_texel_libquant_traverse thisTraverse;
-
-                    if ( n == 0 )
-                    {
-                        srcImage = quant_image;
-                    }
-                    else
-                    {
-                        // Create a new image.
-                        thisTraverse.pixelData = &pixelData;
-                        thisTraverse.mipIndex = n;
-
-                        srcImage = liq_image_create_custom(
-                            quant_attr, _fetch_image_data_libquant, &thisTraverse,
-                            mipWidth, mipHeight,
-                            1.0
-                        );
-
-                        newImage = true;
-                    }
-
-                    // Map it.
-                    liq_write_remapped_image( quant_result, srcImage, newPalItems, liqPaletteSize );
-
-                    // Delete image (if newly allocated)
-                    if (newImage)
-                    {
-                        liq_image_destroy( srcImage );
-                    }
-
-                    // Update the texels.
-                    engineInterface->PixelFree( mipLayer.texels );
-
-                    bool hasUsedArray = false;
-
-                    {
-                        uint32 dataSize = 0;
-                        void *newTexelArray = NULL;
-
-                        uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstDepth, dstRowAlignment );
-
-                        dataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
-
-                        if (dstDepth == 8 && dataSize == liqPaletteSize)
-                        {
-                            // If we have the same size as the liq palette index array,
-                            // we can simply use it.
-                            newTexelArray = newPalItems;
-
-                            hasUsedArray = true;
-                        }
-
-                        if ( !hasUsedArray )
-                        {
-                            newTexelArray = engineInterface->PixelAllocate( dataSize );
-
-                            // Copy over the items.
-                            for ( uint32 row = 0; row < mipHeight; row++ )
-                            {
-                                const void *srcRow = getTexelDataRow( newPalItems, mipWidth, row );
-                                void *dstRow = getTexelDataRow( newTexelArray, dstRowSize, row );
-
-                                for ( uint32 col = 0; col < mipWidth; col++ )
-                                {
-                                    uint8 resVal = *((unsigned char*)srcRow + col);
-
-                                    setpaletteindex(dstRow, col, dstDepth, convPaletteFormat, resVal);
-                                }
-                            }
-                        }
-
-                        // Set the texels.
-                        mipLayer.texels = newTexelArray;
-                        mipLayer.dataSize = dataSize;
-                    }
-
-                    if ( !hasUsedArray )
-                    {
-                        engineInterface->PixelFree( newPalItems );
-                    }
+                    throw RwException( "failed to allocate libimagequant image struct for palettization" );
                 }
 
-                // Delete the old palette data.
-                if (srcPaletteData != NULL)
+                try
                 {
-                    engineInterface->PixelFree( srcPaletteData );
-                }
+                    // Quant it!
+                    liq_result *quant_result = liq_quantize_image(quant_attr, quant_image);
 
-                // Update the texture palette data.
-                {
-                    const liq_palette *palData = liq_get_palette(quant_result);
-
-                    uint32 newPalItemCount = palData->count;
-
-                    uint32 palDepth = Bitmap::getRasterFormatDepth(dstRasterFormat);
-
-                    colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, palDepth, NULL, 0, PALETTE_NONE );
-
-                    uint32 palDataSize = getPaletteDataSize( newPalItemCount, palDepth );
-
-                    void *newPalArray = engineInterface->PixelAllocate( palDataSize );
-
-                    if ( newPalArray == NULL )
+                    if (quant_result == NULL)
                     {
-                        throw RwException( "failed to allocate palette color array in libimagequant palettitation algorithm" );
+                        throw RwException( "failed to palettize color buffer using libimagequant" );
                     }
 
                     try
                     {
-                        for ( unsigned int n = 0; n < newPalItemCount; n++ )
+                        // Get the palette and remap all mipmaps.
+                        for (uint32 n = 0; n < mipmapCount; n++)
                         {
-                            const liq_color& srcColor = palData->entries[ n ];
+                            pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ n ];
+
+                            uint32 mipWidth = mipLayer.width;
+                            uint32 mipHeight = mipLayer.height;
+
+                            size_t liqPaletteSize = ( mipWidth * mipHeight ) * sizeof(unsigned char);
+
+                            unsigned char *newPalItems = (unsigned char*)engineInterface->PixelAllocate( liqPaletteSize );
+
+                            if ( newPalItems == NULL )
+                            {
+                                throw RwException( "failed to allocate palette destination buffer in palettization algorithm" );
+                            }
+
+                            // Set this to true if newPalItems should not be deallocated because you actually use it.
+                            bool hasUsedArray = false;
+
+                            try
+                            {
+                                liq_image *srcImage = NULL;
+                                bool newImage = false;
+
+                                _fetch_texel_libquant_traverse thisTraverse;
+
+                                if ( n == 0 )
+                                {
+                                    srcImage = quant_image;
+                                }
+                                else
+                                {
+                                    // Create a new image.
+                                    thisTraverse.pixelData = &pixelData;
+                                    thisTraverse.mipIndex = n;
+
+                                    srcImage = liq_image_create_custom(
+                                        quant_attr, _fetch_image_data_libquant, &thisTraverse,
+                                        mipWidth, mipHeight,
+                                        1.0
+                                    );
+
+                                    if ( srcImage == NULL )
+                                    {
+                                        throw RwException( "failed to allocate libimagequant image handle for palettization" );
+                                    }
+
+                                    newImage = true;
+                                }
+
+                                try
+                                {
+                                    // Map it.
+                                    liq_error remapOK = liq_write_remapped_image( quant_result, srcImage, newPalItems, liqPaletteSize );
+
+                                    if ( remapOK != LIQ_OK )
+                                    {
+                                        throw RwException( "failed to write remapped index buffer using libimagequant" );
+                                    }
+                                }
+                                catch( ... )
+                                {
+                                    // A really short error handler, I know!
+                                    if ( newImage )
+                                    {
+                                        liq_image_destroy( srcImage );
+                                    }
+
+                                    throw;
+                                }
+
+                                // Delete image (if newly allocated)
+                                if (newImage)
+                                {
+                                    liq_image_destroy( srcImage );
+                                }
+
+                                // Update the texels.
+                                engineInterface->PixelFree( mipLayer.texels );
+
+                                mipLayer.texels = NULL;
+
+                                {
+                                    uint32 dataSize = 0;
+                                    void *newTexelArray = NULL;
+
+                                    uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstDepth, dstRowAlignment );
+
+                                    dataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
+
+                                    if (dstDepth == 8 && dataSize == liqPaletteSize)
+                                    {
+                                        // If we have the same size as the liq palette index array,
+                                        // we can simply use it.
+                                        newTexelArray = newPalItems;
+
+                                        hasUsedArray = true;
+                                    }
+
+                                    if ( !hasUsedArray )
+                                    {
+                                        newTexelArray = engineInterface->PixelAllocate( dataSize );
+
+                                        try
+                                        {
+                                            // Copy over the items.
+                                            for ( uint32 row = 0; row < mipHeight; row++ )
+                                            {
+                                                const void *srcRow = getTexelDataRow( newPalItems, mipWidth, row );
+                                                void *dstRow = getTexelDataRow( newTexelArray, dstRowSize, row );
+
+                                                for ( uint32 col = 0; col < mipWidth; col++ )
+                                                {
+                                                    uint8 resVal = *((unsigned char*)srcRow + col);
+
+                                                    setpaletteindex(dstRow, col, dstDepth, convPaletteFormat, resVal);
+                                                }
+                                            }
+                                        }
+                                        catch( ... )
+                                        {
+                                            // Never say never about code being able to throw exceptions.
+                                            // It can always make sense in the future.
+                                            engineInterface->PixelFree( newTexelArray );
+
+                                            throw;
+                                        }
+                                    }
+
+                                    // Set the texels.
+                                    mipLayer.texels = newTexelArray;
+                                    mipLayer.dataSize = dataSize;
+                                }
+                            }
+                            catch( ... )
+                            {
+                                engineInterface->PixelFree( newPalItems );
+
+                                throw;
+                            }
+
+                            if ( !hasUsedArray )
+                            {
+                                engineInterface->PixelFree( newPalItems );
+                            }
+                        }
+
+                        // Delete the old palette data.
+                        if (srcPaletteData != NULL)
+                        {
+                            engineInterface->PixelFree( srcPaletteData );
+
+                            // This is really important. We cannot keep things in an inconsistent state
+                            // if we want exception-safe code.
+                            pixelData.paletteData = NULL;
+                        }
+
+                        // Update the texture palette data.
+                        {
+                            const liq_palette *palData = liq_get_palette(quant_result);
+
+                            uint32 newPalItemCount = palData->count;
+
+                            uint32 palDepth = Bitmap::getRasterFormatDepth(dstRasterFormat);
+
+                            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, palDepth, NULL, 0, PALETTE_NONE );
+
+                            uint32 palDataSize = getPaletteDataSize( newPalItemCount, palDepth );
+
+                            void *newPalArray = engineInterface->PixelAllocate( palDataSize );
+
+                            if ( newPalArray == NULL )
+                            {
+                                throw RwException( "failed to allocate palette color array in libimagequant palettitation algorithm" );
+                            }
+
+                            try
+                            {
+                                for ( unsigned int n = 0; n < newPalItemCount; n++ )
+                                {
+                                    const liq_color& srcColor = palData->entries[ n ];
                             
-                            putDispatch.setRGBA(newPalArray, n, srcColor.r, srcColor.g, srcColor.b, srcColor.a);
+                                    putDispatch.setRGBA(newPalArray, n, srcColor.r, srcColor.g, srcColor.b, srcColor.a);
+                                }
+                            }
+                            catch( ... )
+                            {
+                                engineInterface->PixelFree( newPalArray );
+
+                                throw;
+                            }
+
+                            // Update texture properties.
+                            pixelData.paletteData = newPalArray;
+                            pixelData.paletteSize = newPalItemCount;
                         }
                     }
                     catch( ... )
                     {
-                        delete newPalArray;
+                        liq_result_destroy( quant_result );
 
                         throw;
                     }
 
-                    // Update texture properties.
-                    pixelData.paletteData = newPalArray;
-                    pixelData.paletteSize = newPalItemCount;
+                    // Release resources.
+                    liq_result_destroy( quant_result );
                 }
-            }
-            else
-            {
-                assert( 0 );
-            }
+                catch( ... )
+                {
+                    liq_image_destroy( quant_image );
 
-            // Release resources.
-            liq_image_destroy( quant_image );
+                    throw;
+                }
+
+                liq_image_destroy( quant_image );
+            }
+            catch( ... )
+            {
+                // Be a good implementation and take care of errors :)
+                // Even if they are unlikely to happen now, who knows about the future?
+                liq_attr_destroy( quant_attr );
+
+                throw;
+            }
 
             liq_attr_destroy( quant_attr );
-
-            liq_result_destroy( quant_result );
 
             palettizeSuccess = true;
         }
 #endif //RWLIB_INCLUDE_LIBIMAGEQUANT
         else
         {
+            // A safe assertion that should never be triggered.
             assert( 0 );
         }
     }
@@ -839,123 +942,210 @@ void RemapMipmapLayer(
     {
         liq_attr *liq_attr = liq_attr_create();
 
-        assert( liq_attr != NULL );
-
-        // Disallow libimagequant from sorting our colors.
-        liq_set_allow_palette_sorting( liq_attr, false );
-
-        // Since we want to remap an image, we want to create an image handle.
-        // Then we want to copy palette into the library's memory and use it to search for colors.
-        liq_mipmap mipData;
-        mipData.texelSource = mipTexels;
-        mipData.rowSize = getRasterDataRowSize( mipWidth, mipDepth, srcRowAlignment );
-        mipData.rasterFormat = mipRasterFormat;
-        mipData.depth = mipDepth;
-        mipData.rowAlignment = srcRowAlignment;
-        mipData.colorOrder = mipColorOrder;
-        mipData.paletteType = mipPaletteType;
-        mipData.paletteData = mipPaletteData;
-        mipData.paletteSize = mipPaletteSize;
-        
-        liq_image *liq_mip_layer =
-            liq_image_create_custom(
-                liq_attr, liq_single_mip_rgba_fetch_callback, &mipData,
-                mipWidth, mipHeight,
-                1.0
-            );
-
-        assert( liq_mip_layer != NULL );
-
-        // Copy the palette in the correct order into libimagequant memory.
-        liq_set_max_colors( liq_attr, paletteSize );
-
-        for ( uint32 n = 0; n < paletteSize; n++ )
+        if ( liq_attr == NULL )
         {
-            uint8 r, g, b, a;
-
-            fetchPalDispatch.getRGBA( paletteData, n, r, g, b, a );
-
-            liq_color theColor;
-
-            theColor.r = r;
-            theColor.g = g;
-            theColor.b = b;
-            theColor.a = a;
-
-            liq_error palAddError = liq_image_add_fixed_color( liq_mip_layer, theColor );
-
-            assert( palAddError == LIQ_OK );
+            throw RwException( "failed to allocate libimagequant attribute struct" );
         }
 
-        // Create an output buffer.
-        // It must be 8 bit.
-        uint32 dstRowSize = getRasterDataRowSize( mipWidth, convItemDepth, dstRowAlignment );
+        // The stuff we want to eventually return.
+        // If this stuff was somehow allocated we free it on error, I guess.
+        void *newtexels = NULL;
+        uint32 dstDataSize = 0;
 
-        uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
-
-        void *newtexels = engineInterface->PixelAllocate( dstDataSize );
-
-        assert( newtexels != NULL );
-
-        // Write the remapped image.
-        // This should write configuration about colors, but should not replace palette colors.
-        liq_result *liq_res = liq_quantize_image( liq_attr, liq_mip_layer );
-    
-        assert( liq_res != NULL );
-
-        // If convPaletteDepth is 8, basically what libimagequant outputs as, we can directly take those pixels.
-        // Otherwise we need a temporary buffer where libimagequant will write into and we transform to correct format afterward.
-        if ( convItemDepth == 8 )
+        try
         {
-            // Split it into rows.
-            void **rowp = (void**)engineInterface->PixelAllocate( sizeof(void*) * mipHeight );
+            // Disallow libimagequant from sorting our colors.
+            liq_set_allow_palette_sorting( liq_attr, false );
 
-            assert( rowp != NULL );
+            // Since we want to remap an image, we want to create an image handle.
+            // Then we want to copy palette into the library's memory and use it to search for colors.
+            liq_mipmap mipData;
+            mipData.texelSource = mipTexels;
+            mipData.rowSize = getRasterDataRowSize( mipWidth, mipDepth, srcRowAlignment );
+            mipData.rasterFormat = mipRasterFormat;
+            mipData.depth = mipDepth;
+            mipData.rowAlignment = srcRowAlignment;
+            mipData.colorOrder = mipColorOrder;
+            mipData.paletteType = mipPaletteType;
+            mipData.paletteData = mipPaletteData;
+            mipData.paletteSize = mipPaletteSize;
+        
+            liq_image *liq_mip_layer =
+                liq_image_create_custom(
+                    liq_attr, liq_single_mip_rgba_fetch_callback, &mipData,
+                    mipWidth, mipHeight,
+                    1.0
+                );
 
-            for ( uint32 n = 0; n < mipHeight; n++ )
+            if ( liq_mip_layer == NULL )
             {
-                rowp[ n ] = getTexelDataRow( newtexels, dstRowSize, n );
+                throw RwException( "failed to allocate libimagequant image handle for palette remapping" );
             }
 
-            liq_error writeError = liq_write_remapped_image_rows( liq_res, liq_mip_layer, (unsigned char**)rowp );
+            try
+            {
+                // Copy the palette in the correct order into libimagequant memory.
+                liq_set_max_colors( liq_attr, paletteSize );
 
-            assert( writeError == LIQ_OK );
+                for ( uint32 n = 0; n < paletteSize; n++ )
+                {
+                    uint8 r, g, b, a;
+
+                    fetchPalDispatch.getRGBA( paletteData, n, r, g, b, a );
+
+                    liq_color theColor;
+
+                    theColor.r = r;
+                    theColor.g = g;
+                    theColor.b = b;
+                    theColor.a = a;
+
+                    liq_error palAddError = liq_image_add_fixed_color( liq_mip_layer, theColor );
+
+                    if ( palAddError != LIQ_OK )
+                    {
+                        throw RwException( "failed to add color to libimagequant palette buffer" );
+                    }
+                }
+
+                // Create an output buffer.
+                // It must be 8 bit.
+                uint32 dstRowSize = getRasterDataRowSize( mipWidth, convItemDepth, dstRowAlignment );
+
+                dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
+
+                newtexels = engineInterface->PixelAllocate( dstDataSize );
+
+                if ( !newtexels )
+                {
+                    throw RwException( "failed to allocate palette index memory for remapping" );
+                }
+
+                // Write the remapped image.
+                // This should write configuration about colors, but should not replace palette colors.
+                liq_result *liq_res = liq_quantize_image( liq_attr, liq_mip_layer );
+    
+                if ( liq_res == NULL )
+                {
+                    throw RwException( "failed to remap image using libimagequant" );
+                }
+
+                try
+                {
+                    // If convPaletteDepth is 8, basically what libimagequant outputs as, we can directly take those pixels.
+                    // Otherwise we need a temporary buffer where libimagequant will write into and we transform to correct format afterward.
+                    if ( convItemDepth == 8 )
+                    {
+                        // Split it into rows.
+                        void **rowp = (void**)engineInterface->PixelAllocate( sizeof(void*) * mipHeight );
+
+                        if ( rowp == NULL )
+                        {
+                            throw RwException( "failed to allocate libimagequant remapping row pointer array" );
+                        }
+
+                        try
+                        {
+                            for ( uint32 n = 0; n < mipHeight; n++ )
+                            {
+                                rowp[ n ] = getTexelDataRow( newtexels, dstRowSize, n );
+                            }
+
+                            liq_error writeError = liq_write_remapped_image_rows( liq_res, liq_mip_layer, (unsigned char**)rowp );
+
+                            if ( writeError != LIQ_OK )
+                            {
+                                throw RwException( "failed to write remapped index buffer using libimagequant" );
+                            }
+                        }
+                        catch( ... )
+                        {
+                            engineInterface->PixelFree( rowp );
+
+                            throw;
+                        }
+
+                        engineInterface->PixelFree( rowp );
+                    }
+                    else
+                    {
+                        // Write the pixels into a temporary buffer.
+                        // Then convert to the final format for ourselves.
+                        uint32 liqPackedRowSize = ( mipWidth * sizeof(unsigned char) );
+
+                        uint32 liqPackedDataSize = ( liqPackedRowSize * mipHeight );
+
+                        void *liqBuf = engineInterface->PixelAllocate( liqPackedDataSize );
+
+                        if ( liqBuf == NULL )
+                        {
+                            throw RwException( "failed to allocate temporary libimagequant palette index buffer" );
+                        }
+
+                        try
+                        {
+                            liq_error writeError = liq_write_remapped_image( liq_res, liq_mip_layer, liqBuf, liqPackedDataSize );
+
+                            if ( writeError != LIQ_OK )
+                            {
+                                throw RwException( "failed to write remapped index buffer using libimagequant" );   
+                            }
+
+                            // Convert the palette indice.
+                            ConvertPaletteDepth(
+                                liqBuf, newtexels,
+                                mipWidth, mipHeight,
+                                PALETTE_8BIT, convPaletteType, paletteSize,
+                                8, convItemDepth,
+                                1, dstRowAlignment
+                            );
+                        }
+                        catch( ... )
+                        {
+                            engineInterface->PixelFree( liqBuf );
+
+                            throw;
+                        }
+
+                        // Free the temporary buffer.
+                        engineInterface->PixelFree( liqBuf );
+                    }
+                }
+                catch( ... )
+                {
+                    liq_result_destroy( liq_res );
+
+                    throw;
+                }
+
+                // Clean up after ourselves.
+                liq_result_destroy( liq_res );
+            }
+            catch( ... )
+            {
+                liq_image_destroy( liq_mip_layer );
+
+                throw;
+            }
+
+            liq_image_destroy( liq_mip_layer );
         }
-        else
+        catch( ... )
         {
-            // Write the pixels into a temporary buffer.
-            // Then convert to the final format for ourselves.
-            uint32 liqPackedRowSize = ( mipWidth * sizeof(unsigned char) );
+            // Free on error, if somebody actually allocated.
+            if ( newtexels )
+            {
+                engineInterface->PixelFree( newtexels );
+            }
 
-            uint32 liqPackedDataSize = ( liqPackedRowSize * mipHeight );
+            liq_attr_destroy( liq_attr );
 
-            void *liqBuf = engineInterface->PixelAllocate( liqPackedDataSize );
-
-            assert( liqBuf != NULL );
-
-            liq_error writeError = liq_write_remapped_image( liq_res, liq_mip_layer, liqBuf, liqPackedDataSize );
-
-            assert( writeError == LIQ_OK );
-
-            // Convert the palette indice.
-            ConvertPaletteDepth(
-                liqBuf, newtexels,
-                mipWidth, mipHeight,
-                PALETTE_8BIT, convPaletteType, paletteSize,
-                8, convItemDepth,
-                1, dstRowAlignment
-            );
-
-            // Free the temporary buffer.
-            engineInterface->PixelFree( liqBuf );
+            throw;
         }
-
-        // Clean up after ourselves.
-        liq_result_destroy( liq_res );
-
-        liq_image_destroy( liq_mip_layer );
 
         liq_attr_destroy( liq_attr );
+
+        assert( newtexels != NULL && dstDataSize != 0 );
 
         // Return the results.
         dstTexelsOut = newtexels;

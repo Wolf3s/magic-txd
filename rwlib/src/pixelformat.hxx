@@ -140,6 +140,32 @@ AINLINE uint8 rgb2lum( uint8 red, uint8 green, uint8 blue )
     return ( (uint32)red + (uint32)green + (uint32)blue ) / 3;
 }
 
+AINLINE void colorItem2RGBA( const abstractColorItem& colorItem, uint8& r, uint8& g, uint8& b, uint8& a )
+{
+    eColorModel model = colorItem.model;
+
+    if ( model == COLORMODEL_RGBA )
+    {
+        r = colorItem.rgbaColor.r;
+        g = colorItem.rgbaColor.g;
+        b = colorItem.rgbaColor.b;
+        a = colorItem.rgbaColor.a;
+    }
+    else if ( model == COLORMODEL_LUMINANCE )
+    {
+        uint8 lum = colorItem.luminance.lum;
+
+        r = lum;
+        g = lum;
+        b = lum;
+        a = colorItem.luminance.alpha;
+    }
+    else
+    {
+        throw RwException( "invalid color model in colorItem2RGBA" );
+    }
+}
+
 inline eColorModel getColorModelFromRasterFormat( eRasterFormat rasterFormat )
 {
     eColorModel usedColorModel;

@@ -459,6 +459,8 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
 
     NativeTextureGC *nativeTex = (NativeTextureGC*)objMem;
 
+    LibraryVersion texVersion = nativeTex->texVersion;
+
     // Get all properties on the stack.
     eRasterFormat srcRasterFormat = pixelsIn.rasterFormat;
     uint32 srcDepth = pixelsIn.depth;
@@ -470,6 +472,11 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
     uint32 srcPaletteSize = pixelsIn.paletteSize;
 
     // Decide about the destination native format.
+    // The problem with the destination raster format is that it depends on the
+    // RW version. Prior to 3.3.0.2 this native texture did not support luminance
+    // based formats.
+    bool doesSupportLuminance = ( texVersion.isNewerThan( LibraryVersion( 3, 3, 0, 2 ) ) );
+
     eGCNativeTextureFormat dstInternalFormat;
     eGCPixelFormat dstPalettePixelFormat = GVRPIX_NO_PALETTE;
 
@@ -520,8 +527,9 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
 
                 gotFormat = true;
             }
-            else if ( srcRasterFormat == RASTER_LUM ||
-                      srcRasterFormat == RASTER_LUM_ALPHA )
+            else if ( doesSupportLuminance &&
+                      ( srcRasterFormat == RASTER_LUM ||
+                        srcRasterFormat == RASTER_LUM_ALPHA ) )
             {
                 dstPalettePixelFormat = GVRPIX_LUM_ALPHA;
 
@@ -557,7 +565,7 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
 
                 gotFormat = true;
             }
-            else if ( srcRasterFormat == RASTER_LUM )
+            else if ( doesSupportLuminance && srcRasterFormat == RASTER_LUM )
             {
                 // Depends on the depth.
                 if ( srcDepth == 4 )
@@ -581,7 +589,7 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
                     gotFormat = true;
                 }
             }
-            else if ( srcRasterFormat == RASTER_LUM_ALPHA )
+            else if ( doesSupportLuminance && srcRasterFormat == RASTER_LUM_ALPHA )
             {
                 // Depends on the depth.
                 if ( srcDepth == 8 )
@@ -728,11 +736,8 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
     acquireFeedback.hasDirectlyAcquired = false;
 }
 
-void gamecubeNativeTextureTypeProvider::UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate )
+inline void resetNativeTexture( Interface *engineInterface, NativeTextureGC *nativeTex, bool deallocate )
 {
-    // Clear all texture data from our GameCube texture.
-    NativeTextureGC *nativeTex = (NativeTextureGC*)objMem;
-
     if ( deallocate )
     {
         deleteMipmapLayers( engineInterface, nativeTex->mipmaps );
@@ -762,10 +767,217 @@ void gamecubeNativeTextureTypeProvider::UnsetPixelDataFromTexture( Interface *en
     nativeTex->unk4 = 0;
 }
 
+void gamecubeNativeTextureTypeProvider::UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate )
+{
+    // Clear all texture data from our GameCube texture.
+    NativeTextureGC *nativeTex = (NativeTextureGC*)objMem;
+
+    resetNativeTexture( engineInterface, nativeTex, deallocate );
+}
+
+void NativeTextureGC::UpdateStructure( void )
+{
+    // We check whether our native texture can support the data that it currently holds.
+    // If there is any mismatch, we downgrade the data to a compatible format.
+
+    LibraryVersion curVer = this->texVersion;
+
+    eGCNativeTextureFormat internalFormat = this->internalFormat;
+    eGCPixelFormat palettePixelFormat = this->palettePixelFormat;
+
+    uint32 paletteSize = this->paletteSize;
+
+    // Figure out our support capabilities.
+    bool supportsLuminance = ( curVer.isNewerThan( LibraryVersion( 3, 3, 0, 2 ) ) );
+
+    // Check if there is any conflict to our current support.
+    // Also determine, if there is a conflict, what format we should map to instead.
+    bool doesConflictExist = false;
+
+    eGCNativeTextureFormat dstInternalFormat;
+    eGCPixelFormat dstPalettePixelFormat = palettePixelFormat;
+
+    if ( supportsLuminance == false )
+    {
+        // Check if we have a luminance based format in any way.
+        if ( palettePixelFormat != GVRPIX_NO_PALETTE )
+        {
+            if ( palettePixelFormat == GVRPIX_LUM_ALPHA )
+            {
+                // Need to map to our strongest palette pixel format.
+                dstInternalFormat = internalFormat;
+                dstPalettePixelFormat = GVRPIX_RGB5A3;
+
+                doesConflictExist = true;
+            }
+        }
+        else
+        {
+            if ( internalFormat == GVRFMT_LUM_4BIT ||
+                 internalFormat == GVRFMT_LUM_8BIT ||
+                 internalFormat == GVRFMT_LUM_4BIT_ALPHA ||
+                 internalFormat == GVRFMT_LUM_8BIT_ALPHA )
+            {
+                // We need to map to full color raw.
+                dstInternalFormat = GVRFMT_RGBA8888;
+
+                doesConflictExist = true;
+            }
+        }
+    }
+
+    // If there is no conflict, we do not have to worry :)
+    if ( !doesConflictExist )
+        return;
+
+    // We do not support compression conversion, and do not need that anyway.
+    assert( internalFormat != GVRFMT_CMP );
+    assert( dstInternalFormat != GVRFMT_CMP );
+
+    // Transform the color data into the format that we want to be put into, ugh.
+    // Luckily there is no complicated packing in this native texture, so we can simply process the layers.
+
+    // TODO: we need random-access-style accessors for internalFormat permutations, so that we can
+    // convert without brainmelt!
+
+    // Get common properties.
+    uint32 srcDepth = getGCInternalFormatDepth( internalFormat );
+    uint32 dstDepth = getGCInternalFormatDepth( dstInternalFormat );
+
+    uint32 srcClusterWidth, srcClusterHeight, srcClusterCount;
+    uint32 dstClusterWidth, dstClusterHeight, dstClusterCount;
+
+    bool getSrcClusterProps = getGVRNativeFormatClusterDimensions( srcDepth, srcClusterWidth, srcClusterHeight, srcClusterCount );
+    bool getDstClusterProps = getGVRNativeFormatClusterDimensions( dstDepth, dstClusterWidth, dstClusterHeight, dstClusterCount );
+
+    if ( !getSrcClusterProps || !getDstClusterProps )
+    {
+        // Really, really should not happen.
+        throw RwException( "fatal: failed to get cluster-props for GC native texture consistency update" );
+    }
+
+    bool isSrcFormatSwizzled = isGVRNativeFormatSwizzled( internalFormat );
+    bool isDstFormatSwizzled = isGVRNativeFormatSwizzled( dstInternalFormat );
+
+    try
+    {
+        // Process the texel layers first.
+        {
+            size_t mipmapCount = this->mipmaps.size();
+
+            for ( size_t n = 0; n < mipmapCount; n++ )
+            {
+                NativeTextureGC::mipmapLayer& mipLayer = this->mipmaps[ n ];
+            
+                uint32 srcMipWidth = mipLayer.width;
+                uint32 srcMipHeight = mipLayer.height;
+
+                uint32 layerWidth = mipLayer.layerWidth;
+                uint32 layerHeight = mipLayer.layerHeight;
+
+                void *srcTexels = mipLayer.texels;
+                uint32 srcDataSize = mipLayer.dataSize;
+
+                // Transform this mipmap layer into another format.
+                uint32 dstMipWidth, dstMipHeight;
+                void *dstTexels;
+                uint32 dstDataSize;
+
+                TransformRawGCMipmapLayer(
+                    engineInterface,
+                    srcTexels, layerWidth, layerHeight,
+                    internalFormat, dstInternalFormat, srcMipWidth, srcMipHeight,
+                    srcDepth, dstDepth,
+                    srcClusterWidth, srcClusterHeight, srcClusterCount,
+                    dstClusterWidth, dstClusterHeight, dstClusterCount,
+                    isSrcFormatSwizzled, isDstFormatSwizzled,
+                    paletteSize,
+                    dstMipWidth, dstMipHeight,
+                    dstTexels, dstDataSize
+                );
+
+                // Delete old texels.
+                if ( srcTexels != dstTexels )   // in preparation for the future ;)
+                {
+                    engineInterface->PixelFree( srcTexels );
+                }
+
+                // Replace the layer data.
+                mipLayer.width = dstMipWidth;
+                mipLayer.height = dstMipHeight;
+
+                mipLayer.texels = dstTexels;
+                mipLayer.dataSize = dstDataSize;
+            }
+        }
+
+        // Process palette too, if present.
+        if ( dstPalettePixelFormat != GVRPIX_NO_PALETTE )
+        {
+            assert( palettePixelFormat != GVRPIX_NO_PALETTE );
+
+            void *paletteData = this->palette;
+
+            TransformGCPaletteData(
+                paletteData, paletteSize,
+                palettePixelFormat, dstPalettePixelFormat
+            );
+        }
+    }
+    catch( ... )
+    {
+        // Unfortunately if any error occured we have to pull the safety plug and clear the native texture.
+        // This is becaused we optimize for the case that no error occurs because this is a closed architecture.
+
+        resetNativeTexture( engineInterface, this, true );
+
+        // Pass on the error anyway.
+        throw;
+    }
+
+    // Set new format properties.
+    this->internalFormat = dstInternalFormat;
+    this->palettePixelFormat = dstPalettePixelFormat;
+}
+
 static PluginDependantStructRegister <gamecubeNativeTextureTypeProvider, RwInterfaceFactory_t> gcNativeTypeRegister;
 
-void registerGCNativePlugin( void )
+// Some tests to ensure correct functionality of Gamecube texture encoding.
+inline void TestSpecificEncoding( eGCNativeTextureFormat encodingFormat )
 {
+    const uint32 gcTestDepth = getGCInternalFormatDepth( encodingFormat );
+
+    const uint32 gcTestWidth = 64;
+    const uint32 gcTestHeight = 32;
+
+    uint32 clusterWidth, clusterHeight, clusterCount;
+    getGVRNativeFormatClusterDimensions( gcTestDepth, clusterWidth, clusterHeight, clusterCount );
+
+    memcodec::permutationUtilities::TestTileEncoding(
+        gcTestWidth, gcTestHeight,
+        clusterWidth, clusterHeight, clusterCount
+    );
+
+    // Test a tiny mipmap.
+    memcodec::permutationUtilities::TestTileEncoding(
+        2, 4,
+        clusterWidth, clusterHeight, clusterCount
+    );
+}
+
+inline void TestMemoryEncodingIntegrity( void )
+{
+    TestSpecificEncoding( GVRFMT_RGBA8888 );
+    TestSpecificEncoding( GVRFMT_PAL_4BIT );
+    TestSpecificEncoding( GVRFMT_PAL_8BIT );
+    TestSpecificEncoding( GVRFMT_RGB5A3 );
+}
+
+void registerGCNativePlugin( void ) 
+{
+    // INTEGRITY TEST FOR MEMORY ENCODING.
+    TestMemoryEncodingIntegrity();
+
     gcNativeTypeRegister.RegisterPlugin( engineFactory );
 }
 

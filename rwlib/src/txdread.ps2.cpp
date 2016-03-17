@@ -610,7 +610,7 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                                 uint32 readCount = newMipmap.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
 
-                                if ( readCount > remainingImageData )
+                                if ( readCount > (uint32)remainingImageData )
                                 {
                                     throw RwException( "invalid image data bounds for PS2 native texture" );
                                 }
@@ -681,7 +681,7 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                                 uint32 readCount = palTex.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
 
-                                if ( readCount > remainingPaletteData )
+                                if ( readCount > (uint32)remainingPaletteData )
                                 {
                                     throw RwException( "invalid palette texture data in PS2 native texture" );
                                 }
@@ -1033,7 +1033,7 @@ inline void GetPS2TextureTranscodedMipmapData(
     try
     {
         // Cache important values.
-        bool isConversionComplyingItemSwap = !shouldAllocateNewRasterBuffer( srcLayerWidth, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment );
+        bool isConversionComplyingItemSwap = !hasConflictingAddressing( srcLayerWidth, srcDepth, srcRowAlignment, paletteType, dstDepth, dstRowAlignment, paletteType );
 
         if ( hasToTranscode )
         {

@@ -74,10 +74,16 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
         // todo: Maybe make SetEngineVersion sets the version for all children objects?
         currentTXD->SetEngineVersion(libVer);
 
-        if (currentTXD->numTextures > 0) {
+        bool hasChangedVersion = false;
+
+        if (currentTXD->numTextures > 0)
+        {
             for (rw::TexDictionary::texIter_t iter(currentTXD->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
             {
                 iter.Resolve()->SetEngineVersion(libVer);
+
+                // Pretty naive, but in the context very okay.
+                hasChangedVersion = true;
             }
         }
 
@@ -85,6 +91,8 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
         QString currentPlatform = this->versionGUI.GetSelectedEnginePlatform();
 
         // If platform was changed
+        bool hasChangedPlatform = false;
+
         if (previousPlatform != currentPlatform)
         {
             this->mainWnd->SetRecommendedPlatform(currentPlatform);
@@ -97,7 +105,12 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
                 LOGMSG_INFO
             );
 
-            // Also update texture item info, because it may have changed.
+            hasChangedPlatform = true;
+        }
+
+        if ( hasChangedVersion || hasChangedPlatform )
+        {
+            // Update texture item info, because it may have changed.
             this->mainWnd->updateAllTextureMetaInfo();
 
             // The visuals of the texture _may_ have changed.

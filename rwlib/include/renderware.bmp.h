@@ -50,7 +50,11 @@ inline const void* getConstTexelDataRow( const void *texelData, uint32 rowSize, 
     return (const char*)texelData + rowSize * n;
 }
 
-inline bool shouldAllocateNewRasterBuffer( uint32 mipWidth, uint32 srcDepth, uint32 srcRowAlignment, uint32 dstDepth, uint32 dstRowAlignment )
+inline bool shouldAllocateNewRasterBuffer(
+    uint32 mipWidth,
+    uint32 srcDepth, uint32 srcRowAlignment,
+    uint32 dstDepth, uint32 dstRowAlignment
+)
 {
     // If the depth changed, an item will take a different amount of space.
     // This means that items cannot be placed at the positions where they belong to (swapping) so get off.
@@ -74,6 +78,32 @@ inline bool shouldAllocateNewRasterBuffer( uint32 mipWidth, uint32 srcDepth, uin
         }
     }
 
+    return false;
+}
+
+inline bool hasConflictingAddressing(
+    uint32 mipWidth,
+    uint32 srcDepth, uint32 srcRowAlignment, ePaletteType srcPaletteType,
+    uint32 dstDepth, uint32 dstRowAlignment, ePaletteType dstPaletteType
+)
+{
+    // If the buffer dimensions are different, we should kinda think about it.
+    if ( shouldAllocateNewRasterBuffer( mipWidth, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment ) )
+        return true;
+
+    // If there is conflicting addressing, you most likely need a different destination buffer for conversion.
+    // This happens sometimes.
+    if ( srcPaletteType != PALETTE_NONE && dstPaletteType != PALETTE_NONE )
+    {
+        // Because palette types are really complicated, a change in palette type most likely
+        // introduces a change in addressing. Be careful about that.
+        if ( srcPaletteType != dstPaletteType )
+        {
+            return true;
+        }
+    }
+
+    // We are good to go.
     return false;
 }
 

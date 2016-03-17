@@ -23,9 +23,11 @@ AINLINE void GCProcessRandomAccessTileSurface(
     callbackType& cb
 )
 {
+    using namespace memcodec::permutationUtilities;
+
     if ( isSwizzled )
     {
-        memcodec::permutationUtilities::ProcessTextureLayerTiles(
+        ProcessTextureLayerPackedTiles(
             mipWidth, mipHeight,
             clusterWidth, clusterHeight,
             clusterCount,
@@ -34,22 +36,72 @@ AINLINE void GCProcessRandomAccessTileSurface(
     }
     else
     {
-        uint32 proc_width = ALIGN_SIZE( mipWidth, clusterWidth );
-        uint32 proc_height = ALIGN_SIZE( mipHeight, clusterHeight );
+        GenericProcessTileLayerPerCluster <linearTileProcessor> (
+            mipWidth, mipHeight,
+            clusterWidth, clusterHeight, clusterCount,
+            cb
+        );
+    }
+}
 
-        // Process a linear surface.
-        for ( uint32 proc_y = 0; proc_y < proc_height; proc_y++ )
-        {
-            uint32 packed_x = 0;
+AINLINE void GCGetTiledCoordFromLinear(
+    uint32 linearX, uint32 linearY,
+    uint32 surfWidth, uint32 surfHeight,
+    uint32 clusterWidth, uint32 clusterHeight,
+    bool isSwizzled,
+    uint32& tiled_x, uint32& tiled_y
+)
+{
+    using namespace memcodec::permutationUtilities;
 
-            for ( uint32 proc_x = 0; proc_x < proc_width; proc_x++ )
-            {
-                for ( uint32 cluster_index = 0; cluster_index < clusterCount; cluster_index++ )
-                {
-                    cb( proc_x, proc_y, packed_x++, proc_y, cluster_index );
-                }
-            }
-        }
+    if ( isSwizzled )
+    {
+        GetPackedTiledCoordFromLinear(
+            linearX, linearY,
+            surfWidth, surfHeight,
+            clusterWidth, clusterHeight,
+            tiled_x, tiled_y
+        );
+    }
+    else
+    {
+        GenericGetTiledCoordFromLinear <linearTileProcessor> (
+            linearX, linearY,
+            surfWidth, surfHeight,
+            clusterWidth, clusterHeight,
+            tiled_x, tiled_y
+        );
+    }
+}
+
+template <typename callbackType>
+AINLINE void GCProcessTiledCoordsFromLinear(
+    uint32 linearX, uint32 linearY,
+    uint32 surfWidth, uint32 surfHeight,
+    uint32 clusterWidth, uint32 clusterHeight, uint32 clusterCount, 
+    bool isFormatSwizzled,
+    callbackType& cb
+)
+{
+    using namespace memcodec::permutationUtilities;
+
+    if ( isFormatSwizzled )
+    {
+        ProcessPackedTiledCoordsFromLinear(
+            linearX, linearY,
+            surfWidth, surfHeight,
+            clusterWidth, clusterHeight, clusterCount,
+            cb
+        );
+    }
+    else
+    {
+        GenericProcessTiledCoordsFromLinear <linearTileProcessor> (
+            linearX, linearY,
+            surfWidth, surfHeight,
+            clusterWidth, clusterHeight, clusterCount,
+            cb
+        );
     }
 }
 
@@ -79,6 +131,102 @@ struct gc_dxt1_block
 
     endian::big_endian <uint32> indexList;
 };
+
+template <typename dispatchType, typename reEstablishColorProc>
+AINLINE void readGCNativeColor(
+    const void *srcRow, dispatchType& srcDispatch, uint32 src_pos_x,
+    uint32 cluster_index,
+    reEstablishColorProc& reCB,
+    abstractColorItem& colorItem
+)
+{
+    if ( srcDispatch.getNativeFormat() == GVRFMT_RGBA8888 )
+    {
+        // This is actually a more complicated fetch operation.
+
+        // Get alpha and red components.
+        if ( cluster_index == 0 )
+        {
+            struct alpha_red
+            {
+                unsigned char alpha;
+                unsigned char red;
+            };
+
+            const alpha_red *srcTuple = (const alpha_red*)srcRow + src_pos_x;
+
+            colorItem.rgbaColor.a = srcTuple->alpha;
+            colorItem.rgbaColor.r = srcTuple->red;
+            colorItem.rgbaColor.g = 0;
+            colorItem.rgbaColor.b = 0;
+
+            colorItem.model = COLORMODEL_RGBA;
+        }
+        // Get the green and blue components.
+        else if ( cluster_index == 1 )
+        {
+            struct green_blue
+            {
+                unsigned char green;
+                unsigned char blue;
+            };
+
+            const green_blue *srcTuple = (const green_blue*)srcRow + src_pos_x;
+
+            // We want to update the color with green and blue.
+            reCB( colorItem );
+
+            colorItem.rgbaColor.g = srcTuple->green;
+            colorItem.rgbaColor.b = srcTuple->blue;
+        }
+        else
+        {
+            assert( 0 );
+        }
+    }
+    else
+    {
+        // Cannot have that! And it realistically is not being done.
+        // But putting this check is good as reference for the future.
+        assert( cluster_index == 0 );
+
+        srcDispatch.getColor( srcRow, src_pos_x, colorItem );
+    }
+}
+
+inline void copyPaletteIndexAcrossSurfaces(
+    const void *srcTexels, uint32 srcLayerWidth, uint32 srcLayerHeight, uint32 srcRowSize,
+    void *dstTexels, uint32 dstSurfWidth, uint32 dstSurfHeight, uint32 dstRowSize,
+    uint32 src_pos_x, uint32 src_pos_y,
+    uint32 dst_pos_x, uint32 dst_pos_y,
+    uint32 srcDepth, ePaletteType srcPaletteType,
+    uint32 dstDepth, ePaletteType dstPaletteType,
+    uint32 paletteSize
+)
+{
+    if ( dst_pos_x < dstSurfWidth && dst_pos_y < dstSurfHeight )
+    {
+        void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
+
+        if ( src_pos_x < srcLayerWidth && src_pos_y < srcLayerHeight )
+        {
+            // We can copy the palette index.
+            const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
+
+            copyPaletteItemGeneric(
+                srcRow, dstRow,
+                src_pos_x, srcDepth, srcPaletteType,
+                dst_pos_x, dstDepth, dstPaletteType,
+                paletteSize
+            );
+        }
+        else
+        {
+            // Clear if we could not get a source index.
+            setpaletteindex( dstRow, dst_pos_x, dstDepth, dstPaletteType, 0 );
+        }
+    }
+}
 
 inline void ConvertGCMipmapToRasterFormat(
     Interface *engineInterface,
@@ -143,27 +291,15 @@ inline void ConvertGCMipmapToRasterFormat(
                     [&]( uint32 dst_pos_x, uint32 dst_pos_y, uint32 src_pos_x, uint32 src_pos_y, uint32 cluster_index )
                 {
                     // We do this to not overcomplicate the code.
-                    if ( dst_pos_x < layerWidth && dst_pos_y < layerHeight )
-                    {
-                        void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
-
-                        if ( src_pos_x < mipWidth && src_pos_y < mipHeight )
-                        {
-                            const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, src_pos_y );
-
-                            copyPaletteItemGeneric(
-                                srcRow, dstRow,
-                                src_pos_x, srcDepth, paletteType,
-                                dst_pos_x, dstDepth, paletteType,
-                                paletteSize
-                            );
-                        }
-                        else
-                        {
-                            // We can just clear this.
-                            setpaletteindex( dstRow, dst_pos_x, dstDepth, paletteType, 0 );
-                        }
-                    }
+                    copyPaletteIndexAcrossSurfaces(
+                        texelSource, mipWidth, mipHeight, srcRowSize,
+                        dstTexels, layerWidth, layerHeight, dstRowSize,
+                        src_pos_x, src_pos_y,
+                        dst_pos_x, dst_pos_y,
+                        srcDepth, paletteType,
+                        dstDepth, paletteType,
+                        paletteSize
+                    );
                 });
             }
             else
@@ -173,7 +309,7 @@ inline void ConvertGCMipmapToRasterFormat(
 
                 // Set up the GC color dispatcher.
                 gcColorDispatch srcDispatch(
-                    internalFormat, palettePixelFormat,
+                    internalFormat, GVRPIX_NO_PALETTE,
                     COLOR_RGBA,
                     0, PALETTE_NONE, NULL, 0
                 );
@@ -184,8 +320,6 @@ inline void ConvertGCMipmapToRasterFormat(
                     NULL, 0, PALETTE_NONE
                 );
 
-                // TODO: thoroughly test 32bit textures!
-                
                 // If we store things in multi-clustered format, we promise the runtime
                 // that we can store the same amount of data in a more spread-out way, hence
                 // the buffer size if supposed to stay the same (IMPORTANT).
@@ -212,70 +346,19 @@ inline void ConvertGCMipmapToRasterFormat(
                         {
                             const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, src_pos_y );
 
-                            if ( internalFormat == GVRFMT_RGBA8888 )
-                            {
-                                // This is actually a more complicated fetch operation.
-
-                                // Get alpha and red components.
-                                if ( cluster_index == 0 )
+                            readGCNativeColor(
+                                srcRow, srcDispatch, src_pos_x,
+                                cluster_index,
+                                [&]( abstractColorItem& colorItem )
                                 {
-                                    struct alpha_red
-                                    {
-                                        unsigned char alpha;
-                                        unsigned char red;
-                                    };
-
-                                    const PixelFormat::typedcolor <alpha_red> *colorInfo = (const PixelFormat::typedcolor <alpha_red>*)srcRow;
-
-                                    alpha_red ar;
-
-                                    colorInfo->getvalue( src_pos_x, ar );
-
-                                    colorItem.rgbaColor.a = ar.alpha;
-                                    colorItem.rgbaColor.r = ar.red;
-                                    colorItem.rgbaColor.g = 0;
-                                    colorItem.rgbaColor.b = 0;
-
-                                    colorItem.model = COLORMODEL_RGBA;
-
-                                    hasColor = true;
-                                }
-                                // Get the green and blue components.
-                                else if ( cluster_index == 1 )
-                                {
-                                    struct green_blue
-                                    {
-                                        unsigned char green;
-                                        unsigned char blue;
-                                    };
-
-                                    const PixelFormat::typedcolor <green_blue> *colorInfo = (const PixelFormat::typedcolor <green_blue>*)srcRow;
-
-                                    green_blue gb;
-
-                                    colorInfo->getvalue( src_pos_x, gb );
-
                                     // We want to update the color with green and blue.
                                     dstDispatch.getColor( dstRow, dst_pos_x, colorItem );
 
                                     assert( colorItem.model == COLORMODEL_RGBA );
+                                }, colorItem
+                            );
 
-                                    colorItem.rgbaColor.g = gb.green;
-                                    colorItem.rgbaColor.b = gb.blue;
-
-                                    hasColor = true;
-                                }
-                                else
-                                {
-                                    assert( 0 );
-                                }
-                            }
-                            else
-                            {
-                                srcDispatch.getColor( srcRow, src_pos_x, colorItem );
-
-                                hasColor = true;
-                            }
+                            hasColor = true;
                         }
                     
                         if ( !hasColor )
@@ -344,38 +427,13 @@ inline void ConvertGCMipmapToRasterFormat(
 
             dxt1_block *dstBlocks = (dxt1_block*)dstTexels;
 
-            memcodec::permutationUtilities::ProcessTextureLayerTiles(
+            memcodec::permutationUtilities::ProcessTextureLayerPackedTiles(
                 gcBlocksWidth, gcBlocksHeight,
                 2, 2,
                 1,
-                [&]( uint32 perm_x_off, uint32 perm_y_off, uint32 packedData_xOff, uint32 packedData_yOff, uint32 cluster_index )
+                [&]( uint32 dst_pos_x, uint32 dst_pos_y, uint32 src_pos_x, uint32 src_pos_y, uint32 cluster_index )
             {
-                // Do the usual coordinate dispatch.
-                bool unswizzle = true;
-
-                uint32 src_pos_x;
-                uint32 src_pos_y;
-
-                uint32 dst_pos_x;
-                uint32 dst_pos_y;
-
-                if ( unswizzle )
-                {
-                    src_pos_x = packedData_xOff;
-                    src_pos_y = packedData_yOff;
-
-                    dst_pos_x = perm_x_off;
-                    dst_pos_y = perm_y_off;
-                }
-                else
-                {
-                    src_pos_x = perm_x_off;
-                    src_pos_y = perm_y_off;
-
-                    dst_pos_x = packedData_xOff;
-                    dst_pos_y = packedData_yOff;
-                }
-
+                // We unswizzle.
                 if ( dst_pos_x < dxtBlocksWidth && dst_pos_y < dxtBlocksHeight )
                 {
                     // Get the destination block ptr.
@@ -429,6 +487,56 @@ inline void ConvertGCMipmapToRasterFormat(
     else
     {
         throw RwException( "unknown GC native texture mipmap internalFormat" );
+    }
+}
+
+template <typename dispatchType>
+AINLINE void writeGCNativeColor(
+    void *dstRow, dispatchType& dstDispatch, uint32 dst_pos_x,
+    uint32 cluster_index,
+    const abstractColorItem& colorItem
+)
+{
+    if ( dstDispatch.getNativeFormat() == GVRFMT_RGBA8888 )
+    {
+        uint8 r, g, b, a;
+        colorItem2RGBA( colorItem, r, g, b, a );
+
+        if ( cluster_index == 0 )
+        {
+            struct alpha_red
+            {
+                uint8 alpha, red;
+            };
+
+            alpha_red ar;
+            ar.alpha = a;
+            ar.red = r;
+
+            *( (alpha_red*)dstRow + dst_pos_x ) = ar;
+        }
+        else if ( cluster_index == 1 )
+        {
+            struct green_blue
+            {
+                uint8 green, blue;
+            };
+
+            green_blue gb;
+            gb.green = g;
+            gb.blue = b;
+
+            *( (green_blue*)dstRow + dst_pos_x ) = gb;
+        }
+        else
+        {
+            assert( 0 );
+        }
+    }
+    else
+    {
+        // We are a simple color, so no problem.
+        dstDispatch.setColor( dstRow, dst_pos_x, colorItem );
     }
 }
 
@@ -494,7 +602,7 @@ inline void TranscodeIntoNativeGCLayer(
             {
                 assert( srcPaletteType != PALETTE_NONE );
 
-                ePaletteType dstPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat, nativeDepth );
+                ePaletteType dstPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat );
 
                 assert( dstPaletteType != PALETTE_NONE );
 
@@ -507,28 +615,15 @@ inline void TranscodeIntoNativeGCLayer(
                     [&]( uint32 src_pos_x, uint32 src_pos_y, uint32 dst_pos_x, uint32 dst_pos_y, uint32 cluster_index )
                 {
                     // We are swizzling.
-                    if ( dst_pos_x < gcSurfWidth && dst_pos_y < gcSurfHeight )
-                    {
-                        void *dstRow = getTexelDataRow( gcTexels, gcRowSize, dst_pos_y );
-
-                        if ( src_pos_x < layerWidth && src_pos_y < layerHeight )
-                        {
-                            // We can copy the palette index.
-                            const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
-
-                            copyPaletteItemGeneric(
-                                srcRow, dstRow,
-                                src_pos_x, srcDepth, srcPaletteType,
-                                dst_pos_x, nativeDepth, dstPaletteType,
-                                srcPaletteSize
-                            );
-                        }
-                        else
-                        {
-                            // Clear if we could not get a source index.
-                            setpaletteindex( dstRow, dst_pos_x, nativeDepth, dstPaletteType, 0 );
-                        }
-                    }
+                    copyPaletteIndexAcrossSurfaces(
+                        srcTexels, layerWidth, layerHeight, srcRowSize,
+                        gcTexels, gcSurfWidth, gcSurfHeight, gcRowSize,
+                        src_pos_x, src_pos_y,
+                        dst_pos_x, dst_pos_y,
+                        srcDepth, srcPaletteType,
+                        nativeDepth, dstPaletteType,
+                        srcPaletteSize
+                    );
                 });
             }
             else
@@ -544,7 +639,7 @@ inline void TranscodeIntoNativeGCLayer(
                 );
 
                 gcColorDispatch dstDispatch(
-                    internalFormat, palettePixelFormat,
+                    internalFormat, GVRPIX_NO_PALETTE,
                     COLOR_RGBA,
                     0, PALETTE_NONE, NULL, 0
                 );
@@ -589,47 +684,12 @@ inline void TranscodeIntoNativeGCLayer(
 
                         // Write properly into the destination.
                         // The important tidbit is that we need to double-cluster the RGBA8888 format.
-                        if ( internalFormat == GVRFMT_RGBA8888 )
-                        {
-                            // TODO: add generic abstractColorItem RGBA fetch.
-                            assert( colorItem.model == COLORMODEL_RGBA );
-
-                            if ( cluster_index == 0 )
-                            {
-                                struct alpha_red
-                                {
-                                    uint8 alpha, red;
-                                };
-
-                                alpha_red ar;
-                                ar.alpha = colorItem.rgbaColor.a;
-                                ar.red = colorItem.rgbaColor.r;
-
-                                *( (alpha_red*)dstRow + dst_pos_x ) = ar;
-                            }
-                            else if ( cluster_index == 1 )
-                            {
-                                struct green_blue
-                                {
-                                    uint8 green, blue;
-                                };
-
-                                green_blue gb;
-                                gb.green = colorItem.rgbaColor.g;
-                                gb.blue = colorItem.rgbaColor.b;
-
-                                *( (green_blue*)dstRow + dst_pos_x ) = gb;
-                            }
-                            else
-                            {
-                                assert( 0 );
-                            }
-                        }
-                        else
-                        {
-                            // We are a simple color, so no problem.
-                            dstDispatch.setColor( dstRow, dst_pos_x, colorItem );
-                        }
+                        
+                        writeGCNativeColor(
+                            dstRow, dstDispatch, dst_pos_x,
+                            cluster_index,
+                            colorItem
+                        );
                     }
                 });
             }
@@ -683,7 +743,7 @@ inline void TranscodeIntoNativeGCLayer(
             gc_dxt1_block *dstBlocks = (gc_dxt1_block*)gcTexels;
 
             // Process the framework DXT1 structs into native GC DXT1 structs.
-            memcodec::permutationUtilities::ProcessTextureLayerTiles(
+            memcodec::permutationUtilities::ProcessTextureLayerPackedTiles(
                 gcDXTBlocksWidth, gcDXTBlocksHeight,
                 2, 2,
                 1,
@@ -743,6 +803,178 @@ inline void TranscodeIntoNativeGCLayer(
     {
         throw RwException( "attempt to swizzle unknown GC native texture format" );
     }
+}
+
+inline void TransformRawGCMipmapLayer(
+    Interface *engineInterface,
+    void *srcTexels, uint32 layerWidth, uint32 layerHeight,
+    eGCNativeTextureFormat srcInternalFormat, eGCNativeTextureFormat dstInternalFormat,
+    uint32 srcMipWidth, uint32 srcMipHeight,
+    uint32 srcDepth, uint32 dstDepth,
+    uint32 srcClusterWidth, uint32 srcClusterHeight, uint32 srcClusterCount,
+    uint32 dstClusterWidth, uint32 dstClusterHeight, uint32 dstClusterCount,
+    bool isSrcFormatSwizzled, bool isDstFormatSwizzled,
+    uint32 paletteSize,
+    uint32& dstMipWidthOut, uint32& dstMipHeightOut,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+)
+{
+    // TODO: if it becomes cool enough, optimize this algorithm so that it can
+    // transform texels into the source buffer under certain circumstances directly,
+    // thus avoiding unneccessary memory allocation.
+
+    uint32 srcRowSize = getGCRasterDataRowSize( srcMipWidth, srcDepth );
+
+    // Allocate the destination surface, if necessary.
+    uint32 dstMipWidth = ALIGN_SIZE( layerWidth, dstClusterWidth );
+    uint32 dstMipHeight = ALIGN_SIZE( layerHeight, dstClusterHeight );
+
+    uint32 dstRowSize = getGCRasterDataRowSize( dstMipWidth, dstDepth );
+
+    uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, dstMipHeight );
+
+    void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+    if ( !dstTexels )
+    {
+        throw RwException( "failed to allocate destination surface texels in GC native texture consistency update" );
+    }
+
+    // Kind of depends if we are palette or color data.
+    // We must not change contracts from palette to color or other way round.
+
+    try
+    {
+        for ( uint32 layerY = 0; layerY < layerHeight; layerY++ )
+        {
+            for ( uint32 layerX = 0; layerX < layerWidth; layerX++ )
+            {
+                if ( dstInternalFormat == GVRFMT_PAL_4BIT || dstInternalFormat == GVRFMT_PAL_8BIT )
+                {
+                    assert( srcInternalFormat == GVRFMT_PAL_4BIT || srcInternalFormat == GVRFMT_PAL_8BIT );
+
+                    // This is a pretty simple depth item one-cluster copy operation!
+                    assert( srcClusterCount == 1 && dstClusterCount == 1 );
+
+                    const ePaletteType srcPaletteType = getPaletteTypeFromGCNativeFormat( srcInternalFormat );
+
+                    assert( srcPaletteType != PALETTE_NONE );
+
+                    const ePaletteType dstPaletteType = getPaletteTypeFromGCNativeFormat( dstInternalFormat );
+
+                    assert( dstPaletteType != PALETTE_NONE );
+                    assert( srcPaletteType == dstPaletteType );
+
+                    // Get the source coordinate.
+                    uint32 src_tiled_x, src_tiled_y;
+
+                    GCGetTiledCoordFromLinear(
+                        layerX, layerY,
+                        srcMipWidth, srcMipHeight,
+                        srcClusterWidth, srcClusterHeight,
+                        isSrcFormatSwizzled,
+                        src_tiled_x, src_tiled_y
+                    );
+
+                    // Get the destination coordinate.
+                    uint32 dst_tiled_x, dst_tiled_y;
+
+                    GCGetTiledCoordFromLinear(
+                        layerX, layerY,
+                        dstMipWidth, dstMipHeight,
+                        dstClusterWidth, dstClusterHeight,
+                        isDstFormatSwizzled,
+                        dst_tiled_x, dst_tiled_y
+                    );
+
+                    // Copy the item.
+                    copyPaletteIndexAcrossSurfaces(
+                        srcTexels, srcMipWidth, srcMipHeight, srcRowSize,
+                        dstTexels, dstMipWidth, dstMipHeight, dstRowSize,
+                        src_tiled_x, src_tiled_y,
+                        dst_tiled_x, dst_tiled_y,
+                        srcDepth, srcPaletteType,
+                        dstDepth, dstPaletteType,
+                        paletteSize
+                    );
+                }
+                else
+                {
+                    assert( srcInternalFormat != GVRFMT_PAL_4BIT && srcInternalFormat != GVRFMT_PAL_8BIT );
+
+                    gcColorDispatch srcDispatch(
+                        srcInternalFormat, GVRPIX_NO_PALETTE, COLOR_RGBA,
+                        0, PALETTE_NONE, NULL, 0
+                    );
+
+                    gcColorDispatch dstDispatch(
+                        dstInternalFormat, GVRPIX_NO_PALETTE, COLOR_RGBA,
+                        0, PALETTE_NONE, NULL, 0
+                    );
+
+                    // Get the color from the source.
+                    abstractColorItem colorItem;
+                    colorItem.setClearedColor( COLORMODEL_RGBA );   // for safety we start with a cleared color.
+
+                    GCProcessTiledCoordsFromLinear(
+                        layerX, layerY, srcMipWidth, srcMipHeight,
+                        srcClusterWidth, srcClusterHeight, srcClusterCount,
+                        isSrcFormatSwizzled,
+                        [&]( uint32 tiled_x, uint32 tiled_y, uint32 cluster_index )
+                    {
+                        // Safety is a big concern of mine.
+                        if ( tiled_x < srcMipWidth * srcClusterCount && tiled_y < srcMipHeight )
+                        {
+                            const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, tiled_y );
+
+                            readGCNativeColor(
+                                srcRow, srcDispatch, tiled_x,
+                                cluster_index,
+                                []( abstractColorItem& colorItem ){},   // nothing to do here.
+                                colorItem
+                            );
+                        }
+                    });
+
+                    // Now the source color should be properly initialized.
+                    // We should put it into the destination slot.
+
+                    GCProcessTiledCoordsFromLinear(
+                        layerX, layerY, dstMipWidth, dstMipHeight,
+                        dstClusterWidth, dstClusterHeight, dstClusterCount,
+                        isDstFormatSwizzled,
+                        [&]( uint32 tiled_x, uint32 tiled_y, uint32 cluster_index )
+                    {
+                        if ( tiled_x < dstMipWidth * dstClusterCount && tiled_y < dstMipHeight )
+                        {
+                            void *dstRow = getTexelDataRow( dstTexels, dstRowSize, tiled_y );
+
+                            // Put the color, I guess.
+                            // Or what we want to put from it anyway.
+                            writeGCNativeColor(
+                                dstRow, dstDispatch, tiled_x,
+                                cluster_index, colorItem
+                            );
+                        }
+                    });
+                }
+            }
+        }
+    }
+    catch( ... )
+    {
+        // Since an error occured we wont be managing our destination surface anymore.
+        // So we have to free its memory.
+        engineInterface->PixelFree( dstTexels );
+
+        throw;
+    }
+
+    // Return important stuff to the runtime.
+    dstMipWidthOut = dstMipWidth;
+    dstMipHeightOut = dstMipHeight;
+    dstTexelsOut = dstTexels;
+    dstDataSizeOut = dstDataSize;
 }
 
 inline void* GetGCPaletteData(
@@ -884,6 +1116,63 @@ inline void* TranscodeGCPaletteData(
 
     // Return the stuff.
     return dstPaletteData;
+}
+
+inline void TransformGCPaletteData(
+    void *paletteData, uint32 paletteSize,
+    eGCPixelFormat srcPalettePixelFormat, eGCPixelFormat dstPalettePixelFormat
+)
+{
+    // Luckily this is a simple linear color conversion.
+    eColorOrdering srcPalColorOrder, dstPalColorOrder;
+
+    eGCNativeTextureFormat srcPalInternalFormat;
+    eGCNativeTextureFormat dstPalInternalFormat;
+
+    bool gotSrcPalInternalFormat = getGVRNativeFormatFromPaletteFormat( srcPalettePixelFormat, srcPalColorOrder, srcPalInternalFormat );
+
+    // Those requests should never fail. The error checking is done for correctness sake, but since
+    // the Gamecube is a pretty closed-down architecture we should be able to track down all
+    // error cases easily.
+
+    if ( !gotSrcPalInternalFormat )
+    {
+        throw RwException( "failed to get source palette internalFormat in GC native texture consistency update" );
+    }
+
+    bool gotDstPalInternalFormat = getGVRNativeFormatFromPaletteFormat( dstPalettePixelFormat, dstPalColorOrder, dstPalInternalFormat );
+
+    if ( !gotDstPalInternalFormat )
+    {
+        throw RwException( "failed to get destination palette internalFormat in GC native texture consistency update" );
+    }
+
+    // Convert stuff. This is pretty simple because all GC palette colors are 16 bit depth.
+    uint32 srcPalDepth = getGCInternalFormatDepth( srcPalInternalFormat );
+    uint32 dstPalDepth = getGCInternalFormatDepth( dstPalInternalFormat );
+
+    assert( srcPalDepth == 16 );
+    assert( dstPalDepth == srcPalDepth );
+
+    // Prepare the color dispatchers.
+    gcColorDispatch srcDispatch(
+        srcPalInternalFormat, GVRPIX_NO_PALETTE, srcPalColorOrder,
+        0, PALETTE_NONE, NULL, 0
+    );
+
+    gcColorDispatch dstDispatch(
+        dstPalInternalFormat, GVRPIX_NO_PALETTE, dstPalColorOrder,
+        0, PALETTE_NONE, NULL, 0
+    );
+
+    for ( uint32 n = 0; n < paletteSize; n++ )
+    {
+        abstractColorItem colorItem;
+
+        srcDispatch.getColor( paletteData, n, colorItem );
+
+        dstDispatch.setColor( paletteData, n, colorItem );
+    }
 }
 
 };

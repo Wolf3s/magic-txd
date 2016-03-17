@@ -587,117 +587,131 @@ inline void compressTexelsUsingDXT(
 
     void *dxtArray = engineInterface->PixelAllocate( dxtDataSize );
 
-    // Calculate the row size of the source texture.
-    uint32 rawRowSize = getRasterDataRowSize( mipWidth, itemDepth, rowAlignment );
-
-    // Loop across the image.
-    uint32 compressedBlockCount = 0;
-
-    uint32 widthBlocks = alignedMipWidth / 4;
-    uint32 heightBlocks = alignedMipHeight / 4;
-
-    uint32 y = 0;
-
-    colorModelDispatcher <const void> fetchSrcDispatch( rasterFormat, colorOrder, itemDepth, paletteData, maxpalette, paletteType );
-
-    for ( uint32 y_block = 0; y_block < heightBlocks; y_block++, y += 4 )
+    if ( !dxtArray )
     {
-        uint32 x = 0;
+        throw RwException( "failed to allocate DXT surface in compression routine" );
+    }
+    
+    try
+    {
+        // Calculate the row size of the source texture.
+        uint32 rawRowSize = getRasterDataRowSize( mipWidth, itemDepth, rowAlignment );
 
-        for ( uint32 x_block = 0; x_block < widthBlocks; x_block++, x += 4 )
+        // Loop across the image.
+        uint32 compressedBlockCount = 0;
+
+        uint32 widthBlocks = alignedMipWidth / 4;
+        uint32 heightBlocks = alignedMipHeight / 4;
+
+        uint32 y = 0;
+
+        colorModelDispatcher <const void> fetchSrcDispatch( rasterFormat, colorOrder, itemDepth, paletteData, maxpalette, paletteType );
+
+        for ( uint32 y_block = 0; y_block < heightBlocks; y_block++, y += 4 )
         {
-            // Compress a 4x4 color block.
-            PixelFormat::pixeldata32bit colors[4][4];
+            uint32 x = 0;
 
-            // Check whether we should premultiply.
-            bool isPremultiplied = ( dxtType == 2 || dxtType == 4 );
-
-            for ( uint32 y_iter = 0; y_iter != 4; y_iter++ )
+            for ( uint32 x_block = 0; x_block < widthBlocks; x_block++, x += 4 )
             {
-                for ( uint32 x_iter = 0; x_iter != 4; x_iter++ )
+                // Compress a 4x4 color block.
+                PixelFormat::pixeldata32bit colors[4][4];
+
+                // Check whether we should premultiply.
+                bool isPremultiplied = ( dxtType == 2 || dxtType == 4 );
+
+                for ( uint32 y_iter = 0; y_iter != 4; y_iter++ )
                 {
-                    PixelFormat::pixeldata32bit& inColor = colors[ y_iter ][ x_iter ];
-
-                    uint8 r = 0;
-                    uint8 g = 0;
-                    uint8 b = 0;
-                    uint8 a = 0;
-
-                    uint32 targetX = ( x + x_iter );
-                    uint32 targetY = ( y + y_iter );
-
-                    if ( targetX < mipWidth && targetY < mipHeight )
+                    for ( uint32 x_iter = 0; x_iter != 4; x_iter++ )
                     {
-                        const void *rowData = getConstTexelDataRow( texelSource, rawRowSize, targetY );
+                        PixelFormat::pixeldata32bit& inColor = colors[ y_iter ][ x_iter ];
 
-                        fetchSrcDispatch.getRGBA( rowData, targetX, r, g, b, a );
+                        uint8 r = 0;
+                        uint8 g = 0;
+                        uint8 b = 0;
+                        uint8 a = 0;
+
+                        uint32 targetX = ( x + x_iter );
+                        uint32 targetY = ( y + y_iter );
+
+                        if ( targetX < mipWidth && targetY < mipHeight )
+                        {
+                            const void *rowData = getConstTexelDataRow( texelSource, rawRowSize, targetY );
+
+                            fetchSrcDispatch.getRGBA( rowData, targetX, r, g, b, a );
+                        }
+
+                        if ( isPremultiplied )
+                        {
+                            premultiplyByAlpha( r, g, b, a, r, g, b );
+                        }
+
+                        inColor.red = r;
+                        inColor.green = g;
+                        inColor.blue = b;
+                        inColor.alpha = a;
                     }
-
-                    if ( isPremultiplied )
-                    {
-                        premultiplyByAlpha( r, g, b, a, r, g, b );
-                    }
-
-                    inColor.red = r;
-                    inColor.green = g;
-                    inColor.blue = b;
-                    inColor.alpha = a;
                 }
+
+                // Compress it using SQUISH.
+                int squishFlags = 0;
+                bool canCompress = false;
+
+                size_t compressBlockSize = 0;
+                void *blockPointer = NULL;
+
+                union
+                {
+                    dxt1_block _dxt1_block;
+                    dxt2_3_block _dxt2_3_block;
+                    dxt4_5_block _dxt4_5_block;
+                };
+
+                if ( dxtType == 1 )
+                {
+                    squishFlags |= squish::kDxt1;
+
+                    canCompress = true;
+
+                    compressBlockSize = sizeof( _dxt1_block );
+                    blockPointer = &_dxt1_block;
+                }
+                else if ( dxtType == 2 || dxtType == 3 )
+                {
+                    squishFlags |= squish::kDxt3;
+
+                    canCompress = true;
+
+                    compressBlockSize = sizeof( _dxt2_3_block );
+                    blockPointer = &_dxt2_3_block;
+                }
+                else if ( dxtType == 4 || dxtType == 5 )
+                {
+                    squishFlags |= squish::kDxt5;
+
+                    canCompress = true;
+
+                    compressBlockSize = sizeof( _dxt4_5_block );
+                    blockPointer = &_dxt4_5_block;
+                }
+
+                if ( canCompress )
+                {
+                    squish::Compress( (const squish::u8*)colors, blockPointer, squishFlags );
+                }
+
+                // Put the block into the texture.
+                memcpy( (char*)dxtArray + compressedBlockCount * compressBlockSize, blockPointer, compressBlockSize );
+
+                // Increment the block count.
+                compressedBlockCount++;
             }
-
-            // Compress it using SQUISH.
-            int squishFlags = 0;
-            bool canCompress = false;
-
-            size_t compressBlockSize = 0;
-            void *blockPointer = NULL;
-
-            union
-            {
-                dxt1_block _dxt1_block;
-                dxt2_3_block _dxt2_3_block;
-                dxt4_5_block _dxt4_5_block;
-            };
-
-            if ( dxtType == 1 )
-            {
-                squishFlags |= squish::kDxt1;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt1_block );
-                blockPointer = &_dxt1_block;
-            }
-            else if ( dxtType == 2 || dxtType == 3 )
-            {
-                squishFlags |= squish::kDxt3;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt2_3_block );
-                blockPointer = &_dxt2_3_block;
-            }
-            else if ( dxtType == 4 || dxtType == 5 )
-            {
-                squishFlags |= squish::kDxt5;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt4_5_block );
-                blockPointer = &_dxt4_5_block;
-            }
-
-            if ( canCompress )
-            {
-                squish::Compress( (const squish::u8*)colors, blockPointer, squishFlags );
-            }
-
-            // Put the block into the texture.
-            memcpy( (char*)dxtArray + compressedBlockCount * compressBlockSize, blockPointer, compressBlockSize );
-
-            // Increment the block count.
-            compressedBlockCount++;
         }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( dxtArray );
+
+        throw;
     }
 
     // Give the new texels to the runtime, along with the data size.

@@ -110,16 +110,14 @@ inline uint32 getGCPaletteSize( eGCNativeTextureFormat internalFormat )
     return paletteSize;
 }
 
-inline ePaletteType getPaletteTypeFromGCNativeFormat( eGCNativeTextureFormat internalFormat, uint32& depthOut )
+inline ePaletteType getPaletteTypeFromGCNativeFormat( eGCNativeTextureFormat internalFormat )
 {
     if ( internalFormat == GVRFMT_PAL_4BIT )
     {
-        depthOut = 4;
         return PALETTE_4BIT_LSB;
     }
     else if ( internalFormat == GVRFMT_PAL_8BIT )
     {
-        depthOut = 8;
         return PALETTE_8BIT;
     }
 
@@ -236,6 +234,39 @@ inline bool getGVRNativeFormatFromPaletteFormat(
     return false;
 }
 
+inline uint32 getGCInternalFormatDepth( eGCNativeTextureFormat format )
+{
+    uint32 depth = 0;
+
+    if ( format == GVRFMT_LUM_4BIT ||
+         format == GVRFMT_PAL_4BIT )
+    {
+        depth = 4;
+    }
+    else if ( format == GVRFMT_LUM_4BIT_ALPHA ||
+              format == GVRFMT_LUM_8BIT ||
+              format == GVRFMT_PAL_8BIT )
+    {
+        depth = 8;
+    }
+    else if ( format == GVRFMT_RGB565 ||
+              format == GVRFMT_RGB5A3 ||
+              format == GVRFMT_LUM_8BIT_ALPHA )
+    {
+        depth = 16;
+    }
+    else if ( format == GVRFMT_RGBA8888 )
+    {
+        depth = 32;
+    }
+    else if ( format == GVRFMT_CMP )
+    {
+        depth = 4;
+    }
+
+    return depth;
+}
+
 // Returns the recommended raster format for the configuration.
 inline bool getRecommendedGCNativeTextureRasterFormat(
     eGCNativeTextureFormat format, eGCPixelFormat paletteFormat,
@@ -278,7 +309,8 @@ inline bool getRecommendedGCNativeTextureRasterFormat(
         {
             // We must make sure that the palette description we return
             // completely matches the description of the native format!
-            paletteTypeOut = getPaletteTypeFromGCNativeFormat( format, depthOut );
+            paletteTypeOut = getPaletteTypeFromGCNativeFormat( format );
+            depthOut = getGCInternalFormatDepth( format );
         }
 
         hasFormat = hasPaletteFormat;
@@ -357,38 +389,6 @@ inline bool getRecommendedGCNativeTextureRasterFormat(
     }
 
     return hasFormat;
-}
-
-inline uint32 getGCInternalFormatDepth( eGCNativeTextureFormat format )
-{
-    uint32 depth = 0;
-
-    if ( format == GVRFMT_LUM_4BIT ||
-         format == GVRFMT_PAL_4BIT )
-    {
-        depth = 4;
-    }
-    else if ( format == GVRFMT_LUM_4BIT_ALPHA ||
-              format == GVRFMT_LUM_8BIT ||
-              format == GVRFMT_PAL_8BIT )
-    {
-        depth = 8;
-    }
-    else if ( format == GVRFMT_RGB565 ||
-              format == GVRFMT_RGB5A3 )
-    {
-        depth = 16;
-    }
-    else if ( format == GVRFMT_RGBA8888 )
-    {
-        depth = 32;
-    }
-    else if ( format == GVRFMT_CMP )
-    {
-        depth = 4;
-    }
-
-    return depth;
 }
 
 inline uint32 getGVRPixelFormatDepth( eGCPixelFormat format )
@@ -544,6 +544,11 @@ public:
         {
             throw RwException( "failed to map Gamecube internalFormat to color model" );
         }
+    }
+
+    inline eGCNativeTextureFormat getNativeFormat( void ) const
+    {
+        return this->internalFormat;
     }
 
 private:
@@ -1257,6 +1262,8 @@ struct NativeTextureGC
         this->clearTexelData();
     }
 
+    void UpdateStructure( void );
+
     static inline void getSizeRules( bool isDXTCompressed, nativeTextureSizeRules& rulesOut )
     {
         rulesOut.powerOfTwo = true;
@@ -1344,7 +1351,9 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
 
         nativeTex->texVersion = version;
 
-        // TODO: handle different RW versions.
+        // Make sure our content is consistent with the version that we set.
+        // This matters because pre-3.3.0.2 does not support luminance raster formats.
+        nativeTex->UpdateStructure();
     }
 
     LibraryVersion GetTextureVersion( const void *objMem )
@@ -1393,10 +1402,7 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
     {
         const NativeTextureGC *nativeTex = (const NativeTextureGC*)objMem;
 
-        // not used (here).
-        uint32 palItemDepth;
-
-        return getPaletteTypeFromGCNativeFormat( nativeTex->internalFormat, palItemDepth );
+        return getPaletteTypeFromGCNativeFormat( nativeTex->internalFormat );
     }
 
     bool IsTextureCompressed( const void *objMem ) override

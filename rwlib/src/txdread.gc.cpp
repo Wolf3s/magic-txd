@@ -134,6 +134,9 @@ void gamecubeNativeTextureTypeProvider::DeserializeTexture( TextureBase *theText
                         {
                             rwGenericRasterFormatFlags rasterFormatFlags = metaHeader.rasterFormat;
 
+                            // We take the raster type property from the flags.
+                            header_rasterType = rasterFormatFlags.data.rasterType;
+
                             // Investigate the format number.
                             // It has changed a little in comparison to old formats.
                             if ( header_internalFormat != GVRFMT_CMP )
@@ -395,9 +398,7 @@ void gamecubeNativeTextureTypeProvider::DeserializeTexture( TextureBase *theText
                     }
                     // - palette type.
                     {
-                        uint32 palDepth;
-
-                        ePaletteType gcPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat, palDepth );
+                        ePaletteType gcPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat );
 
                         if ( paletteType != gcPaletteType )
                         {
@@ -767,8 +768,6 @@ struct gcMipmapManager
         dstPaletteSizeOut = dstPaletteSize;
         dstCompressionTypeOut = dstCompressionType;
 
-        hasAlphaOut = nativeTex->hasAlpha;
-
         widthOut = dstSurfWidth;
         heightOut = dstSurfHeight;
         layerWidthOut = layerWidth;
@@ -832,7 +831,8 @@ struct gcMipmapManager
                 reqCompressionType = RWCOMPRESS_NONE;
 
                 // Maybe we have to map to palette colors?
-                reqPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat, reqDepth );
+                reqPaletteType = getPaletteTypeFromGCNativeFormat( internalFormat );
+                reqDepth = getGCInternalFormatDepth( internalFormat );
             }
 
             // We have to create a special texel representation only if we are "forced" to put into a format.
