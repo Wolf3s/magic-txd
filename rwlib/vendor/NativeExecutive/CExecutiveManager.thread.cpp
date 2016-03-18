@@ -673,7 +673,7 @@ CExecThread* CExecutiveManager::CreateThread( CExecThread::threadEntryPoint_t en
     {
         // Make sure we synchronize access to plugin containers!
         // This only has to happen when the API has to be thread-safe.
-        nativeLock lock( threadPluginsLock );
+        CReadWriteWriteContext <CReadWriteLock> lock( threadPluginsLock );
         
         try
         {
@@ -765,7 +765,7 @@ CExecThread* CExecutiveManager::GetCurrentThread( void )
                 // Create the thread.
                 CExecThread *newThreadInfo = NULL;
                 {
-                    nativeLock lock( threadPluginsLock );
+                    CReadWriteWriteContext <CReadWriteLock> lock( threadPluginsLock );
 
                     try
                     {
@@ -855,9 +855,7 @@ void CExecutiveManager::CloseThread( CExecThread *thread )
         }
         
         // Kill the thread.
-#ifdef _WIN32
-        nativeLock lock( threadPluginsLock );
-#endif
+        CReadWriteWriteContext <CReadWriteLock> lock( threadPluginsLock );
 
         this->threadPlugins.Destroy( ExecutiveManager::moduleAllocator, thread );
     }
@@ -879,16 +877,14 @@ void CExecutiveManager::InitThreads( void )
 {
     LIST_CLEAR( threads.root );
 
-#ifdef _WIN32
-    InitializeCriticalSection( &threadPluginsLock );
-#endif
+    this->threadPluginsLock = this->CreateReadWriteLock();
+
+    assert( this->threadPluginsLock != NULL );
 }
 
 void CExecutiveManager::ShutdownThreads( void )
 {
-#ifdef _WIN32
-    DeleteCriticalSection( &threadPluginsLock );
-#endif
+    this->CloseReadWriteLock( this->threadPluginsLock );
 }
 
 void registerThreadPlugin( void )

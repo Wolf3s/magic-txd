@@ -19,12 +19,6 @@
 
 #include "CFileSystem.common.unichar.h"
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif //_WIN32
-
 template <typename allocatorType>
 class MemoryDataStream
 {
@@ -696,12 +690,9 @@ protected:
 
             if ( gotChar )
             {
-                int unicResult = MultiByteToWideChar( CP_ACP, MB_COMPOSITE, &ansiChar, 1, &charOut, 1 );
-
-                if ( unicResult != 0 )
-                {
-                    return true;
-                }
+                // We convert things ANSI, so directly put into the wide character.
+                charOut = ansiChar;
+                return true;
             }
 
             return false;
@@ -944,13 +935,31 @@ protected:
 
             if ( gotChar )
             {
+                wchar_t strBuf[2];
+                strBuf[0] = wideChar;
+                strBuf[1] = L'\0';
+
                 char default_char = '_';
 
-                int unicResult = WideCharToMultiByte( CP_ACP, 0, &wideChar, 1, &charOut, 1, &default_char, NULL );
-
-                if ( unicResult != 0 )
+                try
                 {
-                    return true;
+                    // Parse by simple ANSI/LATIN8.
+                    character_env <wchar_t>::const_iterator iter( strBuf );
+
+                    character_env <wchar_t>::ucp_t wholePoint = iter.Resolve();
+
+                    // OK.
+                    if ( wholePoint < 256 )
+                    {
+                        charOut = ( wholePoint & 0xFF );
+                        return true;
+                    }
+                }
+                catch( codepoint_exception& )
+                {
+                    // If we failed parsing the code, there is no point.
+                    // Apparrently we cannot parse by single code-point.
+                    return false;
                 }
             }
 

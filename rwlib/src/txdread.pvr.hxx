@@ -2,6 +2,9 @@
 
 #include "txdread.nativetex.hxx"
 
+// The PowerVR stuff includes the Windows header.
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <PVRTextureUtilities.h>
 
 #include "txdread.d3d.genmip.hxx"

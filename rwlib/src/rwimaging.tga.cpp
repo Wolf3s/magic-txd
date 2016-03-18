@@ -15,6 +15,10 @@ namespace rw
 // .tga RenderWare imaging extension.
 // this image format is natively implemented, so no additional .lib is required.
 
+typedef uint8 BYTE;
+typedef uint16 WORD;
+typedef uint32 DWROD;
+
 #pragma pack(push,1)
 struct TgaHeader
 {

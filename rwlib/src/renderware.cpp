@@ -262,6 +262,8 @@ extern int32 rwmain( Interface *engineInterface );
 
 #ifdef _WIN32
 
+#include "native.win32.hxx"
+
 BOOL WINAPI frameworkEntryPoint_win32( HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow )
 {
     using namespace rw;

@@ -493,9 +493,9 @@ struct NativeTextureD3D9 : public d3dpublic::d3dNativeTextureInterface
 
     // Implement the public API.
 
-    void GetD3DFormat( DWORD& d3dFormat ) const override
+    void GetD3DFormat( uint32& d3dFormat ) const override
     {
-        d3dFormat = (DWORD)this->d3dFormat;
+        d3dFormat = (uint32)this->d3dFormat;
     }
 
     // PUBLIC API END
@@ -593,10 +593,10 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         ( *(NativeTextureD3D9*)objMem ).~NativeTextureD3D9();
     }
 
-    eTexNativeCompatibility IsCompatibleTextureBlock( BlockProvider& inputProvider ) const;
+    eTexNativeCompatibility IsCompatibleTextureBlock( BlockProvider& inputProvider ) const override;
 
-    void SerializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& outputProvider ) const;
-    void DeserializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& inputProvider ) const;
+    void SerializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& outputProvider ) const override;
+    void DeserializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& inputProvider ) const override;
 
     void GetPixelCapabilities( pixelCapabilities& capsOut ) const override
     {
@@ -620,9 +620,9 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         storeCaps.isCompressedFormat = false;
     }
 
-    void GetPixelDataFromTexture( Interface *engineInterface, void *objMem, pixelDataTraversal& pixelsOut );
-    void SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut );
-    void UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate );
+    void GetPixelDataFromTexture( Interface *engineInterface, void *objMem, pixelDataTraversal& pixelsOut ) override;
+    void SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut ) override;
+    void UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate ) override;
 
     void SetTextureVersion( Interface *engineInterface, void *objMem, LibraryVersion version ) override
     {
@@ -638,9 +638,9 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         return nativeTex->texVersion;
     }
 
-    bool GetMipmapLayer( Interface *engineInterface, void *objMem, uint32 mipIndex, rawMipmapLayer& layerOut );
-    bool AddMipmapLayer( Interface *engineInterface, void *objMem, const rawMipmapLayer& layerIn, acquireFeedback_t& feedbackOut );
-    void ClearMipmaps( Interface *engineInterface, void *objMem );
+    bool GetMipmapLayer( Interface *engineInterface, void *objMem, uint32 mipIndex, rawMipmapLayer& layerOut ) override;
+    bool AddMipmapLayer( Interface *engineInterface, void *objMem, const rawMipmapLayer& layerIn, acquireFeedback_t& feedbackOut ) override;
+    void ClearMipmaps( Interface *engineInterface, void *objMem ) override;
 
     void* GetNativeInterface( void *objMem ) override
     {
@@ -661,8 +661,8 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         return nativeDriver;
     }
 
-    void GetTextureInfo( Interface *engineInterface, void *objMem, nativeTextureBatchedInfo& infoOut );
-    void GetTextureFormatString( Interface *engineInterface, void *objMem, char *buf, size_t bufLen, size_t& lengthOut ) const;
+    void GetTextureInfo( Interface *engineInterface, void *objMem, nativeTextureBatchedInfo& infoOut ) override;
+    void GetTextureFormatString( Interface *engineInterface, void *objMem, char *buf, size_t bufLen, size_t& lengthOut ) const override;
 
     eRasterFormat GetTextureRasterFormat( const void *objMem ) override
     {
@@ -815,8 +815,8 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         return NULL;
     }
 
-    bool RegisterFormatHandler( DWORD format, d3dpublic::nativeTextureFormatHandler *handler );
-    bool UnregisterFormatHandler( DWORD format );
+    bool RegisterFormatHandler( uint32 format, d3dpublic::nativeTextureFormatHandler *handler ) override;
+    bool UnregisterFormatHandler( uint32 format ) override;
 
     struct nativeFormatExtension
     {

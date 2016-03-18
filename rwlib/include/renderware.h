@@ -1,10 +1,5 @@
 #ifndef _RENDERWARE_H_
 #define _RENDERWARE_H_
-#ifdef _WIN32
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 #include <iostream>
 #include <vector>
@@ -464,7 +459,6 @@ struct RwException
     std::string message;
 };
 
-#include "rwendian.h"
 #include "renderware.math.h"
 #include "renderware.stream.h"
 #include "renderware.blockapi.h"
@@ -614,11 +608,6 @@ void        DeleteEngine( Interface *theEngine );
 // Configuration interface.
 void AssignThreadedRuntimeConfig( Interface *engineInterface );
 void ReleaseThreadedRuntimeConfig( Interface *engineInterface );
-
-// Framework entry points.
-#ifdef WIN32
-BOOL WINAPI frameworkEntryPoint_win32( HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow );
-#endif
 
 }
 

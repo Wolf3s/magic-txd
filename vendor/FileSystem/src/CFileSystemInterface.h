@@ -14,6 +14,8 @@
 
 #include "CFileSystem.common.h"
 
+#include <stdarg.h>
+
 #define _FILESYSTEM_WIDEPATH_SUPPORT
 
 // File open flags.

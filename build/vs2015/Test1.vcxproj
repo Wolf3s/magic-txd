@@ -680,6 +680,7 @@
     <ClCompile Include="..\..\src\qtutils.cpp" />
     <ClCompile Include="..\..\src\renderpropwindow.cpp" />
     <ClCompile Include="..\..\src\rwfswrap.cpp" />
+    <ClCompile Include="..\..\src\rwimageimporter.cpp" />
     <ClCompile Include="..\..\src\rwversiondialog.cpp" />
     <ClCompile Include="..\..\src\streamcompress.cpp" />
     <ClCompile Include="..\..\src\streamcompress.lzo.cpp" />
@@ -713,6 +714,7 @@
     <ClInclude Include="..\..\include\resizewindow.h" />
     <ClInclude Include="..\..\include\resource.h" />
     <ClInclude Include="..\..\include\rwfswrap.h" />
+    <ClInclude Include="..\..\include\rwimageimporter.h" />
     <ClInclude Include="..\..\include\rwversiondialog.h" />
     <ClInclude Include="..\..\include\streamcompress.h" />
     <ClInclude Include="..\..\include\taskcompletionwindow.h" />

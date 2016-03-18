@@ -13,16 +13,12 @@
 
 #include <functional>
 
+#include "rwimageimporter.h"
+
 class MainWindow;
 
 class TexAddDialog : public QDialog
 {
-    enum eImportExpectation
-    {
-        IMPORTE_IMAGE,
-        IMPORTE_TEXCHUNK
-    };
-
 public:
     enum eCreationType
     {
@@ -191,42 +187,25 @@ private:
 
     QString imgPath;
 
-    // Image import method manager.
-    struct imageImportMethods
+    // Special variant of image importing for our dialog.
+    struct texAddImageImportMethods : public imageImportMethods
     {
-        inline imageImportMethods( TexAddDialog *wnd )
+        inline texAddImageImportMethods( TexAddDialog *texAdd )
         {
-            this->dialog = wnd;
+            this->dialog = texAdd;
         }
 
-        bool LoadPlatformOriginal( rw::Stream *stream ) const;
+        void OnWarning( std::string&& msg ) const override;
+        void OnError( std::string&& msg ) const override;
 
-        typedef bool (TexAddDialog::* importMethod_t)( rw::Stream *stream );
-
-        void RegisterImportMethod( const char *name, importMethod_t meth, eImportExpectation expImp );
-
-        struct meth_reg
-        {
-            eImportExpectation img_exp;
-            importMethod_t cb;
-            const char *name;
-        };
+        rw::Raster* MakeRaster( void ) const override;
 
         TexAddDialog *dialog;
-
-        std::vector <meth_reg> methods;
     };
 
-    imageImportMethods impMeth;
+    texAddImageImportMethods impMeth;
 
     void clearTextureOriginal( void );
 
     rw::Raster* MakeRaster( void );
-
-    // The methods use this function to set the platform original raster link.
-    void setPlatformOrigRaster( rw::Raster *raster );
-
-    // The methods to be used by imageImportMethods.
-    bool impMeth_loadImage( rw::Stream *stream );
-    bool impMeth_loadTexChunk( rw::Stream *stream );
 };

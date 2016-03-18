@@ -417,7 +417,7 @@ bool d3d9NativeTextureTypeProvider::IsNativeImageFormat( Interface *engineInterf
         return false;
     }
 
-    if ( header.ddspf.dwFourCC == MAKEFOURCC( 'D', 'X', '1', '0' ) )
+    if ( header.ddspf.dwFourCC == MAKEFOURCC_RW( 'D', 'X', '1', '0' ) )
     {
         // Direct3D 9 cannot understand DirectX 10 rasters.
         return false;

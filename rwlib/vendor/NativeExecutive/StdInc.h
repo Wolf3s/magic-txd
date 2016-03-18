@@ -1,15 +1,16 @@
 #ifndef _NATIVE_EXECUTIVE_MAIN_HEADER_
 #define _NATIVE_EXECUTIVE_MAIN_HEADER_
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-
 #include <assert.h>
 #include <algorithm>
 
 #include "CommonUtils.h"
 #include "CExecutiveManager.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+
 #include "internal/CExecutiveManager.internal.h"
 #include "internal/CExecutiveManager.rwlock.internal.h"
 

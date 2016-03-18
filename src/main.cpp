@@ -4,6 +4,8 @@
 #include <QTimer>
 #include "resource.h"
 
+#include <Windows.h>
+
 #include <QImageWriter>
 
 #include <QtPlugin>

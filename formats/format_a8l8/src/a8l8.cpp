@@ -18,7 +18,7 @@ inline unsigned char rgbToLuminance(unsigned char r, unsigned char g, unsigned c
 
 class FormatA8L8 : public MagicFormat
 {
-	D3DFORMAT GetD3DFormat(void) const override
+	D3DFORMAT_SDK GetD3DFormat(void) const override
 	{
 		return D3DFMT_A8L8;
 	}

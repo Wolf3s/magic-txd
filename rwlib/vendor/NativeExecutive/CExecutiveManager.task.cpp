@@ -110,7 +110,7 @@ static AINLINE bool ProcessSheduleItem( void )
         theTask->runtimeFiber->resume();
 
         // We finished one iteration of this task.
-        InterlockedDecrement( &theTask->usageCount );
+        theTask->usageCount--;
     }
 
     return hasSheduledItem;
@@ -184,6 +184,24 @@ static void __stdcall TaskFiberWrap( CFiber *theFiber, void *memPtr )
     theTask->callback( theTask, userdata );
 }
 
+CExecTask::CExecTask( CExecutiveManager *manager, CFiber *runtime )
+{
+    this->runtimeFiber = runtime;
+
+    this->manager = manager;
+
+    // Event that is signaled when the task finished execution.
+    this->finishEvent = CreateEvent( NULL, true, true, NULL );
+    this->isInitialized = false;
+    this->isOnProcessedList = false;
+    this->usageCount = 0;
+}
+
+CExecTask::~CExecTask( void )
+{
+    CloseHandle( finishEvent );
+}
+
 CExecTask* CExecutiveManager::CreateTask( CExecTask::taskexec_t callback, void *userdata, size_t stackSize )
 {
     // Create the underlying fiber.
@@ -233,7 +251,7 @@ void CExecTask::Execute( void )
     }
 
     // Make sure the thread is not marked as finished.
-    InterlockedIncrement( &this->usageCount );
+    this->usageCount++;
 
     // Use a circling queue for this as found in the R* streaming runtime.
     shedulerThreadItem theItem;

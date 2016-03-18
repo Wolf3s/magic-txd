@@ -11,7 +11,7 @@ namespace rw
 
 inline uint32 getXBOXTextureDataRowAlignment( void )
 {
-    return sizeof( DWORD );
+    return sizeof( uint32 );
 }
 
 struct NativeTextureXBOX

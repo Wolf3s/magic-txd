@@ -120,9 +120,6 @@
     <ClInclude Include="..\..\src\pixelutil.hxx">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\rwendian.h">
-      <Filter>Include</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\txdread.gc.hxx">
       <Filter>Include</Filter>
     </ClInclude>
@@ -220,6 +217,12 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\txdread.gc.miptrans.hxx">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\native.win32.hxx">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\rwframework.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>

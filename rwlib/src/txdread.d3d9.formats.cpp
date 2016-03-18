@@ -7,7 +7,7 @@
 namespace rw
 {
 
-bool d3d9NativeTextureTypeProvider::RegisterFormatHandler( DWORD formatNumber, d3dpublic::nativeTextureFormatHandler *handler )
+bool d3d9NativeTextureTypeProvider::RegisterFormatHandler( uint32 formatNumber, d3dpublic::nativeTextureFormatHandler *handler )
 {
     D3DFORMAT format = (D3DFORMAT)formatNumber;
 
@@ -37,7 +37,7 @@ bool d3d9NativeTextureTypeProvider::RegisterFormatHandler( DWORD formatNumber, d
     return success;
 }
 
-bool d3d9NativeTextureTypeProvider::UnregisterFormatHandler( DWORD formatNumber )
+bool d3d9NativeTextureTypeProvider::UnregisterFormatHandler( uint32 formatNumber )
 {
     D3DFORMAT format = (D3DFORMAT)formatNumber;
 

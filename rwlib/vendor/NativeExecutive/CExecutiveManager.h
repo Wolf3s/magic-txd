@@ -13,14 +13,8 @@
 #ifndef _EXECUTIVE_MANAGER_
 #define _EXECUTIVE_MANAGER_
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-
 #include <sdk/MemoryUtils.h>
 #include <sdk/rwlist.hpp>
-
-// test :(
 
 // Namespace simplification definitions.
 #define BEGIN_NATIVE_EXECUTIVE      namespace NativeExecutive {
@@ -140,7 +134,7 @@ public:
 
     ExecutiveManager::threadPluginContainer_t threadPlugins;
 
-    CRITICAL_SECTION threadPluginsLock;
+    CReadWriteLock *threadPluginsLock;
 
     bool isTerminating;     // if true then no new objects are allowed to spawn anymore.
 

@@ -309,8 +309,8 @@ private:
 
     struct magf_extension
     {
-        D3DFORMAT d3dformat;
-        HMODULE loadedLibrary;
+        D3DFORMAT_SDK d3dformat;
+        void *loadedLibrary;
         void *handler;
     };
 

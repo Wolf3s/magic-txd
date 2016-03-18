@@ -258,7 +258,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                             // If the user wants to know about such things, notify him.
                             if ( engineIgnoreSecureWarnings == false )
                             {
-                                engineInterface->PushWarning( "texture " + theTexture->GetName() + " has an unknown D3DFORMAT link (" + std::to_string( (DWORD)d3dFormat ) + ")" );
+                                engineInterface->PushWarning( "texture " + theTexture->GetName() + " has an unknown D3DFORMAT link (" + std::to_string( d3dFormat ) + ")" );
 
                                 hasReportedStrongWarning = true;
                             }

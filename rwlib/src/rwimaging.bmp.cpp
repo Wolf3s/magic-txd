@@ -14,6 +14,11 @@ namespace rw
 #ifdef RWLIB_INCLUDE_BMP_IMAGING
 // .bmp file imaging extension.
 
+typedef uint8 BYTE;
+typedef uint16 WORD;
+typedef uint32 DWORD;
+typedef int32 LONG;
+
 #pragma pack(push,1)
 struct bmpFileHeader
 {
