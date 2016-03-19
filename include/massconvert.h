@@ -12,6 +12,8 @@
 
 #include "languages.h"
 
+#include "progresslogedit.h"
+
 struct MassConvertWindow;
 
 struct MassConvertWindow : public QDialog, public magicTextLocalizationItem
@@ -22,10 +24,6 @@ public:
     MassConvertWindow( MainWindow *mainwnd );
     ~MassConvertWindow();
 
-    void updateContent( MainWindow *mainWnd );
-
-    void customEvent( QEvent *evt ) override;
-
     void postLogMessage( QString msg );
 
     MainWindow *mainwnd;
@@ -33,6 +31,11 @@ public:
 public slots:
     void OnRequestConvert( bool checked );
     void OnRequestCancel( bool checked );
+
+protected:
+    void updateContent( MainWindow *mainWnd ) override;
+
+    void customEvent( QEvent *evt ) override;
 
 private:
     void serialize( void );
@@ -50,7 +53,8 @@ private:
     QCheckBox *propReconstructIMG;
     QCheckBox *propCompressedIMG;
 
-    QPlainTextEdit *logEdit;
+    ProgressLogEdit logEditControl;
+
     QPushButton *buttonConvert;
 
 public:

@@ -677,6 +677,7 @@
     <ClCompile Include="..\..\src\massconvert.cpp" />
     <ClCompile Include="..\..\src\massexport.cpp" />
     <ClCompile Include="..\..\src\optionsdialog.cpp" />
+    <ClCompile Include="..\..\src\progresslogedit.cpp" />
     <ClCompile Include="..\..\src\qtutils.cpp" />
     <ClCompile Include="..\..\src\renderpropwindow.cpp" />
     <ClCompile Include="..\..\src\rwfswrap.cpp" />
@@ -690,6 +691,7 @@
     <ClCompile Include="..\..\src\texformatextensions.cpp" />
     <ClCompile Include="../../src/mainwindow.cpp" />
     <ClCompile Include="..\..\src\textureviewport.cpp" />
+    <ClCompile Include="..\..\src\tools\configtree.cpp" />
     <ClCompile Include="..\..\src\tools\txdbuild.cpp" />
     <ClCompile Include="..\..\src\tools\txdexport.cpp" />
     <ClCompile Include="..\..\src\tools\txdgen.cpp" />
@@ -730,6 +732,7 @@
     <ClInclude Include="..\..\magic_api\MagicFormats.h" />
     <ClInclude Include="..\..\src\guiserialization.hxx" />
     <ClInclude Include="..\..\src\languages.hxx" />
+    <ClInclude Include="..\..\src\progresslogedit.h" />
     <ClInclude Include="..\..\src\qtinteroputils.hxx" />
     <ClInclude Include="..\..\src\qtrwutils.hxx" />
     <ClInclude Include="..\..\src\texformathelper.hxx" />
@@ -737,6 +740,7 @@
     <ClInclude Include="../../include/texinfoitem.h" />
     <ClInclude Include="../../include/styles.h" />
     <ClInclude Include="..\..\src\toolshared.hxx" />
+    <ClInclude Include="..\..\src\tools\configtree.h" />
     <ClInclude Include="..\..\src\tools\dirtools.h" />
     <ClInclude Include="..\..\src\tools\shared.h" />
     <ClInclude Include="..\..\src\tools\txdbuild.h" />

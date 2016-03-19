@@ -54,7 +54,7 @@ inline bool isRwObjectInheritingFrom( EngineInterface *engineInterface, const Rw
 
     if ( rtObj )
     {
-        // Check whether the type of the dynamic object matches that of TXD.
+        // Check whether the type of the dynamic object matches the required type.
         RwTypeSystem::typeInfoBase *objTypeInfo = RwTypeSystem::GetTypeInfoFromTypeStruct( rtObj );
 
         if ( engineInterface->typeSystem.IsTypeInheritingFrom( baseType, objTypeInfo ) )
@@ -1664,6 +1664,18 @@ bool GetNativeTextureFormatInfo( Interface *intf, const char *nativeName, native
     }
 
     return gotInfo;
+}
+
+bool IsNativeTexture( rw::Interface *intf, const char *nativeName )
+{
+    bool gotInfo = false;
+
+    EngineInterface *engineInterface = (EngineInterface*)intf;
+
+    // Get the type that is associated with the given typeName.
+    RwTypeSystem::typeInfoBase *theType = GetNativeTextureType( engineInterface, nativeName );
+
+    return ( theType != NULL );
 }
 
 /*

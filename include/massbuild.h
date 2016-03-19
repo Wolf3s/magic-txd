@@ -30,6 +30,7 @@ private:
     QCheckBox *propGenMipmaps;
     QLineEdit *propGenMipmapsMax;
     QCheckBox *propCompressTextures;
+    QCheckBox *propCloseAfterComplete;
 
     RwListEntry <MassBuildWindow> node;
 };

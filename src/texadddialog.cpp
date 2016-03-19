@@ -226,12 +226,7 @@ void TexAddDialog::loadPlatformOriginal(void)
                         catch( ... )
                         {
                             // Since preparation of the raster/texture has failed, we have to delete the stuff.
-                            if ( rw::TextureBase *texHandle = load_result.texHandle )
-                            {
-                                rwEngine->DeleteRwObject( texHandle );
-                            }
-
-                            rw::DeleteRaster( texRaster );
+                            load_result.cleanUpSuccessful();
                             throw;
                         }
 

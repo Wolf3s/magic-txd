@@ -39,6 +39,10 @@
     <ClCompile Include="..\..\src\createtxddlg.cpp" />
     <ClCompile Include="..\..\src\rwversiondialog.cpp" />
     <ClCompile Include="..\..\src\rwimageimporter.cpp" />
+    <ClCompile Include="..\..\src\tools\configtree.cpp">
+      <Filter>tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\progresslogedit.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../../include/styles.h">
@@ -177,6 +181,12 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\rwimageimporter.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\tools\configtree.h">
+      <Filter>tools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\progresslogedit.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

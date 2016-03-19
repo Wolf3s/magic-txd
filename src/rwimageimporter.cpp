@@ -97,6 +97,7 @@ bool imageImportMethods::LoadImage( rw::Stream *stream, eImportExpectation imp_e
     bool needsStreamReset = false;
     
     // First try the expected image data type, if available.
+    if ( imp_exp != IMPORTE_NONE )
     {
         importMethod_t loader = NULL;
 
@@ -208,6 +209,8 @@ bool imageImportMethods::LoadImage( rw::Stream *stream, eImportExpectation imp_e
 
 void imageImportMethods::RegisterImportMethod( const char *name, importMethod_t meth, eImportExpectation impExp )
 {
+    assert( impExp != IMPORTE_NONE );
+
     meth_reg reg;
     reg.img_exp = impExp;
     reg.cb = std::move( meth );
@@ -215,4 +218,3 @@ void imageImportMethods::RegisterImportMethod( const char *name, importMethod_t 
 
     this->methods.push_back( std::move( reg ) );
 }
-

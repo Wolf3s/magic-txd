@@ -36,6 +36,204 @@ namespace rwkind
         GAME_SHEROES
     };
 
+    static inline bool GetTargetPlatformFromFriendlyString( const char *targetPlatform, rwkind::eTargetPlatform& platOut )
+    {
+        if ( stricmp( targetPlatform, "PC" ) == 0 )
+        {
+            platOut = PLATFORM_PC;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "PS2" ) == 0 ||
+                  stricmp( targetPlatform, "Playstation 2" ) == 0 ||
+                  stricmp( targetPlatform, "PlayStation2" ) == 0 )
+        {
+            platOut = PLATFORM_PS2;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "XBOX" ) == 0 )
+        {
+            platOut = PLATFORM_XBOX;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "Gamecube" ) == 0 ||
+                  stricmp( targetPlatform, "GCube" ) == 0 ||
+                  stricmp( targetPlatform, "GC" ) == 0 )
+        {
+            platOut = PLATFORM_GC;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "DXT_MOBILE" ) == 0 ||
+                  stricmp( targetPlatform, "S3TC_MOBILE" ) == 0 ||
+                  stricmp( targetPlatform, "MOBILE_DXT" ) == 0 ||
+                  stricmp( targetPlatform, "MOBILE_S3TC" ) == 0 )
+        {
+            platOut = PLATFORM_DXT_MOBILE;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "PVR" ) == 0 ||
+                  stricmp( targetPlatform, "PowerVR" ) == 0 ||
+                  stricmp( targetPlatform, "PVRTC" ) == 0 )
+        {
+            platOut = PLATFORM_PVR;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "ATC" ) == 0 ||
+                  stricmp( targetPlatform, "ATI_Compress" ) == 0 ||
+                  stricmp( targetPlatform, "ATI" ) == 0 ||
+                  stricmp( targetPlatform, "ATITC" ) == 0 ||
+                  stricmp( targetPlatform, "ATI TC" ) == 0 )
+        {
+            platOut = PLATFORM_ATC;
+            return true;
+        }
+        else if ( stricmp( targetPlatform, "UNC" ) == 0 ||
+                  stricmp( targetPlatform, "UNCOMPRESSED" ) == 0 ||
+                  stricmp( targetPlatform, "unc_mobile" ) == 0 ||
+                  stricmp( targetPlatform, "uncompressed_mobile" ) == 0 ||
+                  stricmp( targetPlatform, "mobile_unc" ) == 0 ||
+                  stricmp( targetPlatform, "mobile_uncompressed" ) == 0 )
+        {
+            platOut = PLATFORM_UNC_MOBILE;
+            return true;
+        }
+
+        return false;
+    }
+
+    static inline bool GetTargetGameFromFriendlyString( const char *targetVersion, rwkind::eTargetGame& gameOut )
+    {
+        if ( stricmp( targetVersion, "SA" ) == 0 ||
+             stricmp( targetVersion, "SanAndreas" ) == 0 ||
+             stricmp( targetVersion, "San Andreas" ) == 0 ||
+             stricmp( targetVersion, "GTA SA" ) == 0 ||
+             stricmp( targetVersion, "GTASA" ) == 0 )
+        {
+            gameOut = GAME_GTASA;
+            return true;
+        }
+        else if ( stricmp( targetVersion, "VC" ) == 0 ||
+                  stricmp( targetVersion, "ViceCity" ) == 0 ||
+                  stricmp( targetVersion, "Vice City" ) == 0 ||
+                  stricmp( targetVersion, "GTA VC" ) == 0 ||
+                  stricmp( targetVersion, "GTAVC" ) == 0 )
+        {
+            gameOut = GAME_GTAVC;
+            return true;
+        }
+        else if ( stricmp( targetVersion, "GTAIII" ) == 0 ||
+                  stricmp( targetVersion, "III" ) == 0 ||
+                  stricmp( targetVersion, "GTA3" ) == 0 ||
+                  stricmp( targetVersion, "GTA 3" ) == 0 )
+        {
+            gameOut = GAME_GTA3;
+            return true;
+        }
+        else if ( stricmp( targetVersion, "MANHUNT" ) == 0 ||
+                  stricmp( targetVersion, "MHUNT" ) == 0 ||
+                  stricmp( targetVersion, "MH" ) == 0 )
+        {
+            gameOut = GAME_MANHUNT;
+            return true;
+        }
+        else if ( stricmp( targetVersion, "BULLY" ) == 0 )
+        {
+            gameOut = GAME_BULLY;
+            return true;
+        }
+        else if ( stricmp( targetVersion, "SHEROES" ) == 0 ||
+                  stricmp( targetVersion, "Sonic Heroes" ) == 0 ||
+                  stricmp( targetVersion, "SonicHeroes" ) == 0 )
+        {
+            gameOut = GAME_SHEROES;
+            return true;
+        }
+
+        return false;
+    }
+
+    inline bool GetTargetVersionFromPlatformAndGame(
+        rwkind::eTargetPlatform targetPlatform, rwkind::eTargetGame targetGame,
+        rw::LibraryVersion& verOut, const char*& strTargetVerOut
+    )
+    {
+        if ( targetGame == GAME_GTA3 )
+        {
+            if ( targetPlatform == PLATFORM_XBOX )
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::GTA3_XBOX );
+            }
+            else
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::GTA3_PC );
+            }
+
+            strTargetVerOut = "GTA 3";
+            return true;
+        }
+        else if ( targetGame == GAME_GTAVC )
+        {
+            if ( targetPlatform == PLATFORM_PS2 )
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_PS2 );
+            }
+            else if ( targetPlatform == PLATFORM_XBOX )
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_XBOX );
+            }
+            else
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_PC );
+            }
+
+            strTargetVerOut = "Vice City";
+            return true;
+        }
+        else if ( targetGame == GAME_GTASA )
+        {
+            verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::SA );
+
+            strTargetVerOut = "San Andreas";
+            return true;
+        }
+        else if ( targetGame == GAME_MANHUNT )
+        {
+            if ( targetPlatform == PLATFORM_PS2 )
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::MANHUNT_PS2 );
+            }
+            else
+            {
+                verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::MANHUNT_PC );
+            }
+
+            strTargetVerOut = "Manhunt";
+            return true;
+        }
+        else if ( targetGame == GAME_BULLY )
+        {
+            verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::BULLY );
+
+            strTargetVerOut = "Bully";
+            return true;
+        }
+        else if ( targetGame == GAME_LCS )
+        {
+            verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::LCS_PSP );
+
+            strTargetVerOut = "Liberty City Stories";
+            return true;
+        }
+        else if ( targetGame == GAME_SHEROES )
+        {
+            verOut = rw::KnownVersions::getGameVersion( rw::KnownVersions::SHEROES_GC );
+
+            strTargetVerOut = "Sonic Heroes";
+            return true;
+        }
+
+        return false;
+    }
+
     static inline eTargetPlatform GetRasterPlatform( rw::Raster *texRaster )
     {
         eTargetPlatform thePlatform = PLATFORM_UNKNOWN;

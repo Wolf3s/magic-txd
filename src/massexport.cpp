@@ -242,7 +242,7 @@ struct MagicMassExportModule : public MassExportModule
 
     CFile* WrapStreamCodec( CFile *stream ) override
     {
-        return CreateDecompressedStream( wnd->mainWnd, stream );
+        return CreateDecompressedStream( wnd->getMainWindow(), stream );
     }
 
 private:
@@ -303,7 +303,7 @@ void MassExportWindow::OnRequestExport( bool checked )
         rw::thread_t taskHandle = rw::MakeThread( engineInterface, exporttask_runtime, params );
 
         // Create a window that is responsible of it.
-        TaskCompletionWindow *taskWnd = new TaskCompletionWindow( this->mainWnd, taskHandle, "Exporting...", "calculating prime numbers." );
+        TaskCompletionWindow *taskWnd = new LabelTaskCompletionWindow( this->mainWnd, taskHandle, "Exporting...", "calculating prime numbers." );
 
         params->taskWnd = taskWnd;
 

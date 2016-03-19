@@ -2,7 +2,7 @@
 
 #include "shared.h"
 
-struct TxdBuildModule abstract : public MessageReceiver
+struct TxdBuildModule abstract : public MessageReceiver, public rw::WarningManagerInterface
 {
     inline TxdBuildModule( rw::Interface *rwEngine )
     {
@@ -22,6 +22,9 @@ struct TxdBuildModule abstract : public MessageReceiver
     };
 
     bool RunApplication( const run_config& cfg );
+
+protected:
+    void OnWarning( std::string&& msg ) override;
 
 private:
     rw::Interface *rwEngine;

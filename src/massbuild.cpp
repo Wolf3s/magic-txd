@@ -23,6 +23,9 @@ struct massbuildEnv : public magicSerializationProvider
         LIST_CLEAR( this->windows.root );
 
         RegisterMainWindowSerialization( mainWnd, MAGICSERIALIZE_MASSBUILD, this );
+
+        // Initialize with some defaults.
+        this->closeOnCompletion = true;
     }
 
     inline void Shutdown( MainWindow *mainWnd )
@@ -44,6 +47,7 @@ struct massbuildEnv : public magicSerializationProvider
         endian::little_endian <rwkind::eTargetPlatform> targetPlatform;
         bool generateMipmaps;
         endian::little_endian <std::int32_t> genMipMaxLevel;
+        bool closeOnCompletion;
     };
 
     void Load( MainWindow *mainWnd, rw::BlockProvider& cfgBlock ) override
@@ -59,6 +63,7 @@ struct massbuildEnv : public magicSerializationProvider
         this->config.targetPlatform = cfgStruct.targetPlatform;
         this->config.generateMipmaps = cfgStruct.generateMipmaps;
         this->config.curMipMaxLevel = cfgStruct.genMipMaxLevel;
+        this->closeOnCompletion = cfgStruct.closeOnCompletion;
     }
 
     void Save( const MainWindow *mainWnd, rw::BlockProvider& cfgBlock ) const override
@@ -72,11 +77,13 @@ struct massbuildEnv : public magicSerializationProvider
         cfgStruct.targetPlatform = this->config.targetPlatform;
         cfgStruct.generateMipmaps = this->config.generateMipmaps;
         cfgStruct.genMipMaxLevel = this->config.curMipMaxLevel;
+        cfgStruct.closeOnCompletion = this->closeOnCompletion;
         
         cfgBlock.writeStruct( cfgStruct );
     }
 
     TxdBuildModule::run_config config;
+    bool closeOnCompletion;
 
     RwList <MassBuildWindow> windows;
 };
@@ -133,6 +140,15 @@ MassBuildWindow::MassBuildWindow( MainWindow *mainWnd ) : QDialog( mainWnd )
         )
     );
 
+    // Meta-properties.
+    QCheckBox *propCloseAfterComplete = CreateCheckBoxL( "Tools.MassBld.CloseOnCmplt" );
+
+    propCloseAfterComplete->setChecked( env->closeOnCompletion );
+
+    layout.top->addWidget( propCloseAfterComplete );
+
+    this->propCloseAfterComplete = propCloseAfterComplete;
+
     layout.top->addSpacing( 15 );
 
     // Last thing is the typical button row.
@@ -181,33 +197,34 @@ void MassBuildWindow::serialize( void )
 
     env->config.generateMipmaps = this->propGenMipmaps->isChecked();
     env->config.curMipMaxLevel = this->propGenMipmapsMax->text().toInt();
+
+    env->closeOnCompletion = this->propCloseAfterComplete->isChecked();
 }
 
 struct MassBuildModule : public TxdBuildModule
 {
-    inline MassBuildModule( MainWindow *mainWnd, rw::Interface *rwEngine ) : TxdBuildModule( rwEngine )
+    inline MassBuildModule( TaskCompletionWindow *taskWnd, rw::Interface *rwEngine ) : TxdBuildModule( rwEngine )
     {
-        this->mainWnd = mainWnd;
+        this->taskWnd = taskWnd;
     }
 
-    // We do not care about warning messages and stuff.
     void OnMessage( const std::string& msg ) override
     {
-        return;
+        taskWnd->updateStatusMessage( QString::fromStdString( msg ) );
     }
 
     void OnMessage( const std::wstring& msg ) override
     {
-        return;
+        taskWnd->updateStatusMessage( QString::fromStdWString( msg ) );
     }
 
     // Redirect every file access to the global stream function.
     CFile*  WrapStreamCodec( CFile *compressed ) override
     {
-        return CreateDecompressedStream( mainWnd, compressed );
+        return CreateDecompressedStream( taskWnd->getMainWindow(), compressed );
     }
 
-    MainWindow *mainWnd;
+    TaskCompletionWindow *taskWnd;
 };
 
 struct massbuild_task_params
@@ -229,7 +246,7 @@ static void massbuild_task_entry( rw::thread_t threadHandle, rw::Interface *engi
     try
     {
         // Run the mass build module.
-        MassBuildModule module( params->mainWnd, engineInterface );
+        MassBuildModule module( params->taskWnd, engineInterface );
 
         module.RunApplication( params->config );
     }
@@ -262,7 +279,9 @@ void MassBuildWindow::OnRequestBuild( bool checked )
     rw::thread_t taskThread = rw::MakeThread( rwEngine, massbuild_task_entry, params );
 
     // Communicate using a task window.
-    TaskCompletionWindow *taskWnd = new TaskCompletionWindow( mainWnd, taskThread, "Building...", "preparing the build process..." );
+    TaskCompletionWindow *taskWnd = new LogTaskCompletionWindow( mainWnd, taskThread, "Building...", "preparing the build process..." );
+
+    taskWnd->setCloseOnCompletion( env->closeOnCompletion );
 
     params->taskWnd = taskWnd;
 

@@ -150,7 +150,7 @@ void InitializeMassconvToolEnvironment( void )
     massconvEnvRegister.RegisterPlugin( mainWindowFactory );
 }
 
-MassConvertWindow::MassConvertWindow( MainWindow *mainwnd ) : QDialog( mainwnd )
+MassConvertWindow::MassConvertWindow( MainWindow *mainwnd ) : QDialog( mainwnd ), logEditControl( this )
 {
     massconvEnv *massconv = massconvEnvRegister.GetPluginStruct( mainwnd );
 
@@ -236,14 +236,7 @@ MassConvertWindow::MassConvertWindow( MainWindow *mainwnd ) : QDialog( mainwnd )
     leftPanelLayout->addWidget( propCompressedIMG );
 
     // Add a log.
-    QPlainTextEdit *logEdit = new QPlainTextEdit();
-
-    logEdit->setMinimumWidth( 400 );
-    logEdit->setReadOnly( true );
-
-    this->logEdit = logEdit;
-
-    layout.top->addWidget( logEdit );
+    layout.top->addWidget( logEditControl.CreateLogWidget() );
 
     rw::Interface *rwEngine = mainwnd->GetEngine();
 
@@ -335,16 +328,6 @@ void MassConvertWindow::serialize( void )
     massconv->txdgenConfig.c_imgArchivesCompressed = this->propCompressedIMG->isChecked();
 }
 
-struct AppendConsoleMessageEvent : public QEvent
-{
-    inline AppendConsoleMessageEvent( QString msg ) : QEvent( QEvent::User )
-    {
-        this->msg = msg;
-    }
-
-    QString msg;
-};
-
 struct ConversionFinishEvent : public QEvent
 {
     inline ConversionFinishEvent( void ) : QEvent( QEvent::User )
@@ -353,9 +336,7 @@ struct ConversionFinishEvent : public QEvent
 
 void MassConvertWindow::postLogMessage( QString msg )
 {
-    AppendConsoleMessageEvent *evt = new AppendConsoleMessageEvent( msg );
-
-    QCoreApplication::postEvent( this, evt );
+    logEditControl.postLogMessage( std::move( msg ) );
 }
 
 struct MassConvertTxdGenModule : public TxdGenModule
@@ -460,15 +441,10 @@ void MassConvertWindow::OnRequestCancel( bool checked )
 
 void MassConvertWindow::customEvent( QEvent *evt )
 {
-    if ( AppendConsoleMessageEvent *appendMsgEvt = dynamic_cast <AppendConsoleMessageEvent*> ( evt ) )
-    {
-        this->logEdit->moveCursor( QTextCursor::End );
-        this->logEdit->insertPlainText( appendMsgEvt->msg );
-        this->logEdit->moveCursor( QTextCursor::End );
-
-        return;
-    }
-    else if ( ConversionFinishEvent *convEndEvt = dynamic_cast <ConversionFinishEvent*> ( evt ) )
+    // Handle events for the log.
+    logEditControl.customEvent( evt );
+    
+    if ( ConversionFinishEvent *convEndEvt = dynamic_cast <ConversionFinishEvent*> ( evt ) )
     {
         // We can enable the conversion button again.
         this->buttonConvert->setDisabled( false );

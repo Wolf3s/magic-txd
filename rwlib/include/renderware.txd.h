@@ -890,6 +890,7 @@ struct nativeRasterFormatInfo
 };
 
 bool GetNativeTextureFormatInfo( Interface *engineInterface, const char *nativeName, nativeRasterFormatInfo& infoOut );
+bool IsNativeTexture( Interface *engineInterface, const char *nativeName );
 
 // Format info helper API.
 const char* GetRasterFormatStandardName( eRasterFormat theFormat );

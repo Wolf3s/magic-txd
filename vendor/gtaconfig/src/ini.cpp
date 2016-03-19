@@ -27,61 +27,64 @@ CINI::CINI(const char *buffer)
 		size_t len;
 		const char *token = syntax.ParseToken( &len );
 
-		if ( len == 1 )
-		{
-			if ( *token == '[' )
-			{
-				char *name;
-				size_t offset = syntax.GetOffset();
+        if ( token )
+        {
+		    if ( len == 1 )
+		    {
+			    if ( *token == '[' )
+			    {
+				    char *name;
+				    size_t offset = syntax.GetOffset();
 
-				// Read section and select it
-				if ( !syntax.ScanCharacterEx( ']', true, true, false ) )
-					continue;
+				    // Read section and select it
+				    if ( !syntax.ScanCharacterEx( ']', true, true, false ) )
+					    continue;
 
-				size_t tokLen = syntax.GetOffset() - offset - 1;
+				    size_t tokLen = syntax.GetOffset() - offset - 1;
 
-				name = (char*)malloc( tokLen + 1 );
-				strncpy( name, token + 1, tokLen );
+				    name = (char*)malloc( tokLen + 1 );
+				    strncpy( name, token + 1, tokLen );
 
-				name[tokLen] = 0;
+				    name[tokLen] = 0;
 
-				section = new Entry( name );
+				    section = new Entry( name );
 
-				entries.push_back( section );
-			}
-            else if ( *token == ';' || *token == '#' )
-			{
-				syntax.ScanCharacter( '\n' );
-				syntax.Seek( -1 );
-				continue;
-			}
-			else
-				goto sectionDo;
-		}
-		else if ( section )
-		{
+				    entries.push_back( section );
+			    }
+                else if ( *token == ';' || *token == '#' )
+			    {
+				    syntax.ScanCharacter( '\n' );
+				    syntax.Seek( -1 );
+				    continue;
+			    }
+			    else
+				    goto sectionDo;
+		    }
+		    else if ( section )
+		    {
 sectionDo:
-			char name[256];
-			const char *set;
+			    char name[256];
+			    const char *set;
 
-			len = std::min(len, (size_t)255);
+			    len = std::min(len, (size_t)255);
 
-			strncpy(name, token, len );
-			name[len] = 0;
+			    strncpy(name, token, len );
+			    name[len] = 0;
 
-			set = syntax.ParseToken( &len );
+			    set = syntax.ParseToken( &len );
 
-			if ( len != 1 || *set != '=' )
-				continue;
+			    if ( len != 1 || *set != '=' )
+				    continue;
 
-            // Read everything until new line.
-            size_t contentSize;
-            const char *lineBuf = syntax.ReadUntilNewLine( &contentSize );
+                // Read everything until new line.
+                size_t contentSize;
+                const char *lineBuf = syntax.ReadUntilNewLine( &contentSize );
 
-            std::string strbuf( lineBuf, contentSize );
+                std::string strbuf( lineBuf, contentSize );
 
-			section->Set( name, strbuf.c_str() );
-		}
+			    section->Set( name, strbuf.c_str() );
+		    }
+        }
 
 	} while ( syntax.GotoNewLine() );
 }

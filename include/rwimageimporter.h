@@ -4,6 +4,7 @@
 
 enum eImportExpectation
 {
+    IMPORTE_NONE,
     IMPORTE_IMAGE,
     IMPORTE_TEXCHUNK
 };
@@ -15,6 +16,20 @@ struct imageImportMethods abstract
     {
         rw::Raster *texRaster;
         rw::TextureBase *texHandle; // NULL if load-result does not include texture handle
+
+        void cleanUpSuccessful( void )
+        {
+            if ( rw::TextureBase *texHandle = this->texHandle )
+            {
+                texHandle->engineInterface->DeleteRwObject( texHandle );
+
+                this->texHandle = NULL;
+            }
+
+            rw::DeleteRaster( this->texRaster );
+
+            this->texRaster = NULL;
+        }
     };
 
     inline imageImportMethods( void )

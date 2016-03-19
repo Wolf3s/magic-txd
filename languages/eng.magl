@@ -175,6 +175,7 @@ Tools.MassExp.Cancel   Cancel
 Tools.MassBld.Desc     Mass Build
 Tools.MassBld.Build    Build
 Tools.MassBld.Cancel   Cancel
+Tools.MassBld.CloseOnCmplt  Close on completion
 
 # Mass convert
 Tools.MassCnv.Desc     Mass Conversion

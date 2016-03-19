@@ -177,6 +177,7 @@ Tools.MassExp.Cancel   Abbrechen
 Tools.MassBld.Desc     Massenerbauung
 Tools.MassBld.Build    Bauen
 Tools.MassBld.Cancel   Abbrechen
+Tools.MassBld.CloseOnCmplt  Nach Beendigung schließen
 
 # Mass convert
 Tools.MassCnv.Desc     Massenkonvertierung
