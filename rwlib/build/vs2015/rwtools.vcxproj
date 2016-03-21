@@ -179,7 +179,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2013.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2015.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>libimagequant_d_$(PlatformToolset).lib;squishd_$(PlatformToolset).lib;AMDCompress_MDd.lib;PVRTexLib.lib;libpng_d_$(PlatformToolset).lib;libjpeg_d_$(PlatformToolset).lib;libtiff_d_$(PlatformToolset).lib;native_exec_d_$(PlatformToolset).lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -226,7 +226,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2013.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2015.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>libimagequant_d_$(PlatformToolset)_x64.lib;squishd_$(PlatformToolset)_x64.lib;AMDCompress_MDd.lib;PVRTexLib.lib;libpng_d_$(PlatformToolset)_x64.lib;libjpeg_d_$(PlatformToolset)_x64.lib;libtiff_d_$(PlatformToolset)_x64.lib;native_exec_d_$(PlatformToolset)_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -276,7 +276,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2013.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2015.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>libimagequant_$(PlatformToolset).lib;squish_$(PlatformToolset).lib;AMDCompress_MD.lib;PVRTexLib.lib;libpng_$(PlatformToolset).lib;libjpeg_$(PlatformToolset).lib;libtiff_$(PlatformToolset).lib;native_exec_$(PlatformToolset).lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -332,7 +332,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2013.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName)_2015.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>libimagequant_$(PlatformToolset)_x64.lib;squish_$(PlatformToolset)_x64.lib;AMDCompress_MD.lib;PVRTexLib.lib;libpng_$(PlatformToolset)_x64.lib;libjpeg_$(PlatformToolset)_x64.lib;libtiff_$(PlatformToolset)_x64.lib;native_exec_$(PlatformToolset)_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -394,8 +394,8 @@
     <ClInclude Include="..\..\include\renderware.utils.h" />
     <ClInclude Include="..\..\include\renderware.windowing.h" />
     <ClInclude Include="..\..\include\rwframework.h" />
-    <ClInclude Include="..\..\include\StdInc.h" />
     <ClInclude Include="..\..\rwconf.h" />
+    <ClInclude Include="..\..\src\natimage.hxx" />
     <ClInclude Include="..\..\src\native.win32.hxx" />
     <ClInclude Include="..\..\src\pixelformat.hxx" />
     <ClInclude Include="..\..\src\pixelutil.hxx" />
@@ -410,10 +410,15 @@
     <ClInclude Include="..\..\src\rwfile.system.hxx" />
     <ClInclude Include="..\..\src\rwimaging.hxx" />
     <ClInclude Include="..\..\src\rwinterface.hxx" />
+    <ClInclude Include="..\..\src\rwprivate.imaging.h" />
+    <ClInclude Include="..\..\src\rwprivate.txd.h" />
+    <ClInclude Include="..\..\src\rwprivate.utils.h" />
+    <ClInclude Include="..\..\src\rwprivate.warnings.h" />
     <ClInclude Include="..\..\src\rwserialize.hxx" />
     <ClInclude Include="..\..\src\rwstatesort.hxx" />
     <ClInclude Include="..\..\src\rwthreading.hxx" />
     <ClInclude Include="..\..\src\rwwindowing.hxx" />
+    <ClInclude Include="..\..\src\StdInc.h" />
     <ClInclude Include="..\..\src\streamutil.hxx" />
     <ClInclude Include="..\..\src\txdread.atc.hxx" />
     <ClInclude Include="..\..\src\txdread.common.hxx" />
@@ -467,6 +472,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\dffwrite.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
+    <ClCompile Include="..\..\src\natimage.cpp" />
     <ClCompile Include="..\..\src\oglnative.cpp" />
     <ClCompile Include="..\..\src\ps2native.cpp" />
     <ClCompile Include="..\..\src\renderware.cpp" />

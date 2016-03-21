@@ -136,12 +136,22 @@ struct VersionSetSelection abstract : public QObject
 
             if ( ver_match.size() == 5 )
             {
-                rwLibMajor = std::stoul( ver_match[ 1 ] );
-                rwLibMinor = std::stoul( ver_match[ 2 ] );
-                rwRevMajor = std::stoul( ver_match[ 3 ] );
-                rwRevMinor = std::stoul( ver_match[ 4 ] );
+                try
+                {
+                    rwLibMajor = std::stoul( ver_match[ 1 ] );
+                    rwLibMinor = std::stoul( ver_match[ 2 ] );
+                    rwRevMajor = std::stoul( ver_match[ 3 ] );
+                    rwRevMinor = std::stoul( ver_match[ 4 ] );
 
-                hasProperMatch = true;
+                    hasProperMatch = true;
+                }
+                catch( ... )
+                {
+                    // An error during conversion happened, so we dont have proper numbers.
+                    hasProperMatch = false;
+
+                    // Continue.
+                }
             }
         }
 

@@ -1,8 +1,8 @@
+#include "StdInc.h"
+
 #include <cstring>
 #include <assert.h>
 #include <math.h>
-
-#include <StdInc.h>
 
 #include "txdread.common.hxx"
 

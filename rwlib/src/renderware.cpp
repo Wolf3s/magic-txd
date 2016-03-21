@@ -1,7 +1,7 @@
-#include <cstdlib>
-
-#include <StdInc.h>
+#include "StdInc.h"
 using namespace std;
+
+#include <cstdlib>
 
 namespace rw {
 
@@ -254,15 +254,22 @@ string getChunkName(uint32 i)
 		return "Unknown";
 }
 
+}
+
 #ifdef RWLIB_INCLUDE_FRAMEWORK_ENTRYPOINTS
+
+#ifdef _WIN32
+#include "native.win32.hxx"
+#endif
+
+namespace rw
+{
 
 // Definition of the framework entry points.
 extern LibraryVersion app_version( void );
 extern int32 rwmain( Interface *engineInterface );
 
 #ifdef _WIN32
-
-#include "native.win32.hxx"
 
 BOOL WINAPI frameworkEntryPoint_win32( HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow )
 {

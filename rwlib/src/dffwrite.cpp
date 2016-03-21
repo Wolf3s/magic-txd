@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include <StdInc.h>
+#include "StdInc.h"
 using namespace std;
 
 #include "streamutil.hxx"

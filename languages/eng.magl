@@ -176,6 +176,10 @@ Tools.MassBld.Desc     Mass Build
 Tools.MassBld.Build    Build
 Tools.MassBld.Cancel   Cancel
 Tools.MassBld.CloseOnCmplt  Close on completion
+Tools.MassBld.Cmprs    Compressed
+Tools.MassBld.DescQual Quality
+Tools.MassBld.DoPal    Palettized
+Tools.MassBld.DescPType    Type
 
 # Mass convert
 Tools.MassCnv.Desc     Mass Conversion

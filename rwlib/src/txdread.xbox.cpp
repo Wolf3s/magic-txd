@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_XBOX
 
@@ -9,8 +9,6 @@
 #include "pixelformat.hxx"
 
 #include "txdread.d3d.dxt.hxx"
-
-#include "txdread.common.hxx"
 
 #include "pluginutil.hxx"
 

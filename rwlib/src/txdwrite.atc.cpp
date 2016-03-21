@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_ATC_MOBILE
 
@@ -6,8 +6,6 @@
 
 #include "txdread.d3d.hxx"
 #include "txdread.atc.hxx"
-
-#include "txdread.common.hxx"
 
 #include "streamutil.hxx"
 

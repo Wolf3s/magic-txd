@@ -1,12 +1,10 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_D3D9
 
 #include "txdread.d3d9.hxx"
 
 #include "pixelformat.hxx"
-
-#include "txdread.common.hxx"
 
 #include "txdread.d3d.dxt.hxx"
 

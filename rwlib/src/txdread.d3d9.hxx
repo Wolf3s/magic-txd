@@ -2,6 +2,8 @@
 
 #include "txdread.d3d.hxx"
 
+#include "txdread.common.hxx"
+
 #define PLATFORM_D3D9   9
 
 namespace rw

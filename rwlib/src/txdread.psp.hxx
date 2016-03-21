@@ -8,6 +8,8 @@
 
 #include "txdread.ps2shared.hxx"
 
+#include "txdread.common.hxx"
+
 #define PSP_FOURCC  0x00505350      // 'PSP\0'
 
 namespace rw

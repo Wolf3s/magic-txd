@@ -13,6 +13,8 @@
 static const std::regex gameVer_regex( "(\\w+),(\\w+)" );
 static const std::regex game_regex( "(\\w+),(\\w+)" );
 
+static const std::regex size_tuple( "(\\d+),(\\d+)" );
+
 // Helper to decide the native name also with user configuration.
 inline std::string DecidePlatformString(
     rw::Interface *engineInterface,
@@ -360,6 +362,31 @@ void BuildSingleTexture(
                 GetConfigNodeAddressMode( cfgParent, "vAddress", rw::RWTEXADDRESS_WRAP )
             );
 
+            // Scale the raster?
+            {
+                std::string strSize;
+
+                if ( cfgParent.GetString( "size", strSize ) )
+                {
+                    // Try parsing a valid size tuple.
+                    // If successful, resize things.
+                    unsigned int width, height;
+
+                    int parseCount = sscanf( strSize.c_str(), "%u,%u", &width, &height );
+
+                    if ( parseCount == 2 )
+                    {
+                        // Do the resize with default filters.
+                        rw::Raster *texRaster = imgTex->GetRaster();
+
+                        if ( texRaster )
+                        {
+                            texRaster->resize( width, height );
+                        }
+                    }
+                }
+            }
+
             // Generate mipmaps?
             if ( GetConfigNodeBoolean( cfgParent, "genMipmaps", false ) )
             {
@@ -373,21 +400,7 @@ void BuildSingleTexture(
                 }
             }
 
-            // Maybe this texture wants to be compressed.
-            if ( GetConfigNodeBoolean( cfgParent, "compressed", false ) )
-            {
-                // Lets do it.
-                rw::Raster *texRaster = imgTex->GetRaster();
-
-                if ( texRaster )
-                {
-                    float comprQuality = (float)GetConfigNodeFloat( cfgParent, "comprQuality", 1.0 );
-
-                    texRaster->compress( comprQuality );
-                }
-            }
-            
-            // Or we want to palettize?
+            // We want to palettize?
             if ( GetConfigNodeBoolean( cfgParent, "palettized", false ) )
             {
                 rw::Raster *texRaster = imgTex->GetRaster();
@@ -403,6 +416,20 @@ void BuildSingleTexture(
                     }
 
                     texRaster->convertToPalette( paletteType, rw::RASTER_8888 );    // maximum palette quality.
+                }
+            }
+
+            // Maybe this texture wants to be compressed.
+            if ( GetConfigNodeBoolean( cfgParent, "compressed", false ) )
+            {
+                // Lets do it.
+                rw::Raster *texRaster = imgTex->GetRaster();
+
+                if ( texRaster )
+                {
+                    float comprQuality = (float)GetConfigNodeFloat( cfgParent, "comprQuality", 1.0 );
+
+                    texRaster->compress( comprQuality );
                 }
             }
 
@@ -492,7 +519,7 @@ inline void InstrumentConfigKeys( rw::Interface *rwEngine, TxdBuildModule *modul
                 // If we have a version, set it as current.
                 if ( hasVersion )
                 {
-                    txdConfigNode.SetString( "rwver", libVer.toString() );
+                    txdConfigNode.SetString( "rwver", libVer.toString( false ) );
                 }
                 else
                 {
@@ -555,7 +582,7 @@ inline void InstrumentConfigKeys( rw::Interface *rwEngine, TxdBuildModule *modul
                 // If we have a version, set it as current.
                 if ( hasVersion )
                 {
-                    txdConfigNode.SetString( "rwver", libVer.toString() );
+                    txdConfigNode.SetString( "rwver", libVer.toString( false ) );
                 }
 
                 if ( targetNativeName != NULL )
@@ -572,6 +599,11 @@ inline void InstrumentConfigKeys( rw::Interface *rwEngine, TxdBuildModule *modul
             {
                 module->OnMessage( std::string( "failed to parse game: " ) + cfg.value + '\n' );
             }
+        }
+        else if ( stricmp( cfg.key, "size" ) == 0 )
+        {
+            // Ability to scale texture to a fixed size.
+            txdConfigNode.SetString( "size", cfg.value );
         }
         else if ( stricmp( cfg.key, "filterMode" ) == 0 )
         {
@@ -777,24 +809,29 @@ void BuildTXDArchives(
                                         {
                                             try
                                             {
-                                                // Load configuration for this texture.
-                                                ConfigNode textureCfgNode;
-                                                textureCfgNode.SetParent( &txdConfigNode );
-                                                {
-                                                    filePath pathToTexture;
+                                                // We have to parse the path to this texture.
+                                                filePath pathToTexture;
                                                     
-                                                    bool gotPath = gameRoot->GetRelativePathFromRoot( texturePath, false, pathToTexture );
+                                                bool gotPath = gameRoot->GetRelativePathFromRoot( texturePath, false, pathToTexture );
 
-                                                    if ( gotPath )
+                                                if ( gotPath )
+                                                {
+                                                    filePath extOut;
+
+                                                    filePath fileNameItem = FileSystem::GetFileNameItem( texturePath, false, NULL, &extOut );
+
+                                                    // Ignore some extensions.
+                                                    // Those are used for meta-properties of textures.
+                                                    if ( extOut != L"ini" )
                                                     {
-                                                        filePath extOut;
+                                                        // Alright, this is a candidate for a valid texture!
+                                                        // Let process this entry.
 
-                                                        filePath fileNameItem = FileSystem::GetFileNameItem( texturePath, false, NULL, &extOut );
-
-                                                        // Ignore some extensions.
-                                                        if ( extOut != L"ini" )
+                                                        // Load configuration for this texture.
+                                                        ConfigNode textureCfgNode;
+                                                        textureCfgNode.SetParent( &txdConfigNode );
                                                         {
-                                                            filePath texIniPath = pathToTexture + fileNameItem + L".ini";
+                                                            filePath texIniPath = ( pathToTexture + fileNameItem + L".ini" );
 
                                                             ReadConfigurationBlock(
                                                                 rwEngine,
@@ -803,17 +840,17 @@ void BuildTXDArchives(
                                                                 module
                                                             );
                                                         }
+
+                                                        // We got all streams prepared!
+                                                        // Try turning it into a texture now.
+                                                        BuildSingleTexture(
+                                                            rwEngine, texDict,
+                                                            texturePath, imgStream,
+                                                            module, config,
+                                                            textureCfgNode
+                                                        );
                                                     }
                                                 }
-
-                                                // We got all streams prepared!
-                                                // Try turning it into a texture now.
-                                                BuildSingleTexture(
-                                                    rwEngine, texDict,
-                                                    texturePath, imgStream,
-                                                    module, config,
-                                                    textureCfgNode
-                                                );
                                             }
                                             catch( ... )
                                             {
@@ -955,7 +992,34 @@ bool TxdBuildModule::RunApplication( const run_config& config )
         // Initialize it.
         ConfigNode rootNode;
         rootNode.SetBoolean( "genMipmaps", config.generateMipmaps );
-        rootNode.SetInt( "genMipMaxLevel", config.curMipMaxLevel );
+
+        if ( config.generateMipmaps )
+        {
+            rootNode.SetInt( "genMipMaxLevel", config.curMipMaxLevel );
+        }
+
+        rootNode.SetBoolean( "compressed", config.doCompress );
+
+        if ( config.doCompress )
+        {
+            rootNode.SetFloat( "comprQuality", config.compressionQuality );
+        }
+
+        rootNode.SetBoolean( "palettized", config.doPalettize );
+
+        if ( config.doPalettize )
+        {
+            rw::ePaletteType paletteType = config.paletteType;
+
+            if ( paletteType == rw::PALETTE_4BIT || paletteType == rw::PALETTE_4BIT_LSB )
+            {
+                rootNode.SetString( "palType", "PAL4" );
+            }
+            else if ( paletteType == rw::PALETTE_8BIT )
+            {
+                rootNode.SetString( "palType", "PAL8" );
+            }
+        }
 
         // Get handles to the input and output directories.
         CFileTranslator *gameRootTranslator = NULL;

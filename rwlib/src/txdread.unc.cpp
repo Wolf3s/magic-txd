@@ -6,8 +6,6 @@
 
 #include "pluginutil.hxx"
 
-#include "txdread.common.hxx"
-
 namespace rw
 {
 

@@ -104,8 +104,16 @@ bool ConfigNode::GetInt( const std::string& key, int& valueOut ) const
         }
         else if ( cfgType == eConfigType::STRING )
         {
-            valueOut = std::stol( data.data.string );
-            return true;
+            try
+            {
+                valueOut = std::stol( data.data.string );
+                return true;
+            }
+            catch( ... )
+            {
+                // Wrongly formatted number.
+                return false;
+            }
         }
     }
     else if ( const ConfigNode *parent = this->parent )
@@ -143,8 +151,16 @@ bool ConfigNode::GetFloat( const std::string& key, double& valueOut ) const
         }
         else if ( cfgType == eConfigType::STRING )
         {
-            valueOut = std::stod( data.data.string );
-            return true;
+            try
+            {
+                valueOut = std::stod( data.data.string );
+                return true;
+            }
+            catch( ... )
+            {
+                // Wrongly formatted number.
+                return false;
+            }
         }
     }
     else if ( const ConfigNode *parent = this->parent )

@@ -140,8 +140,7 @@ AINLINE bool rawMipmapCalculateHasAlpha(
 
     // Decide whether we even can have alpha.
     // Otherwise there is no point in going through the pixels.
-    if (rasterFormat == RASTER_1555 || rasterFormat == RASTER_4444 || rasterFormat == RASTER_8888 ||
-        rasterFormat == RASTER_LUM_ALPHA)
+    if (canRasterFormatHaveAlpha(rasterFormat))
     {
         uint32 srcRowSize = getRasterDataRowSize( layerWidth, depth, rowAlignment );
 

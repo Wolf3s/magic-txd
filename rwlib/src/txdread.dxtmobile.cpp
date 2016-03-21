@@ -6,8 +6,6 @@
 
 #include "pluginutil.hxx"
 
-#include "txdread.common.hxx"
-
 #include "pixelformat.hxx"
 
 #include "txdread.d3d.dxt.hxx"

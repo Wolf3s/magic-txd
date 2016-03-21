@@ -9,6 +9,8 @@
 
 #include "txdread.d3d.genmip.hxx"
 
+#include "txdread.common.hxx"
+
 #define PLATFORM_PVR    10
 
 namespace rw

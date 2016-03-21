@@ -4,8 +4,6 @@
 
 #include "txdread.gc.hxx"
 
-#include "txdread.common.hxx"
-
 #include "txdread.gc.miptrans.hxx"
 
 namespace rw

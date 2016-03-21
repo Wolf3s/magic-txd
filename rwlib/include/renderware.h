@@ -236,7 +236,7 @@ struct LibraryVersion
         this->rwRevMinor = RevMinor;
     }
 
-    std::string toString(void) const
+    std::string toString( bool includeBuild = true ) const
     {
         std::string returnVer;
 
@@ -264,14 +264,17 @@ struct LibraryVersion
 
         returnVer += numBuf;
 
-        // If we have a valid build number, append it.
-        if ( this->buildNumber != 0xFFFF )
+        if ( includeBuild )
         {
-            _snprintf( numBuf, sizeof( numBuf ) - 1, "%u", this->buildNumber );
+            // If we have a valid build number, append it.
+            if ( this->buildNumber != 0xFFFF )
+            {
+                _snprintf( numBuf, sizeof( numBuf ) - 1, "%u", this->buildNumber );
 
-            returnVer += " (build: ";
-            returnVer += numBuf;
-            returnVer += ")";
+                returnVer += " (build: ";
+                returnVer += numBuf;
+                returnVer += ")";
+            }
         }
 
         return returnVer;
@@ -331,6 +334,11 @@ namespace KnownVersions
 
     LibraryVersion  getGameVersion( eGameVersion gameVer );
 };
+
+// If this macro is inside RW types, you must not attempt to construct them from outside of RenderWare code.
+#define RW_NOT_DIRECTLY_CONSTRUCTIBLE \
+    void* operator new( size_t ) = delete; \
+    void operator delete( void* ) = delete
 
 // Main RenderWare abstraction type.
 struct RwObject abstract

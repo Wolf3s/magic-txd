@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 

@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_D3D8
 
@@ -7,8 +7,6 @@
 #include "txdread.d3d8.hxx"
 
 #include "streamutil.hxx"
-
-#include "txdread.common.hxx"
 
 #include "txdread.miputil.hxx"
 

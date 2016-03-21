@@ -6,8 +6,6 @@
 
 #include "streamutil.hxx"
 
-#include "txdread.common.hxx"
-
 #include "txdread.miputil.hxx"
 
 namespace rw

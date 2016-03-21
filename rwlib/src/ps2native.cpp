@@ -1,6 +1,6 @@
-#include <cstdio>
+#include "StdInc.h"
 
-#include <StdInc.h>
+#include <cstdio>
 
 #include "streamutil.hxx"
 

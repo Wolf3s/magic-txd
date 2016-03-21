@@ -1,3 +1,6 @@
+#ifndef _SHARED_DIRECT3D_LEGACY_NATIVETEX_INCLUDE_
+#define _SHARED_DIRECT3D_LEGACY_NATIVETEX_INCLUDE_
+
 #include "txdread.nativetex.hxx"
 
 // Important definitions from the D3D9 SDK.
@@ -296,3 +299,5 @@ inline void getDefaultRasterFormatString( eRasterFormat rasterFormat, uint32 ite
 }
 
 };
+
+#endif //_SHARED_DIRECT3D_LEGACY_NATIVETEX_INCLUDE_

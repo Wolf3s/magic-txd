@@ -4,6 +4,8 @@
 
 #include "txdread.d3d.genmip.hxx"
 
+#include "txdread.common.hxx"
+
 #define NATIVE_TEXTURE_XBOX     5
 
 namespace rw

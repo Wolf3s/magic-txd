@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include "txdread.ps2.hxx"
 

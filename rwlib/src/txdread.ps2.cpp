@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 
@@ -19,8 +19,6 @@
 #include "pixelutil.hxx"
 
 #include "txdread.ps2gsman.hxx"
-
-#include "txdread.common.hxx"
 
 #include "pluginutil.hxx"
 

@@ -1,5 +1,5 @@
 // Simple bitmap software rendering library for image processing from RenderWare textures.
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include "pixelformat.hxx"
 

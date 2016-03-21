@@ -1,12 +1,10 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PSP
 
 #include "txdread.psp.hxx"
 
 #include "txdread.psp.mem.hxx"
-
-#include "txdread.common.hxx"
 
 #include "pluginutil.hxx"
 

@@ -4,11 +4,15 @@
 #ifndef _RENDERWARE_FRAMEWORK_FEATURES_
 #define _RENDERWARE_FRAMEWORK_FEATURES_
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace rw
 {
 
 // Framework entry points.
-#ifdef WIN32
+#ifdef _WIN32
 BOOL WINAPI frameworkEntryPoint_win32( HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow );
 #endif
 

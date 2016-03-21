@@ -41,6 +41,12 @@ struct massbuildEnv : public magicSerializationProvider
         }
     }
 
+    enum class eSerializedPaletteType
+    {
+        PAL4,
+        PAL8
+    };
+
     struct massbuild_cfg_struct
     {
         endian::little_endian <rwkind::eTargetGame> targetGame;
@@ -48,6 +54,10 @@ struct massbuildEnv : public magicSerializationProvider
         bool generateMipmaps;
         endian::little_endian <std::int32_t> genMipMaxLevel;
         bool closeOnCompletion;
+        bool doCompress;
+        endian::little_endian <float> compressionQuality;
+        bool doPalettize;
+        endian::little_endian <eSerializedPaletteType> paletteType;
     };
 
     void Load( MainWindow *mainWnd, rw::BlockProvider& cfgBlock ) override
@@ -64,6 +74,31 @@ struct massbuildEnv : public magicSerializationProvider
         this->config.generateMipmaps = cfgStruct.generateMipmaps;
         this->config.curMipMaxLevel = cfgStruct.genMipMaxLevel;
         this->closeOnCompletion = cfgStruct.closeOnCompletion;
+
+        // Compression.
+        {
+            this->config.doCompress = cfgStruct.doCompress;
+            this->config.compressionQuality = cfgStruct.compressionQuality;
+        }
+
+        // Palettization.
+        {
+            this->config.doPalettize = cfgStruct.doPalettize;
+
+            rw::ePaletteType runtimePaletteType = rw::PALETTE_8BIT;
+            eSerializedPaletteType serPaletteType = cfgStruct.paletteType;
+
+            if ( serPaletteType == eSerializedPaletteType::PAL4 )
+            {
+                runtimePaletteType = rw::PALETTE_4BIT;
+            }
+            else if ( serPaletteType == eSerializedPaletteType::PAL8 )
+            {
+                runtimePaletteType = rw::PALETTE_8BIT;
+            }
+
+            this->config.paletteType = runtimePaletteType;
+        }
     }
 
     void Save( const MainWindow *mainWnd, rw::BlockProvider& cfgBlock ) const override
@@ -79,6 +114,31 @@ struct massbuildEnv : public magicSerializationProvider
         cfgStruct.genMipMaxLevel = this->config.curMipMaxLevel;
         cfgStruct.closeOnCompletion = this->closeOnCompletion;
         
+        // Compression.
+        {
+            cfgStruct.doCompress = this->config.doCompress;
+            cfgStruct.compressionQuality = this->config.compressionQuality;
+        }
+
+        // Palettization.
+        {
+            cfgStruct.doPalettize = this->config.doPalettize;
+            
+            eSerializedPaletteType serPaletteType = eSerializedPaletteType::PAL8;
+            rw::ePaletteType runtimePaletteType = this->config.paletteType;
+
+            if ( runtimePaletteType == rw::PALETTE_4BIT || runtimePaletteType == rw::PALETTE_4BIT_LSB )
+            {
+                serPaletteType = eSerializedPaletteType::PAL4;
+            }
+            else if ( runtimePaletteType == rw::PALETTE_8BIT )
+            {
+                serPaletteType = eSerializedPaletteType::PAL8;
+            }
+
+            cfgStruct.paletteType = serPaletteType;
+        }
+
         cfgBlock.writeStruct( cfgStruct );
     }
 
@@ -103,11 +163,13 @@ MassBuildWindow::MassBuildWindow( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     this->setAttribute( Qt::WA_DeleteOnClose );
 
-    // We want a simple vertical dialog that is of fixed size and has buttons at the bottom.
-    MagicLayout<QVBoxLayout> layout;
+    // We want a dialog with important build configurations, so split it into two vertical panes.
+    MagicLayout<QHBoxLayout> layout;
     
+    QVBoxLayout *leftPaneLayout = new QVBoxLayout();
+
     // First the ability to select the paths.
-    layout.top->addLayout(
+    leftPaneLayout->addLayout(
         qtshared::createGameRootInputOutputForm(
             env->config.gameRoot,
             env->config.outputRoot,
@@ -116,21 +178,21 @@ MassBuildWindow::MassBuildWindow( MainWindow *mainWnd ) : QDialog( mainWnd )
         )
     );
 
-    layout.top->addSpacing( 10 );
+    leftPaneLayout->addSpacing( 10 );
 
     // Then we should have a target configuration.
     createTargetConfigurationComponents(
-        layout.top,
+        leftPaneLayout,
         env->config.targetPlatform,
         env->config.targetGame,
         this->selGameBox,
         this->selPlatformBox
     );
 
-    layout.top->addSpacing( 10 );
+    leftPaneLayout->addSpacing( 10 );
 
     // Now some basic properties that the user might want to do globally.
-    layout.top->addLayout(
+    leftPaneLayout->addLayout(
         qtshared::createMipmapGenerationGroup(
             this,
             env->config.generateMipmaps,
@@ -145,11 +207,124 @@ MassBuildWindow::MassBuildWindow( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     propCloseAfterComplete->setChecked( env->closeOnCompletion );
 
-    layout.top->addWidget( propCloseAfterComplete );
+    leftPaneLayout->addWidget( propCloseAfterComplete );
 
     this->propCloseAfterComplete = propCloseAfterComplete;
 
-    layout.top->addSpacing( 15 );
+    leftPaneLayout->addSpacing( 15 );
+
+    layout.top->addLayout( leftPaneLayout );
+
+    // Continue on the right pane.
+    QVBoxLayout *rightPaneLayout = new QVBoxLayout();
+
+    rightPaneLayout->setAlignment( Qt::AlignTop );
+
+    // We want more build properties.
+    {
+        QHBoxLayout *propCompressedGroup = new QHBoxLayout();
+
+        QCheckBox *propCompressed = CreateCheckBoxL( "Tools.MassBld.Cmprs" );
+        
+        propCompressed->setChecked( env->config.doCompress );
+
+        this->propCompressTextures = propCompressed;
+
+        propCompressedGroup->addWidget( propCompressed, 0, Qt::AlignLeft );
+
+        propCompressedGroup->addSpacing( 50 );
+
+        QHBoxLayout *editGroup = new QHBoxLayout();
+
+        editGroup->setAlignment( Qt::AlignRight );
+
+        editGroup->addWidget( CreateLabelL( "Tools.MassBld.DescQual" ) );
+
+        QLineEdit *editCompressionQuality = new QLineEdit();
+
+        // Set the current compression quality into it.
+        {
+            std::stringstream strStream;
+
+            strStream.precision( 2 );
+
+            strStream << env->config.compressionQuality;
+
+            editCompressionQuality->setText( QString::fromStdString( strStream.str() ) );
+        }
+
+        this->editCompressionQuality = editCompressionQuality;
+
+        editCompressionQuality->setFixedWidth( 50 );
+
+        editGroup->addWidget( editCompressionQuality );
+
+        propCompressedGroup->addLayout( editGroup );
+
+        rightPaneLayout->addLayout( propCompressedGroup );
+
+        // Set up the connections.
+        OnSelectCompressed( propCompressed->checkState() );
+
+        connect( propCompressed, &QCheckBox::stateChanged, this, &MassBuildWindow::OnSelectCompressed );
+    }
+
+    // Palettization property.
+    {
+        QHBoxLayout *propPalettizedGroup = new QHBoxLayout();
+
+        QCheckBox *propPalettized = CreateCheckBoxL( "Tools.MassBld.DoPal" );
+
+        propPalettized->setChecked( env->config.doPalettize );
+
+        this->propPalettizeTextures = propPalettized;
+
+        propPalettizedGroup->addWidget( propPalettized, 0, Qt::AlignLeft );
+
+        propPalettizedGroup->addSpacing( 50 );
+
+        QHBoxLayout *editGroup = new QHBoxLayout();
+
+        editGroup->setAlignment( Qt::AlignRight );
+
+        editGroup->addWidget( CreateLabelL( "Tools.MassBld.DescPType" ) );
+
+        QComboBox *selectPaletteType = new QComboBox();
+
+        selectPaletteType->addItem( "PAL4" );
+        selectPaletteType->addItem( "PAL8" );
+
+        // Select the palette type in the dialog.
+        {
+            rw::ePaletteType currentPalType = env->config.paletteType;
+
+            if ( currentPalType == rw::PALETTE_4BIT || currentPalType == rw::PALETTE_4BIT_LSB )
+            {
+                selectPaletteType->setCurrentText( "PAL4" );
+            }
+            else if ( currentPalType == rw::PALETTE_8BIT )
+            {
+                selectPaletteType->setCurrentText( "PAL8" );
+            }
+        }
+
+        this->selectPaletteType = selectPaletteType;
+
+        selectPaletteType->setFixedWidth( 80 );
+
+        editGroup->addWidget( selectPaletteType );
+
+        propPalettizedGroup->addLayout( editGroup );
+
+        rightPaneLayout->addLayout( propPalettizedGroup );
+        
+        // Set up the connections.
+        OnSelectPalettized( propPalettized->checkState() );
+
+        connect( propPalettized, &QCheckBox::stateChanged, this, &MassBuildWindow::OnSelectPalettized );
+    }
+
+    layout.top->addLayout( rightPaneLayout );
 
     // Last thing is the typical button row.
     QPushButton *buttonBuild = CreateButtonL( "Tools.MassBld.Build" );
@@ -199,6 +374,31 @@ void MassBuildWindow::serialize( void )
     env->config.curMipMaxLevel = this->propGenMipmapsMax->text().toInt();
 
     env->closeOnCompletion = this->propCloseAfterComplete->isChecked();
+
+    // Compression.
+    {
+        env->config.doCompress = this->propCompressTextures->isChecked();
+        env->config.compressionQuality = this->editCompressionQuality->text().toFloat();
+    }
+
+    // Palettization.
+    {
+        env->config.doPalettize = this->propPalettizeTextures->isChecked();
+
+        // Get the palette type.
+        {
+            QString strPalType = this->selectPaletteType->currentText();
+
+            if ( strPalType == "PAL4" )
+            {
+                env->config.paletteType = rw::PALETTE_4BIT;
+            }
+            else if ( strPalType == "PAL8" )
+            {
+                env->config.paletteType = rw::PALETTE_8BIT;
+            }
+        }
+    }
 }
 
 struct MassBuildModule : public TxdBuildModule

@@ -3,9 +3,6 @@
 */
 
 // Special optimized mipmap pushing algorithms.
-bool DeserializeMipmapLayer( Stream *inputStream, rawMipmapLayer& rawLayer );
-bool SerializeMipmapLayer( Stream *outputStream, const char *formatDescriptor, const rawMipmapLayer& rawLayer );
-
 bool IsImagingFormatAvailable( Interface *engineInterface, const char *formatDescriptor );
 
 // The main API for pushing and pulling pixels.
@@ -36,3 +33,35 @@ struct registered_image_format
 typedef std::vector <registered_image_format> registered_image_formats_t;
 
 void GetRegisteredImageFormats( Interface *engineInterface, registered_image_formats_t& formatsOut );
+
+// Native imaging.
+
+// Virtual interface to native image formats.
+struct NativeImage
+{
+    NativeImage( Interface *engineInterface );
+    NativeImage( const NativeImage& right );
+
+    ~NativeImage( void );
+
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
+
+    const char* getFormatName( void );
+
+    void readFromRaster( const Raster *raster );
+    void writeToRaster( Raster *raster );
+
+    void readFromStream( Stream *stream );
+    void writeToStream( Stream *stream );
+
+private:
+    rw::Interface *engineInterface;
+
+    bool isPixelDataNewlyAllocated;
+
+    Raster *pixelOwner;
+
+    void *nativeData;
+};
+
+NativeImage* CreateNativeImage( rw::Interface *engineInterface );

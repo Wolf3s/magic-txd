@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include "streamutil.hxx"
 
