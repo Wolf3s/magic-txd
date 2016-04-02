@@ -350,8 +350,8 @@ void pvrNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
             newLayer.width = layerWidth;
             newLayer.height = layerHeight;
 
-            newLayer.mipWidth = layerWidth;
-            newLayer.mipHeight = layerHeight;
+            newLayer.layerWidth = layerWidth;
+            newLayer.layerHeight = layerHeight;
 
             newLayer.texels = dstTexels;
             newLayer.dataSize = dstDataSize;
@@ -532,7 +532,7 @@ void pvrNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
 
     const pixelDataTraversal::mipmapResource& mainMipLayer = pixelsIn.mipmaps[ 0 ];
 
-    bool canBeCompressedHigh = ( mainMipLayer.mipWidth * mainMipLayer.mipHeight ) >= ( 100 * 100 );
+    bool canBeCompressedHigh = ( mainMipLayer.layerWidth * mainMipLayer.layerHeight ) >= ( 100 * 100 );
 
     if ( hasAlpha )
     {
@@ -596,8 +596,8 @@ void pvrNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
             uint32 mipWidth = mipLayer.width;
             uint32 mipHeight = mipLayer.height;
 
-            uint32 layerWidth = mipLayer.mipWidth;
-            uint32 layerHeight = mipLayer.mipHeight;
+            uint32 layerWidth = mipLayer.layerWidth;
+            uint32 layerHeight = mipLayer.layerHeight;
 
             const void *srcTexels = mipLayer.texels;
 

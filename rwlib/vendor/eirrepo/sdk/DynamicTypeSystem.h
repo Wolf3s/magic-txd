@@ -95,6 +95,9 @@ struct DynamicTypeSystem
 
     static const unsigned int ANONYMOUS_PLUGIN_ID = 0xFFFFFFFF;
 
+    // Export the system type so extensions can use it.
+    typedef systemPointer_t systemPointer_t;
+
     // Exceptions thrown by this system.
     class abstraction_construction_exception    {};
     class type_name_conflict_exception          {};

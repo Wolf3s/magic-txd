@@ -166,7 +166,7 @@ bool TxdGenModule::ProcessTXDArchive(
 
                                                         // Put the debug content into it.
                                                         {
-                                                            rw::Bitmap debugTexContent;
+                                                            rw::Bitmap debugTexContent( rwEngine );
 
                                                             debugTexContent.setBgColor( 1, 1, 1 );
 

@@ -618,12 +618,10 @@ struct jpegImagingExtension : public imagingFormatExtension
                 uint32 numColorComponents;
                 J_COLOR_SPACE colorSpace;
 
-                if ( srcRasterFormat == RASTER_1555 ||
-                     srcRasterFormat == RASTER_565 ||
-                     srcRasterFormat == RASTER_4444 ||
-                     srcRasterFormat == RASTER_8888 ||
-                     srcRasterFormat == RASTER_888 ||
-                     srcRasterFormat == RASTER_555 )
+                // We decide by color model.
+                eColorModel rasterColorModel = getColorModelFromRasterFormat( srcRasterFormat );
+
+                if ( rasterColorModel == COLORMODEL_RGBA )
                 {
                     dstRasterFormat = RASTER_888;
                     dstDepth = 24;
@@ -631,7 +629,7 @@ struct jpegImagingExtension : public imagingFormatExtension
                     numColorComponents = 3;
                     colorSpace = JCS_RGB;
                 }
-                else if ( srcRasterFormat == RASTER_LUM )
+                else if ( rasterColorModel == COLORMODEL_LUMINANCE )
                 {
                     // We want to map to 8bit LUM for the JPEG library.
                     dstRasterFormat = RASTER_LUM;
@@ -655,10 +653,14 @@ struct jpegImagingExtension : public imagingFormatExtension
 
                 uint32 dstRowSize = getRasterDataRowSize( width, dstDepth, dstRowAlignment );
 
-                if ( doesRasterFormatNeedConversion( srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType, dstRasterFormat, dstDepth, dstColorOrder, PALETTE_NONE )
-                     ||
-                     shouldAllocateNewRasterBuffer( width, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment )
-                   )
+                bool needsConv =
+                    doesRawMipmapBufferNeedFullConversion(
+                        width,
+                        srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
+                        dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, PALETTE_NONE
+                    );
+
+                if ( needsConv )
                 {
                     // Maybe we have to convert texels.
                     uint32 dstDataSize;

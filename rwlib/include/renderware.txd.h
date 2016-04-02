@@ -68,8 +68,6 @@ struct rasterSizeRules
     void adjustDimensions( uint32 width, uint32 height, uint32& newWidth, uint32& newHeight ) const;
 };
 
-#include "renderware.txd.pixelformat.h"
-
 // This is our library-wide supported sample format enumeration.
 // Feel free to extend this. You must not serialize this anywhere,
 // since this type is version-agnostic.
@@ -112,6 +110,12 @@ enum ePaletteType
     PALETTE_4BIT,
     PALETTE_8BIT,
     PALETTE_4BIT_LSB    // same as 4BIT, but different addressing order
+};
+
+enum class eByteAddressingMode
+{
+    LEAST_SIGNIFICANT,
+    MOST_SIGNIFICANT
 };
 
 enum eColorOrdering
@@ -192,6 +196,7 @@ struct Raster
         this->engineInterface = engineInterface;
         this->platformData = NULL;
         this->refCount = 1;
+        this->constRefCount = 0;
     }
 
     Raster( const Raster& right );
@@ -213,6 +218,12 @@ struct Raster
 
     void newNativeData( const char *typeName );
     void clearNativeData( void );
+
+    // Reference count for immutability across function calls.
+    // Can be used to depend on the native data across function calls.
+    void addConstRef( void );
+    void remConstRef( void );
+    bool isImmutable( void ) const;
 
     bool hasNativeDataOfType( const char *typeName ) const;
     const char* getNativeDataTypeName( void ) const;
@@ -244,12 +255,19 @@ struct Raster
     void clearMipmaps( void );
     void generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGenMode = MIPMAPGEN_DEFAULT );
 
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
+
+    // GENERAL REMINDER: only the framework is allowed to access those fields directly!
+    // They are only this open because of code-management reasons!
+
     // Data members.
     Interface *engineInterface;
 
     PlatformTexture *platformData;
 
-    std::atomic <uint32> refCount;
+    std::atomic <uint32> refCount;          // general life-time reference count
+
+    std::atomic <uint32> constRefCount;     // if != 0, the native data is immutable
 };
 
 struct TexDictionary;
@@ -438,8 +456,6 @@ typedef std::list <std::string> platformTypeNameList_t;
 bool ConvertRasterTo( Raster *theRaster, const char *nativeName );
 
 void* GetNativeTextureDriverInterface( Interface *engineInterface, const char *nativeName );
-
-const char* GetNativeTextureImageFormatExtension( Interface *engineInterface, const char *nativeName );
 
 platformTypeNameList_t GetAvailableNativeTextureTypes( Interface *engineInterface );
 

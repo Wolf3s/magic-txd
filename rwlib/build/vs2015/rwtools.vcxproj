@@ -390,7 +390,6 @@
     <ClInclude Include="..\..\include\renderware.threading.h" />
     <ClInclude Include="..\..\include\renderware.txd.d3d.h" />
     <ClInclude Include="..\..\include\renderware.txd.h" />
-    <ClInclude Include="..\..\include\renderware.txd.pixelformat.h" />
     <ClInclude Include="..\..\include\renderware.utils.h" />
     <ClInclude Include="..\..\include\renderware.windowing.h" />
     <ClInclude Include="..\..\include\rwframework.h" />
@@ -410,8 +409,10 @@
     <ClInclude Include="..\..\src\rwfile.system.hxx" />
     <ClInclude Include="..\..\src\rwimaging.hxx" />
     <ClInclude Include="..\..\src\rwinterface.hxx" />
+    <ClInclude Include="..\..\src\rwprivate.bmp.h" />
     <ClInclude Include="..\..\src\rwprivate.imaging.h" />
     <ClInclude Include="..\..\src\rwprivate.txd.h" />
+    <ClInclude Include="..\..\src\rwprivate.txd.pixelformat.h" />
     <ClInclude Include="..\..\src\rwprivate.utils.h" />
     <ClInclude Include="..\..\src\rwprivate.warnings.h" />
     <ClInclude Include="..\..\src\rwserialize.hxx" />
@@ -426,7 +427,9 @@
     <ClInclude Include="..\..\src\txdread.d3d.genmip.hxx" />
     <ClInclude Include="..\..\src\txdread.d3d.hxx" />
     <ClInclude Include="..\..\src\txdread.d3d8.hxx" />
+    <ClInclude Include="..\..\src\txdread.d3d8.layerpipe.hxx" />
     <ClInclude Include="..\..\src\txdread.d3d9.hxx" />
+    <ClInclude Include="..\..\src\txdread.d3d9.layerpipe.hxx" />
     <ClInclude Include="..\..\src\txdread.dxtmobile.hxx" />
     <ClInclude Include="..\..\src\txdread.gc.hxx" />
     <ClInclude Include="..\..\src\txdread.gc.miptrans.hxx" />
@@ -442,10 +445,12 @@
     <ClInclude Include="..\..\src\txdread.psp.hxx" />
     <ClInclude Include="..\..\src\txdread.psp.mem.hxx" />
     <ClInclude Include="..\..\src\txdread.pvr.hxx" />
+    <ClInclude Include="..\..\src\txdread.raster.hxx" />
     <ClInclude Include="..\..\src\txdread.rasterplg.hxx" />
     <ClInclude Include="..\..\src\txdread.size.hxx" />
     <ClInclude Include="..\..\src\txdread.unc.hxx" />
     <ClInclude Include="..\..\src\txdread.xbox.hxx" />
+    <ClInclude Include="..\..\src\txdread.xbox.layerpipe.hxx" />
     <ClInclude Include="..\..\vendor\eirrepo\sdk\DynamicTypeSystem.h" />
     <ClInclude Include="..\..\vendor\eirrepo\sdk\Endian.h" />
     <ClInclude Include="..\..\vendor\eirrepo\sdk\MemoryUtils.h" />
@@ -473,6 +478,7 @@
     <ClCompile Include="..\..\src\dffwrite.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\natimage.cpp" />
+    <ClCompile Include="..\..\src\natimage.dds.cpp" />
     <ClCompile Include="..\..\src\oglnative.cpp" />
     <ClCompile Include="..\..\src\ps2native.cpp" />
     <ClCompile Include="..\..\src\renderware.cpp" />
@@ -532,11 +538,14 @@
     <ClCompile Include="..\..\src\txdread.palette.cpp" />
     <ClCompile Include="..\..\src\txdread.pixelconv.cpp" />
     <ClCompile Include="..\..\src\txdread.ps2.cpp" />
-    <ClCompile Include="..\..\src\txdread.ps2.debug.cpp" />
     <ClCompile Include="..\..\src\txdread.ps2mem.cpp" />
     <ClCompile Include="..\..\src\txdread.psp.cpp" />
-    <ClCompile Include="..\..\src\txdread.psp.mem.cpp" />
     <ClCompile Include="..\..\src\txdread.pvr.cpp" />
+    <ClCompile Include="..\..\src\txdread.raster.cpp" />
+    <ClCompile Include="..\..\src\txdread.raster.fmt.cpp" />
+    <ClCompile Include="..\..\src\txdread.raster.imaging.cpp" />
+    <ClCompile Include="..\..\src\txdread.raster.nativetex.cpp" />
+    <ClCompile Include="..\..\src\txdread.raster.utils.cpp" />
     <ClCompile Include="..\..\src\txdread.size.blur.cpp" />
     <ClCompile Include="..\..\src\txdread.size.cpp" />
     <ClCompile Include="..\..\src\txdread.size.linear.cpp" />
@@ -547,7 +556,6 @@
     <ClCompile Include="..\..\src\txdwrite.cpp" />
     <ClCompile Include="..\..\src\txdwrite.d3d8.cpp" />
     <ClCompile Include="..\..\src\txdwrite.d3d9.cpp" />
-    <ClCompile Include="..\..\src\txdwrite.d3d9.dds.cpp" />
     <ClCompile Include="..\..\src\txdwrite.dxtmobile.cpp" />
     <ClCompile Include="..\..\src\txdwrite.gc.cpp" />
     <ClCompile Include="..\..\src\txdwrite.ps2.cpp" />

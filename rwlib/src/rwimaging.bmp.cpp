@@ -509,22 +509,21 @@ struct bmpImagingEnv : public imagingFormatExtension
 
             if ( dstPaletteType != PALETTE_NONE )
             {
+                assert( paletteType != PALETTE_NONE );
+
                 palDataSize = getPaletteDataSize( dstPaletteSize, dstDepth );
 
-                if ( rasterFormat != dstRasterFormat || colorOrder != dstColorOrder ||
-                     dstPaletteType != paletteType || dstPaletteSize != paletteSize )
-                {
-                    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
+                uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
 
-                    dstPaletteData = engineInterface->PixelAllocate( palDataSize );
-
-                    ConvertPaletteData(
-                        paletteData, dstPaletteData,
-                        paletteSize, dstPaletteSize,
-                        rasterFormat, colorOrder, srcPalRasterDepth,
-                        dstRasterFormat, dstColorOrder, dstDepth
-                    );
-                }
+                TransformPaletteDataEx(
+                    engineInterface,
+                    paletteData,
+                    paletteSize, dstPaletteSize,
+                    rasterFormat, colorOrder, srcPalRasterDepth,
+                    dstRasterFormat, dstColorOrder, dstDepth,
+                    false,
+                    dstPaletteData
+                );
             }
 
             // Calculate the file size.

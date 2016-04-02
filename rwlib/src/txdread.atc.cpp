@@ -423,8 +423,8 @@ void atcNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
         newLayer.width = layerWidth;
         newLayer.height = layerHeight;
 
-        newLayer.mipWidth = layerWidth;
-        newLayer.mipHeight = layerHeight;
+        newLayer.layerWidth = layerWidth;
+        newLayer.layerHeight = layerHeight;
 
         // Decompress now.
         uint32 texDataSize = 0;
@@ -700,8 +700,8 @@ void atcNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
             newLayer.width = compressWidth;
             newLayer.height = compressHeight;
 
-            newLayer.layerWidth = mipLayer.mipWidth;
-            newLayer.layerHeight = mipLayer.mipHeight;
+            newLayer.layerWidth = mipLayer.layerWidth;
+            newLayer.layerHeight = mipLayer.layerHeight;
 
             newLayer.dataSize = dstDataSize;
             newLayer.texels = dstTexels;

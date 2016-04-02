@@ -875,7 +875,7 @@ void registerPS2NativePlugin( void )
     ps2NativeTexturePlugin.RegisterPlugin( engineFactory );
 }
 
-inline void* TruncateMipmapLayer(
+inline void* TruncateMipmapLayerPS2(
     Interface *engineInterface,
     const void *srcTexels, uint32 srcMipWidth, uint32 srcMipHeight, uint32 srcDepth, uint32 srcRowAlignment,
     uint32 dstMipWidth, uint32 dstMipHeight, uint32 dstRowAlignment,
@@ -917,11 +917,11 @@ inline void* TruncateMipmapLayer(
                 // Otherwise we just clear the coordinate.
                 if ( srcRow && col < srcMipWidth )
                 {
-                    moveDataByDepth( dstRow, srcRow, srcDepth, col, col );
+                    moveDataByDepth( dstRow, srcRow, srcDepth, eByteAddressingMode::MOST_SIGNIFICANT, col, col );
                 }
                 else
                 {
-                    setDataByDepth( dstRow, srcDepth, col, 0 );
+                    setDataByDepth( dstRow, srcDepth, col, eByteAddressingMode::MOST_SIGNIFICANT, 0 );
                 }
             }
         }
@@ -1005,7 +1005,7 @@ inline void GetPS2TextureTranscodedMipmapData(
         {
             srcRowAlignment = getPS2ExportTextureDataRowAlignment();
 
-            srcTexels = TruncateMipmapLayer(
+            srcTexels = TruncateMipmapLayerPS2(
                 engineInterface,
                 srcTexels,
                 srcLayerWidth, srcLayerHeight, srcDepth, getPS2TextureDataRowAlignment(),
@@ -1235,8 +1235,8 @@ void ps2NativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
 
             newLayer.width = layerWidth;
             newLayer.height = layerHeight;
-            newLayer.mipWidth = layerWidth;   // layer dimensions.
-            newLayer.mipHeight = layerHeight;
+            newLayer.layerWidth = layerWidth;   // layer dimensions.
+            newLayer.layerHeight = layerHeight;
 
             newLayer.texels = dstTexels;
             newLayer.dataSize = dstDataSize;
@@ -1381,7 +1381,7 @@ inline void ConvertMipmapToPS2Format(
 
                 dstSwizzledDataSize = getRasterDataSizeByRowSize( dstSwizzledRowSize, packedHeight );
 
-                dstSwizzledTexelData = TruncateMipmapLayer(
+                dstSwizzledTexelData = TruncateMipmapLayerPS2(
                     engineInterface,
                     dstLinearTexelData,
                     mipWidth, mipHeight, dstItemDepth, swizzledRowAlignment,
@@ -1994,7 +1994,7 @@ bool ps2NativeTextureTypeProvider::DoesTextureHaveAlpha( const void *objMem )
 
         hasAlpha =
             rawMipmapCalculateHasAlpha(
-                rawLayer.mipData.mipWidth, rawLayer.mipData.mipHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
+                rawLayer.mipData.layerWidth, rawLayer.mipData.layerHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
                 rawLayer.rasterFormat, rawLayer.depth, rawLayer.rowAlignment, rawLayer.colorOrder,
                 rawLayer.paletteType, rawLayer.paletteData, rawLayer.paletteSize
             );

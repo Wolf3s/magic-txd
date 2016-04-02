@@ -67,12 +67,14 @@ static void writeTGAPixels(
     // Get the row size of the source colors.
     uint32 srcRowSize = getRasterDataRowSize( texWidth, srcItemDepth, srcRowAlignment );
 
-    if ( doesRasterFormatNeedConversion(
-             srcRasterFormat, srcItemDepth, srcColorOrder, srcPaletteType,
-             dstRasterFormat, dstItemDepth, tgaColorOrder, PALETTE_NONE
-         ) ||
-         shouldAllocateNewRasterBuffer( texWidth, srcItemDepth, srcRowAlignment, dstItemDepth, dstRowAlignment )
-       )
+    bool needsConv =
+        doesRawMipmapBufferNeedFullConversion(
+            texWidth,
+            srcRasterFormat, srcItemDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
+            dstRasterFormat, dstItemDepth, dstRowAlignment, tgaColorOrder, PALETTE_NONE
+        );
+
+    if ( needsConv )
     {
         // Get the data size.
         uint32 tgaRowSize = getRasterDataRowSize( texWidth, dstItemDepth, dstRowAlignment );
@@ -352,11 +354,22 @@ struct tgaImagingExtension : public imagingFormatExtension
         }
         else if ( headerData.ImageType == 3 ) // grayscale.
         {
-            dstRasterFormat = RASTER_LUM;
-            dstDepth = 8;
-            dstItemDepth = 8;
+            if ( headerData.ImageDescriptor.numAttrBits == 0 )
+            {
+                dstRasterFormat = RASTER_LUM;
+                dstDepth = 8;
+                dstItemDepth = 8;
 
-            hasRasterFormat = true;
+                hasRasterFormat = true;
+            }
+            else if ( headerData.ImageDescriptor.numAttrBits == 8 )
+            {
+                dstRasterFormat = RASTER_LUM_ALPHA;
+                dstDepth = 16;
+                dstItemDepth = 16;
+
+                hasRasterFormat = true;
+            }
         }
         else // TODO: add RLE support.
         {
@@ -556,6 +569,7 @@ struct tgaImagingExtension : public imagingFormatExtension
                                 moveDataByDepth(
                                     dstRowData, rowbuf,
                                     dstItemDepth,
+                                    eByteAddressingMode::MOST_SIGNIFICANT,
                                     dstCol, srcCol
                                 );
                             }
@@ -611,6 +625,51 @@ struct tgaImagingExtension : public imagingFormatExtension
         // We are done!
     }
 
+    static inline bool getTGAFullColorConfiguration(
+        eRasterFormat srcRasterFormat,
+        eRasterFormat& dstRasterFormatOut, uint32& dstColorDepthOut, uint32& dstAlphaBitsOut
+    )
+    {
+        if ( srcRasterFormat == RASTER_1555 )
+        {
+            dstRasterFormatOut = RASTER_1555;
+            dstColorDepthOut = 16;
+            dstAlphaBitsOut = 1;
+            return true;
+        }
+        else if ( srcRasterFormat == RASTER_565 )
+        {
+            dstRasterFormatOut = RASTER_565;
+            dstColorDepthOut = 16;
+            dstAlphaBitsOut = 0;
+            return true;
+        }
+        else if ( srcRasterFormat == RASTER_4444 )
+        {
+            dstRasterFormatOut = RASTER_4444;
+            dstColorDepthOut = 16;
+            dstAlphaBitsOut = 4;
+            return true;
+        }
+        else if ( srcRasterFormat == RASTER_8888 ||
+                    srcRasterFormat == RASTER_888 )
+        {
+            dstRasterFormatOut = RASTER_8888;
+            dstColorDepthOut = 32;
+            dstAlphaBitsOut = 8;
+            return true;
+        }
+        else if ( srcRasterFormat == RASTER_555 )
+        {
+            dstRasterFormatOut = RASTER_565;
+            dstColorDepthOut = 16;
+            dstAlphaBitsOut = 0;
+            return true;
+        }
+
+        return false;
+    }
+
     void SerializeImage( Interface *engineInterface, Stream *outputStream, const imagingLayerTraversal& inputTexels ) const override
     {
         // We are using an extended version of the TGA standard that not a lot of editors support.
@@ -653,66 +712,60 @@ struct tgaImagingExtension : public imagingFormatExtension
         }
         else
         {
-            if ( srcRasterFormat == RASTER_1555 )
-            {
-                dstRasterFormat = RASTER_1555;
-                dstColorDepth = 16;
-                dstAlphaBits = 1;
-
-                hasDstRasterFormat = true;
-            }
-            else if ( srcRasterFormat == RASTER_565 )
-            {
-                dstRasterFormat = RASTER_565;
-                dstColorDepth = 16;
-                dstAlphaBits = 0;
-
-                hasDstRasterFormat = true;
-            }
-            else if ( srcRasterFormat == RASTER_4444 )
-            {
-                dstRasterFormat = RASTER_4444;
-                dstColorDepth = 16;
-                dstAlphaBits = 4;
-
-                hasDstRasterFormat = true;
-            }
-            else if ( srcRasterFormat == RASTER_8888 ||
-                      srcRasterFormat == RASTER_888 )
-            {
-                dstRasterFormat = RASTER_8888;
-                dstColorDepth = 32;
-                dstAlphaBits = 8;
-
-                hasDstRasterFormat = true;
-            }
-            else if ( srcRasterFormat == RASTER_555 )
-            {
-                dstRasterFormat = RASTER_565;
-                dstColorDepth = 16;
-                dstAlphaBits = 0;
-
-                hasDstRasterFormat = true;
-            }
-            else
-            {
-                dstRasterFormat = RASTER_8888;
-                dstColorDepth = 32;
-                dstAlphaBits = 8;
-
-                hasDstRasterFormat = true;
-            }
-
             if ( srcPaletteType != PALETTE_NONE )
             {
                 // We palettize if present.
                 dstPaletteType = PALETTE_8BIT;
                 dstItemDepth = 8;
+
+                if ( getTGAFullColorConfiguration( srcRasterFormat, dstRasterFormat, dstColorDepth, dstAlphaBits ) )
+                {
+                    hasDstRasterFormat = true;
+                }
+                else
+                {
+                    dstRasterFormat = RASTER_8888;
+                    dstColorDepth = 32;
+                    dstAlphaBits = 8;
+
+                    hasDstRasterFormat = true;
+                }
             }
             else
             {
+                // Do no palettize.
                 dstPaletteType = PALETTE_NONE;
                 dstItemDepth = dstColorDepth;
+
+                if ( getTGAFullColorConfiguration( srcRasterFormat, dstRasterFormat, dstColorDepth, dstAlphaBits ) )
+                {
+                    hasDstRasterFormat = true;
+                }
+                // TGA in non-palette mode can store Luminance color data.
+                else if ( srcRasterFormat == RASTER_LUM )
+                {
+                    dstRasterFormat = RASTER_LUM;
+                    dstColorDepth = 8;
+                    dstAlphaBits = 0;
+
+                    hasDstRasterFormat = true;
+                }
+                else if ( srcRasterFormat == RASTER_LUM_ALPHA )
+                {
+                    dstRasterFormat = RASTER_LUM_ALPHA;
+                    dstColorDepth = 16;
+                    dstAlphaBits = 8;
+
+                    hasDstRasterFormat = true;
+                }
+                else
+                {
+                    dstRasterFormat = RASTER_8888;
+                    dstColorDepth = 32;
+                    dstAlphaBits = 8;
+
+                    hasDstRasterFormat = true;
+                }
             }
         }
 
@@ -729,15 +782,50 @@ struct tgaImagingExtension : public imagingFormatExtension
 
             bool isPalette = (dstPaletteType != PALETTE_NONE);
 
+            // Decide on the target image type.
+            uint8 imgType;
+            {
+                eColorModel targetRasterFormatColorModel = getColorModelFromRasterFormat( dstRasterFormat );
+
+                if ( isPalette )
+                {
+                    // TGA palette only supports RGBA.
+                    assert( targetRasterFormatColorModel == COLORMODEL_RGBA );
+                    
+                    imgType = 1;
+                }
+                else
+                {
+                    if ( targetRasterFormatColorModel == COLORMODEL_RGBA )
+                    {
+                        imgType = 2;
+                    }
+                    else if ( targetRasterFormatColorModel == COLORMODEL_LUMINANCE )
+                    {
+                        imgType = 3;
+                    }
+                    else
+                    {
+                        // Seriously?
+                        assert( 0 );
+
+                        imgType = 0;
+                    }
+                }
+            }
+
             // We want to write information about this software in the image id field.
             std::string _software_info = GetRunningSoftwareInformation( (EngineInterface*)engineInterface );
 
             const char *image_id_data = _software_info.c_str();
             size_t image_id_length = _software_info.length();
 
+            // TODO: improve this.
+            assert( image_id_length < 256 );
+
             header.IDLength = (BYTE)image_id_length;
             header.ColorMapType = ( isPalette ? 1 : 0 );
-            header.ImageType = ( isPalette ? 1 : 2 );
+            header.ImageType = imgType;
 
             // The pixel depth is the number of bits a color entry is going to take (real RGBA color).
             uint32 pixelDepth = 0;

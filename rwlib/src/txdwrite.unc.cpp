@@ -119,8 +119,8 @@ void uncNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
         newLayer.width = mipLayer.width;
         newLayer.height = mipLayer.height;
 
-        newLayer.mipWidth = mipLayer.layerWidth;
-        newLayer.mipHeight = mipLayer.layerHeight;
+        newLayer.layerWidth = mipLayer.layerWidth;
+        newLayer.layerHeight = mipLayer.layerHeight;
 
         newLayer.texels = mipLayer.texels;
         newLayer.dataSize = mipLayer.dataSize;
@@ -205,9 +205,10 @@ void uncNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
     uint32 srcPaletteSize = pixelsIn.paletteSize;
 
     if ( !doesPixelDataNeedConversion(
-             pixelsIn,
-             srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
-             requiredRasterFormat, requiredDepth, requiredRowAlignment, requiredColorOrder, requiredPaletteType )
+             pixelsIn.mipmaps,
+             srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, RWCOMPRESS_NONE,
+             requiredRasterFormat, requiredDepth, requiredRowAlignment, requiredColorOrder, requiredPaletteType, RWCOMPRESS_NONE
+          )
         )
     {
         // We can directly take the pixels.
@@ -228,18 +229,27 @@ void uncNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
     {
         const pixelDataTraversal::mipmapResource& mipLayer = pixelsIn.mipmaps[ n ];
 
+        // Get the source parameters.
+        uint32 surfWidth = mipLayer.width;
+        uint32 surfHeight = mipLayer.height;
+
+        uint32 layerWidth = mipLayer.layerWidth;
+        uint32 layerHeight = mipLayer.layerHeight;
+
+        void *srcTexels = mipLayer.texels;
+        uint32 srcDataSize = mipLayer.dataSize;
+
         // Do conversion if necessary.
-        void *dstTexels = mipLayer.texels;
-        uint32 dstDataSize = mipLayer.dataSize;
+        void *dstTexels = srcTexels;
+        uint32 dstDataSize = srcDataSize;
 
         if ( hasConvertedTexels )
         {
-            ConvertMipmapLayer(
+            CopyTransformRawMipmapLayer(
                 engineInterface,
-                mipLayer,
+                surfWidth, surfHeight, layerWidth, layerHeight, srcTexels, srcDataSize,
                 srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteData, srcPaletteSize,
                 requiredRasterFormat, requiredDepth, requiredRowAlignment, requiredColorOrder, requiredPaletteType,
-                true,
                 dstTexels, dstDataSize
             );
         }
@@ -247,11 +257,11 @@ void uncNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
         // Store this layer.
         NativeTextureMobileUNC::mipmapLayer newLayer;
         
-        newLayer.width = mipLayer.width;
-        newLayer.height = mipLayer.height;
+        newLayer.width = surfWidth;
+        newLayer.height = surfHeight;
 
-        newLayer.layerWidth = mipLayer.mipWidth;
-        newLayer.layerHeight = mipLayer.mipHeight;
+        newLayer.layerWidth = layerWidth;
+        newLayer.layerHeight = layerHeight;
 
         newLayer.texels = dstTexels;
         newLayer.dataSize = dstDataSize;

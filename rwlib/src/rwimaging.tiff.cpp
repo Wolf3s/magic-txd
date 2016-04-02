@@ -823,9 +823,9 @@ struct tiffImagingExtension : public imagingFormatExtension
                             {
                                 // We have a good chance to directly aquire the colors from raw images.
                                 canColorDirectlyAcquire = 
-                                    doesRasterFormatNeedConversion(
-                                        tiffRasterFormat, tiffDepth, tiffColorOrder, dstPaletteType,
-                                        dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
+                                    doRawMipmapBuffersNeedConversion(
+                                        tiffRasterFormat, tiffDepth, tiffColorOrder, PALETTE_NONE,
+                                        dstRasterFormat, dstDepth, dstColorOrder, PALETTE_NONE
                                     );
 
                                 canTexelsDirectlyAcquire = canColorDirectlyAcquire;
@@ -1126,12 +1126,9 @@ struct tiffImagingExtension : public imagingFormatExtension
             {
                 tiff_has_alpha = canRasterFormatHaveAlpha( srcRasterFormat );
 
-                if ( srcRasterFormat == RASTER_1555 ||
-                     srcRasterFormat == RASTER_565 ||
-                     srcRasterFormat == RASTER_4444 ||
-                     srcRasterFormat == RASTER_8888 ||
-                     srcRasterFormat == RASTER_888 ||
-                     srcRasterFormat == RASTER_555 )
+                eColorModel rasterColorModel = getColorModelFromRasterFormat( srcRasterFormat );
+
+                if ( rasterColorModel == COLORMODEL_RGBA )
                 {
                     photometric_type = PHOTOMETRIC_RGB;
                     bits_per_sample = 8;
@@ -1150,13 +1147,21 @@ struct tiffImagingExtension : public imagingFormatExtension
 
                     sample_count = 3;
                 }
-                else if ( srcRasterFormat == RASTER_LUM )
+                else if ( rasterColorModel == COLORMODEL_LUMINANCE )
                 {
                     photometric_type = PHOTOMETRIC_MINISBLACK;
                     bits_per_sample = 8;
 
-                    tiffRasterFormat = RASTER_LUM;
-                    tiffDepth = 8;
+                    if ( tiff_has_alpha )
+                    {
+                        tiffRasterFormat = RASTER_LUM_ALPHA;
+                        tiffDepth = 16;
+                    }
+                    else
+                    {
+                        tiffRasterFormat = RASTER_LUM;
+                        tiffDepth = 8;
+                    }
 
                     sample_count = 1;
                 }
@@ -1279,7 +1284,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                 else
                 {
                     canDirectlyWrite =
-                        doesRasterFormatNeedConversion(
+                        doRawMipmapBuffersNeedConversion(
                             srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
                             tiffRasterFormat, tiffDepth, tiffColorOrder, tiffPaletteType
                         ) == false

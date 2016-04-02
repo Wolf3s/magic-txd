@@ -2,7 +2,7 @@
 
 #include "pixelformat.hxx"
 
-#include "txdread.nativetex.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -10,6 +10,8 @@ namespace rw
 // Draws all mipmap layers onto a mipmap.
 bool DebugDrawMipmaps( Interface *engineInterface, Raster *debugRaster, Bitmap& bmpOut )
 {
+    scoped_rwlock_reader <rwlock> rasterConsistency( GetRasterLock( debugRaster ) );
+
     // Only proceed if we have native data.
     PlatformTexture *platformTex = debugRaster->platformData;
 
@@ -40,8 +42,8 @@ bool DebugDrawMipmaps( Interface *engineInterface, Raster *debugRaster, Bitmap& 
         {
             const pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ n ];
 
-            uint32 mipLayerWidth = mipLayer.mipWidth;
-            uint32 mipLayerHeight = mipLayer.mipHeight;
+            uint32 mipLayerWidth = mipLayer.layerWidth;
+            uint32 mipLayerHeight = mipLayer.layerHeight;
 
             // We allocate all mipmaps from top left to top right.
             requiredBitmapWidth += mipLayerWidth;
@@ -106,8 +108,8 @@ bool DebugDrawMipmaps( Interface *engineInterface, Raster *debugRaster, Bitmap& 
                 uint32 mipWidth = mipLayer.width;
                 uint32 mipHeight = mipLayer.height;
 
-                uint32 layerWidth = mipLayer.mipWidth;
-                uint32 layerHeight = mipLayer.mipHeight;
+                uint32 layerWidth = mipLayer.layerWidth;
+                uint32 layerHeight = mipLayer.layerHeight;
 
                 void *srcTexels = mipLayer.texels;
                 uint32 srcDataSize = mipLayer.dataSize;

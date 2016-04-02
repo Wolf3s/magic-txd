@@ -392,32 +392,33 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
             }
 
             // Also add image formats from native texture types.
-            rw::platformTypeNameList_t platformTypes = rw::GetAvailableNativeTextureTypes( this->rwEngine );
+            rw::registered_image_formats_t regNatImgTypes;
 
-            for ( rw::platformTypeNameList_t::const_iterator iter = platformTypes.begin(); iter != platformTypes.end(); iter++ )
+            rw::GetRegisteredNativeImageTypes( engineInterface, regNatImgTypes );
+
+            for ( const rw::registered_image_format& info : regNatImgTypes )
             {
-                const std::string& nativeName = *iter;
+                const char *defaultExt = NULL;
 
-                // Check the driver for a native name.
-                const char *nativeExt = rw::GetNativeTextureImageFormatExtension( this->rwEngine, nativeName.c_str() );
-
-                if ( nativeExt )
+                if ( rw::GetDefaultImagingFormatExtension( info.num_ext, info.ext_array, defaultExt ) )
                 {
                     registered_image_format imgformat;
 
-                    if ( strcmp( nativeExt, "DDS" ) == 0 )
-                    {
-                        imgformat.formatName = "DirectDraw Surface";
-                    }
-                    else
-                    {
-                        imgformat.formatName = nativeExt;   // could improve this.
-                    }
-                    imgformat.defaultExt = nativeExt;
+                    imgformat.formatName = info.formatName;
+                    imgformat.defaultExt = defaultExt;
                     imgformat.isNativeFormat = true;
-                    imgformat.nativeType = nativeName;
 
-                    imgformat.ext_array.push_back( nativeExt );
+                    // Add all extensions to the array.
+                    {
+                        size_t extCount = info.num_ext;
+
+                        for ( size_t n = 0; n < extCount; n++ )
+                        {
+                            const char *extName = info.ext_array[ n ].ext;
+
+                            imgformat.ext_array.push_back( extName );
+                        }
+                    }
 
                     this->reg_img_formats.push_back( std::move( imgformat ) );
                 }
@@ -1118,7 +1119,7 @@ void MainWindow::updateTextureView( void )
             {
 			    // Get a bitmap to the raster.
 			    // This is a 2D color component surface.
-			    rw::Bitmap rasterBitmap( 32, rw::RASTER_8888, rw::COLOR_BGRA );
+			    rw::Bitmap rasterBitmap( this->rwEngine, 32, rw::RASTER_8888, rw::COLOR_BGRA );
 
                 if ( this->drawMipmapLayers && rasterData->getMipmapCount() > 1 )
                 {

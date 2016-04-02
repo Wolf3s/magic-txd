@@ -157,7 +157,12 @@ namespace permutationUtilities
                             void *dstRow = getTexelDataRow( dstTexels, dstRowSize, target_yOff );
 
                             // Move the data over.
-                            moveDataByDepth( dstRow, srcRow, permItemDepth, target_xOff, source_xOff );
+                            moveDataByDepth(
+                                dstRow, srcRow,
+                                permItemDepth,
+                                eByteAddressingMode::MOST_SIGNIFICANT,
+                                target_xOff, source_xOff
+                            );
                         }
                     }
                 }
@@ -528,7 +533,12 @@ namespace permutationUtilities
                     const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
                     void *dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
 
-                    moveDataByDepth( dstRow, srcRow, permDepth, dst_pos_x, src_pos_x );
+                    moveDataByDepth( 
+                        dstRow, srcRow,
+                        permDepth,
+                        eByteAddressingMode::MOST_SIGNIFICANT,
+                        dst_pos_x, src_pos_x
+                    );
                 }
             });
         }

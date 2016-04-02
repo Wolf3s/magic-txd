@@ -42,15 +42,14 @@ inline void CompatibilityTransformPixelData( Interface *engineInterface, pixelDa
     uint32 dstRowAlignment;
     eColorOrdering dstColorOrder;
     ePaletteType dstPaletteType;
-    void *dstPaletteData;
     uint32 dstPaletteSize;
     eCompressionType dstCompressionType;
 
     bool wantsUpdate =
         TransformDestinationRasterFormat(
             engineInterface,
-            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteData, srcPaletteSize, srcCompressionType,
-            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstPaletteData, dstPaletteSize, dstCompressionType,
+            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteSize, srcCompressionType,
+            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstPaletteSize, dstCompressionType,
             pixelCaps, pixelData.hasAlpha
         );
 
@@ -117,7 +116,7 @@ inline void CompatibilityTransformPixelData( Interface *engineInterface, pixelDa
 static inline void TruncateMipmapLayer(
     Interface *engineInterface,
     uint32 layerWidth, uint32 layerHeight, uint32 mipWidth, uint32 mipHeight, void *texelSource, uint32 srcDataSize,
-    uint32 itemDepth, uint32 rowAlignment, eCompressionType compressionType,
+    uint32 itemDepth, uint32 rowAlignment, ePaletteType paletteType, eCompressionType compressionType,
     uint32 dstLayerWidth, uint32 dstLayerHeight,
     uint32& dstSurfWidthOut, uint32& dstSurfHeightOut,
     void*& dstTexelsOut, uint32& dstDataSizeOut
@@ -222,6 +221,9 @@ static inline void TruncateMipmapLayer(
     }
     else if ( compressionType == RWCOMPRESS_NONE )
     {
+        // Determine some meta properties that a required anyway.
+        eByteAddressingMode addrMode = getByteAddressingModeForRasterFormat( paletteType );
+
         // Allocate a new layer.
         uint32 dstRowSize = getRasterDataRowSize( dstLayerWidth, itemDepth, rowAlignment );
 
@@ -257,11 +259,11 @@ static inline void TruncateMipmapLayer(
                     // Otherwise we just clear the coordinate.
                     if ( srcRow && col < layerWidth )
                     {
-                        moveDataByDepth( dstRow, srcRow, itemDepth, col, col );
+                        moveDataByDepth( dstRow, srcRow, itemDepth, addrMode, col, col );
                     }
                     else
                     {
-                        setDataByDepth( dstRow, itemDepth, col, 0 );
+                        setDataByDepth( dstRow, itemDepth, col, addrMode, 0 );
                     }
                 }
             }
@@ -307,8 +309,8 @@ inline void AdjustPixelDataDimensions( Interface *engineInterface, pixelDataTrav
     // If the size does not match the rules, then we have to adjust the mipmaps aswell.
     const pixelDataTraversal::mipmapResource baseLayer = pixelData.mipmaps[ 0 ];
 
-    uint32 baseLayerWidth = baseLayer.mipWidth;     // actual visible dimensions.
-    uint32 baseLayerHeight = baseLayer.mipHeight;
+    uint32 baseLayerWidth = baseLayer.layerWidth;     // actual visible dimensions.
+    uint32 baseLayerHeight = baseLayer.layerHeight;
 
     uint32 reqLayerWidth = baseLayerWidth;
     uint32 reqLayerHeight = baseLayerHeight;
@@ -349,8 +351,8 @@ inline void AdjustPixelDataDimensions( Interface *engineInterface, pixelDataTrav
 
         pixelDataTraversal::mipmapResource& mipLevel = pixelData.mipmaps[ n ];
 
-        uint32 curLayerWidth = mipLevel.mipWidth;
-        uint32 curLayerHeight = mipLevel.mipHeight;
+        uint32 curLayerWidth = mipLevel.layerWidth;
+        uint32 curLayerHeight = mipLevel.layerHeight;
 
         uint32 curSurfWidth = mipLevel.width;
         uint32 curSurfHeight = mipLevel.height;
@@ -366,7 +368,7 @@ inline void AdjustPixelDataDimensions( Interface *engineInterface, pixelDataTrav
             TruncateMipmapLayer(
                 engineInterface,
                 curLayerWidth, curLayerHeight, curSurfWidth, curSurfHeight, mipTexels, mipLevel.dataSize,
-                depth, rowAlignment, compressionType,
+                depth, rowAlignment, paletteType, compressionType,
                 targetLayerWidth, targetLayerHeight,
                 newSurfWidth, newSurfHeight,
                 newtexels, dstDataSize
@@ -383,8 +385,8 @@ inline void AdjustPixelDataDimensions( Interface *engineInterface, pixelDataTrav
             mipLevel.width = newSurfWidth;
             mipLevel.height = newSurfHeight;
 
-            mipLevel.mipWidth = targetLayerWidth;
-            mipLevel.mipHeight = targetLayerHeight;
+            mipLevel.layerWidth = targetLayerWidth;
+            mipLevel.layerHeight = targetLayerHeight;
         }
 
         // We have one more final mipmap level.

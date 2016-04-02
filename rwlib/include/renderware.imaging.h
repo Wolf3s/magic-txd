@@ -37,31 +37,34 @@ void GetRegisteredImageFormats( Interface *engineInterface, registered_image_for
 // Native imaging.
 
 // Virtual interface to native image formats.
-struct NativeImage
+struct NativeImage abstract RWSDK_FINALIZER
 {
-    NativeImage( Interface *engineInterface );
-    NativeImage( const NativeImage& right );
-
-    ~NativeImage( void );
-
     RW_NOT_DIRECTLY_CONSTRUCTIBLE;
 
-    const char* getFormatName( void );
+    const char* getTypeName( void ) const;
 
-    void readFromRaster( const Raster *raster );
-    void writeToRaster( Raster *raster );
+    const char* getRecommendedNativeTextureTarget( void ) const;
+
+    void fetchFromRaster( Raster *raster );
+    void putToRaster( Raster *raster );
 
     void readFromStream( Stream *stream );
     void writeToStream( Stream *stream );
 
-private:
-    rw::Interface *engineInterface;
-
-    bool isPixelDataNewlyAllocated;
-
-    Raster *pixelOwner;
-
-    void *nativeData;
+    Interface* getEngine( void ) const;
 };
 
-NativeImage* CreateNativeImage( rw::Interface *engineInterface );
+NativeImage* CreateNativeImage( Interface *engineInterface, const char *typeName );
+void DeleteNativeImage( NativeImage *imageHandle );
+
+// Description API to know what native images are creatable from sources.
+const char* GetNativeImageTypeForStream( Stream *stream );
+
+typedef std::vector <std::string> nativeImageRasterResults_t;
+
+void GetNativeImageTypesForNativeTexture( Interface *engineInterface, const char *nativeTexName, nativeImageRasterResults_t& resultsOut );
+bool DoesNativeImageSupportNativeTextureFriendly( Interface *engineInterface, const char *nativeImageName, const char *nativeTexName );
+const char* GetNativeImageTypeNameFromFriendlyName( Interface *engineInterface, const char *nativeImageName );
+
+bool GetNativeImageInfo( Interface *engineInterface, const char *nativeImageName, registered_image_format& infoOut );
+void GetRegisteredNativeImageTypes( Interface *engineInterface, registered_image_formats_t& formatsOut );

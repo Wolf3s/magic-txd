@@ -4,6 +4,17 @@
 namespace rw
 {
 
+AINLINE eByteAddressingMode getByteAddressingFromPaletteType( ePaletteType palType )
+{
+    if ( palType == PALETTE_4BIT_LSB )
+    {
+        return eByteAddressingMode::LEAST_SIGNIFICANT;
+    }
+
+    // Most default thing.
+    return eByteAddressingMode::MOST_SIGNIFICANT;
+}
+
 AINLINE bool getpaletteindex(
     const void *texelSource, ePaletteType paletteType, uint32 maxpalette, uint32 itemDepth, uint32 colorIndex,
     uint8& paletteIndexOut
@@ -1123,7 +1134,7 @@ inline uint8 packcolor( double color )
     return (uint8)( color * 255.0 );
 }
 
-inline bool doesRasterFormatNeedConversion(
+inline bool doRawMipmapBuffersNeedConversion(
     eRasterFormat srcRasterFormat, uint32 srcDepth, eColorOrdering srcColorOrder, ePaletteType srcPaletteType,
     eRasterFormat dstRasterFormat, uint32 dstDepth, eColorOrdering dstColorOrder, ePaletteType dstPaletteType
 )
@@ -1133,7 +1144,27 @@ inline bool doesRasterFormatNeedConversion(
     // to directly acquire texels instead of passing them into a conversion
     // routine.
 
-    if ( srcRasterFormat != dstRasterFormat || srcDepth != dstDepth || srcColorOrder != dstColorOrder || srcPaletteType != dstPaletteType )
+    // If it is a palette format, it could need conversion.
+    if ( srcPaletteType != dstPaletteType )
+    {
+        return true;
+    }
+    else if ( srcPaletteType != PALETTE_NONE )
+    {
+        // This is a check for the palette texel buffer, whether that buffer needs a conversion.
+        // The depth we get here is the actual depth of the palette indices.
+        if ( srcDepth != dstDepth )
+        {
+            return true;
+        }
+
+        // We can early out because we are not a raw color format.
+        return false;
+    }
+
+    // This is reached if we are a raw color format.
+    // Check for color format change.
+    if ( srcRasterFormat != dstRasterFormat || srcDepth != dstDepth || srcColorOrder != dstColorOrder )
     {
         return true;
     }
@@ -1144,18 +1175,158 @@ inline bool doesRasterFormatNeedConversion(
     return false;
 }
 
-inline bool doesPixelDataNeedConversion(
-    const pixelDataTraversal& pixelData,
+inline bool doesRawMipmapBufferNeedFullConversion(
+    uint32 surfWidth,
     eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType,
     eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType
+)
+{
+    // We first check if this mipmap needs color conversion in general.
+    // This is basically if the structure of the samples has changed.
+    bool needsSampleConv =
+        doRawMipmapBuffersNeedConversion(
+            srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
+            dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
+        );
+
+    if ( needsSampleConv )
+    {
+        return true;
+    }
+
+    // Otherwise the buffer could have expanded in some way.
+    // This needs conversion aswell.
+    bool needsValidityConv =
+        shouldAllocateNewRasterBuffer(
+            surfWidth,
+            srcDepth, srcRowAlignment,
+            dstDepth, dstRowAlignment
+        );
+
+    if ( needsValidityConv )
+    {
+        return true;
+    }
+
+    // We are good to go.
+    return false;
+}
+
+inline bool haveToAllocateNewPaletteBuffer(
+    uint32 srcPalRasterDepth, uint32 srcPaletteSize,
+    uint32 dstPalRasterDepth, uint32 dstPaletteSize
+)
+{
+    if ( srcPalRasterDepth != dstPalRasterDepth ||
+         srcPaletteSize != dstPaletteSize )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+inline bool doPaletteBuffersNeedConversion(
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder
+)
+{
+    // The palette color format is really simple.
+    // Every palette raster format has only one depth.
+    // So we can simple check for raster format change.
+    if ( srcRasterFormat != dstRasterFormat || srcColorOrder != dstColorOrder )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+inline bool doPaletteBuffersNeedFullConversion(
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPaletteSize,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPaletteSize
+)
+{
+    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
+    uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
+
+    if ( haveToAllocateNewPaletteBuffer( srcPalRasterDepth, srcPaletteSize, dstPalRasterDepth, dstPaletteSize ) )
+    {
+        return true;
+    }
+
+    if ( doPaletteBuffersNeedConversion( srcRasterFormat, srcColorOrder, dstRasterFormat, dstColorOrder ) )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataNeedAddressabilityAdjustment(
+    const mipmapListType& mipmaps,
+    uint32 srcDepth, uint32 srcRowAlignment,
+    uint32 dstDepth, uint32 dstRowAlignment
+)
+{
+    // A change in item depth is critical.
+    if ( srcDepth != dstDepth )
+        return true;
+
+    // Check if any mipmap has conflicting addressing.
+    size_t numberOfMipmaps = mipmaps.size();
+
+    for ( size_t n = 0; n < numberOfMipmaps; n++ )
+    {
+        const auto& mipLayer = mipmaps[ n ];
+
+        bool doesRequireNewTexelBuffer =
+            shouldAllocateNewRasterBuffer(
+                mipLayer.layerWidth,
+                srcDepth, srcRowAlignment,
+                dstDepth, dstRowAlignment
+            );
+
+        if ( doesRequireNewTexelBuffer )
+        {
+            // If we require a new texel buffer, we kinda have to convert stuff.
+            // The conversion routine is an all-in-one fix, that should not be called too often.
+            return true;
+        }
+    }
+
+    // No conflict.
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataNeedConversion(
+    const mipmapListType& mipmaps,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, eCompressionType srcCompressionType,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType, eCompressionType dstCompressionType
 )
 {
     // This function is supposed to decide whether the information stored in pixelData, which is
     // reflected by the source format, requires expensive conversion to reach the destination format.
     // pixelData is expected to be raw uncompressed texture data.
-    
+ 
+    // We kinda have to convert if the compression type changed.
+    if ( srcCompressionType != dstCompressionType )
+    {
+        return true;
+    }
+    else if ( srcCompressionType != RWCOMPRESS_NONE )
+    {
+        // If we are already compressed, the other properties do not matter anymore.
+        return false;
+    }
+
+    // This is a little different to what we do in the ConvertPixelData routine due to a different premise.
+    // Here we ask if all mipmap layers need reallocation instead of a per-layer basis.
+
     // If the raster format has changed, there is no way around conversion.
-    if ( doesRasterFormatNeedConversion(
+    if ( doRawMipmapBuffersNeedConversion(
              srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
              dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
          ) )
@@ -1165,30 +1336,64 @@ inline bool doesPixelDataNeedConversion(
 
     // Then there is the possibility that the buffer has expanded, for any mipmap inside of pixelData.
     // A conversion will properly fix that.
+    if ( doesPixelDataNeedAddressabilityAdjustment(
+             mipmaps,
+             srcDepth, srcRowAlignment,
+             dstDepth, dstRowAlignment
+        ) )
     {
-        size_t numberOfMipmaps = pixelData.mipmaps.size();
-
-        for ( size_t n = 0; n < numberOfMipmaps; n++ )
-        {
-            const pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ n ];
-
-            bool doesRequireNewTexelBuffer =
-                shouldAllocateNewRasterBuffer(
-                    mipLayer.mipWidth,
-                    srcDepth, srcRowAlignment,
-                    dstDepth, dstRowAlignment
-                );
-
-            if ( doesRequireNewTexelBuffer )
-            {
-                // If we require a new texel buffer, we kinda have to convert stuff.
-                // The conversion routine is an all-in-one fix, that should not be called too often.
-                return true;
-            }
-        }
+        return true;
     }
 
     // We prefer if there is no conversion required.
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataOrPaletteDataNeedConversion(
+    const mipmapListType& mipmaps,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, uint32 srcPaletteSize, eCompressionType srcCompressionType,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType, uint32 dstPaletteSize, eCompressionType dstCompressionType
+)
+{
+    // We first check if the color buffer stuff needs converting.
+    bool colorBufConv =
+        doesPixelDataNeedConversion(
+            mipmaps,
+            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcCompressionType,
+            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstCompressionType
+        );
+
+    if ( colorBufConv )
+    {
+        return true;
+    }
+
+    // Is this a palette buffer to palette buffer transformation?
+    if ( srcPaletteType != PALETTE_NONE && dstPaletteType != PALETTE_NONE )
+    {
+        // Our palette buffer could need converting aswell!
+        bool palBufConv =
+            doPaletteBuffersNeedFullConversion(
+                srcRasterFormat, srcColorOrder, srcPaletteSize,
+                dstRasterFormat, dstColorOrder, dstPaletteSize
+            );
+
+        if ( palBufConv )
+        {
+            return true;
+        }
+    }
+    // Or are we supposed to palettize something or remove its palette?
+    else if ( srcPaletteType != PALETTE_NONE || dstPaletteType != PALETTE_NONE )
+    {
+        // We kinda need conversion here.
+        // This is because we either remove the palette or palettize something.
+        return true;
+    }
+
+    // We dont need to do anything.
+    // This is a huge performance boost :)
     return false;
 }
 

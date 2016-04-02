@@ -6,7 +6,7 @@
 
 #include "txdread.common.hxx"
 
-#include "txdread.nativetex.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -81,6 +81,8 @@ uint16 GetTexDictionaryRecommendedDriverID( Interface *engineInterface, const Te
 
                 if ( texRaster )
                 {
+                    scoped_rwlock_reader <rwlock> rasterConsistency( GetRasterLock( texRaster ) );
+
                     // We can only determine the recommended platform if we have native data.
                     void *nativeObj = texRaster->platformData;
 

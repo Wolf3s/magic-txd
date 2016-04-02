@@ -8,8 +8,197 @@
 namespace rw
 {
 
+Bitmap::Bitmap( Interface *engineInterface )
+{
+    this->engineInterface = engineInterface;
+
+    this->width = 0;
+    this->height = 0;
+    this->depth = 32;
+    this->rowAlignment = 4; // good measure.
+    this->rowSize = 0;
+    this->rasterFormat = RASTER_8888;
+    this->texels = NULL;
+    this->dataSize = 0;
+
+    this->colorOrder = COLOR_RGBA;
+
+    this->bgRed = 0;
+    this->bgGreen = 0;
+    this->bgBlue = 0;
+    this->bgAlpha = 1.0;
+}
+
+Bitmap::Bitmap( Interface *engineInterface, uint32 depth, eRasterFormat theFormat, eColorOrdering colorOrder )
+{
+    this->engineInterface = engineInterface;
+
+    this->width = 0;
+    this->height = 0;
+    this->depth = depth;
+    this->rowAlignment = 4;
+    this->rowSize = 0;
+    this->rasterFormat = theFormat;
+    this->texels = NULL;
+    this->dataSize = 0;
+
+    this->colorOrder = colorOrder;
+
+    this->bgRed = 0;
+    this->bgGreen = 0;
+    this->bgBlue = 0;
+    this->bgAlpha = 1.0;
+}
+
+void Bitmap::assignFrom( const Bitmap& right )
+{
+    Interface *engineInterface = right.engineInterface;
+
+    this->engineInterface = engineInterface;
+
+    this->width = right.width;
+    this->height = right.height;
+    this->depth = right.depth;
+    this->rowAlignment = right.rowAlignment;
+    this->rowSize = right.rowSize;
+    this->rasterFormat = right.rasterFormat;
+
+    // Copy texels.
+    void *origTexels = right.texels;
+    void *newTexels = NULL;
+
+    if ( origTexels )
+    {
+        newTexels = engineInterface->PixelAllocate( right.dataSize );
+
+        if ( !newTexels )
+        {
+            throw RwException( "failed to allocate texel buffer for Bitmap cloning" );
+        }
+
+        memcpy( newTexels, origTexels, right.dataSize );
+    }
+
+    this->texels = newTexels;
+    this->dataSize = right.dataSize;
+
+    this->colorOrder = right.colorOrder;
+
+    this->bgRed = right.bgRed;
+    this->bgGreen = right.bgGreen;
+    this->bgBlue = right.bgBlue;
+    this->bgAlpha = right.bgAlpha;
+}
+
+void Bitmap::moveFrom( Bitmap&& right )
+{
+    this->width = right.width;
+    this->height = right.height;
+    this->depth = right.depth;
+    this->rowAlignment = right.rowAlignment;
+    this->rowSize = right.rowSize;
+    this->rasterFormat = right.rasterFormat;
+
+    // Move over texels.
+    this->texels = right.texels;
+    this->dataSize = right.dataSize;
+
+    this->colorOrder = right.colorOrder;
+        
+    this->bgRed = right.bgRed;
+    this->bgGreen = right.bgGreen;
+    this->bgBlue = right.bgBlue;
+    this->bgAlpha = right.bgAlpha;
+
+    // Default the moved from object.
+    right.texels = NULL;
+}
+
+void Bitmap::clearTexelData( void )
+{
+    // If we have texel data, deallocate it.
+    if ( void *ourTexels = this->texels )
+    {
+        Interface *engineInterface = this->engineInterface;
+
+        engineInterface->PixelFree( ourTexels );
+
+        this->texels = NULL;
+    }
+}
+
+void Bitmap::setImageData( void *theTexels, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 depth, uint32 rowAlignment, uint32 width, uint32 height, uint32 dataSize, bool assignData )
+{
+    this->width = width;
+    this->height = height;
+    this->depth = depth;
+    this->rowAlignment = rowAlignment;
+    this->rowSize = getRasterDataRowSize( width, depth, rowAlignment );
+    this->rasterFormat = theFormat;
+
+    Interface *engineInterface = this->engineInterface;
+
+    // Deallocate texels if we already have some.
+    if ( void *origTexels = this->texels )
+    {
+        engineInterface->PixelFree( origTexels );
+
+        this->texels = NULL;
+    }
+
+    if ( assignData == false )
+    {
+        // Copy the texels.
+        if ( dataSize != 0 )
+        {
+            void *newTexels = engineInterface->PixelAllocate( dataSize );
+
+            if ( !newTexels )
+            {
+                throw RwException( "failed to allocate texels in Bitmap texel buffer acquisition" );
+            }
+
+            memcpy( newTexels, theTexels, dataSize );
+
+            this->texels = newTexels;
+        }
+    }
+    else
+    {
+        // Just give us the data.
+        this->texels = theTexels;
+    }
+    this->dataSize = dataSize;
+
+    this->colorOrder = colorOrder;
+}
+
+void* Bitmap::copyPixelData( void ) const
+{
+    void *newPixels = NULL;
+    void *ourPixels = this->texels;
+
+    if ( ourPixels )
+    {
+        Interface *engineInterface = this->engineInterface;
+
+        newPixels = engineInterface->PixelAllocate( this->dataSize );
+
+        if ( !newPixels )
+        {
+            throw RwException( "failed to allocate texel copy buffer in Bitmap" );
+        }
+
+        memcpy( newPixels, ourPixels, this->dataSize );
+    }
+
+    return newPixels;
+}
+
 void Bitmap::setSize( uint32 width, uint32 height )
 {
+    Interface *engineInterface = this->engineInterface;
+
     uint32 oldWidth = this->width;
     uint32 oldHeight = this->height;
 
@@ -21,7 +210,7 @@ void Bitmap::setSize( uint32 width, uint32 height )
 
     if ( dataSize != 0 )
     {
-        newTexels = new uint8[ dataSize ];
+        newTexels = engineInterface->PixelAllocate( dataSize );
 
         eRasterFormat rasterFormat = this->rasterFormat;
         eColorOrdering colorOrder = this->colorOrder;
@@ -74,7 +263,7 @@ void Bitmap::setSize( uint32 width, uint32 height )
     // Delete old data.
     if ( oldTexels )
     {
-        delete [] oldTexels;
+        engineInterface->PixelFree( oldTexels );
     }
 
     // Set new data.

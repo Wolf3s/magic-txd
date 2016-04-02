@@ -149,16 +149,24 @@ struct nativeTextureSizeRules
         const pixelDataTraversal& pixelData
     )
     {
-        size_t mipmapCount = pixelData.mipmaps.size();
+        return verifyMipmaps( pixelData.mipmaps );
+    }
+
+    template <typename mipmapVectorType>
+    inline bool verifyMipmaps(
+        const mipmapVectorType& mipmaps
+    )
+    {
+        size_t mipmapCount = mipmaps.size();
 
         if ( mipmapCount == 0 )
             return true;    // no mipmaps means stuff is valid.
 
         // We verify the base layer only.
         // If it is valid, then the mipmap chain must be valid as well.
-        const pixelDataTraversal::mipmapResource& baseLevel = pixelData.mipmaps[ 0 ];
+        const auto& baseLevel = mipmaps[ 0 ];
 
-        return this->IsMipmapSizeValid( baseLevel.mipWidth, baseLevel.mipHeight );
+        return this->IsMipmapSizeValid( baseLevel.layerWidth, baseLevel.layerHeight );
     }
 };
 
@@ -275,29 +283,6 @@ struct texNativeTypeProvider abstract
         return false;
     }
 
-    // Native formats often have a more common texture format that they can output to.
-    // We should allow them to implement one.
-    virtual const char*     GetNativeImageFormatExtension( void ) const
-    {
-        // Return a valid c-string if there is an implementation for this.
-        return NULL;
-    }
-
-    virtual bool            IsNativeImageFormat( Interface *engineInterface, Stream *outputStream ) const
-    {
-        return false;
-    }
-
-    virtual void            SerializeNativeImage( Interface *engineInterface, Stream *inputStream, void *objMem ) const
-    {
-        throw RwException( "native image format not implemented" );
-    }
-
-    virtual void            DeserializeNativeImage( Interface *engineInterface, Stream *outputSteam, void *objMem ) const
-    {
-        throw RwException( "native image format not implemented" );
-    }
-
     // Driver identification functions.
     virtual uint32          GetDriverIdentifier( void *objMem ) const
     {
@@ -324,6 +309,7 @@ typedef void (*texNativeTypeProviderCallback_t)( texNativeTypeProvider *prov, vo
 
 void ExploreNativeTextureTypeProviders( Interface *intf, texNativeTypeProviderCallback_t cb, void *ud );
 texNativeTypeProvider* GetNativeTextureTypeProvider( Interface *engineInterface, void *platformData );
+texNativeTypeProvider* GetNativeTextureTypeProviderByName( Interface *engineInterface, const char *typeName );
 uint32 GetNativeTextureMipmapCount( Interface *engineInterface, PlatformTexture *nativeTexture, texNativeTypeProvider *texTypeProvider );
 
 // Private RW obj API.

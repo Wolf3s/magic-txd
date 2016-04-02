@@ -82,7 +82,7 @@ void xboxNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, P
             // Write the header.
             size_t mipmapCount = platformTex->mipmaps.size();
             {
-                textureMetaHeaderStructXbox metaInfo;
+                xbox::textureMetaHeaderStruct metaInfo;
 
                 // Write addressing information.
                 texFormatInfo infoOut;

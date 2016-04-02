@@ -490,8 +490,8 @@ void pspNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
             pixelsOut.mipmaps.resize( mip_index + 1 );
 
             pixelDataTraversal::mipmapResource& dstLayer = pixelsOut.mipmaps[ mip_index ];
-            dstLayer.mipWidth = layerWidth;
-            dstLayer.mipHeight = layerHeight;
+            dstLayer.layerWidth = layerWidth;
+            dstLayer.layerHeight = layerHeight;
             dstLayer.width = layerWidth;
             dstLayer.height = layerHeight;
             dstLayer.texels = dstTexels;
@@ -1428,7 +1428,7 @@ bool pspNativeTextureTypeProvider::DoesTextureHaveAlpha( const void *objMem )
 
         hasAlpha =
             rawMipmapCalculateHasAlpha(
-                rawLayer.mipData.mipWidth, rawLayer.mipData.mipHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
+                rawLayer.mipData.layerWidth, rawLayer.mipData.layerHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
                 rawLayer.rasterFormat, rawLayer.depth, rawLayer.rowAlignment, rawLayer.colorOrder,
                 rawLayer.paletteType, rawLayer.paletteData, rawLayer.paletteSize
             );

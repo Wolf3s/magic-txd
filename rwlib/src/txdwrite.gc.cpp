@@ -389,8 +389,8 @@ void gamecubeNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engi
             dstLayer.width = dstSurfWidth;
             dstLayer.height = dstSurfHeight;
 
-            dstLayer.mipWidth = layerWidth;
-            dstLayer.mipHeight = layerHeight;
+            dstLayer.layerWidth = layerWidth;
+            dstLayer.layerHeight = layerHeight;
 
             dstLayer.texels = dstTexels;
             dstLayer.dataSize = dstDataSize;
@@ -660,8 +660,8 @@ void gamecubeNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engine
         uint32 mipWidth = srcLayer.width;
         uint32 mipHeight = srcLayer.height;
 
-        uint32 layerWidth = srcLayer.mipWidth;
-        uint32 layerHeight = srcLayer.mipHeight;
+        uint32 layerWidth = srcLayer.layerWidth;
+        uint32 layerHeight = srcLayer.layerHeight;
 
         void *srcTexels = srcLayer.texels;
         uint32 srcDataSize = srcLayer.dataSize;

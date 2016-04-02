@@ -134,8 +134,8 @@ void dxtMobileNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *eng
         newLayer.width = mipLayer.width;
         newLayer.height = mipLayer.height;
 
-        newLayer.mipWidth = mipLayer.layerWidth;
-        newLayer.mipHeight = mipLayer.layerHeight;
+        newLayer.layerWidth = mipLayer.layerWidth;
+        newLayer.layerHeight = mipLayer.layerHeight;
 
         // Just move over the texels.
         newLayer.texels = mipLayer.texels;
@@ -270,8 +270,8 @@ void dxtMobileNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engin
         uint32 mipWidth = mipLayer.width;
         uint32 mipHeight = mipLayer.height;
 
-        uint32 layerWidth = mipLayer.mipWidth;
-        uint32 layerHeight = mipLayer.mipHeight;
+        uint32 layerWidth = mipLayer.layerWidth;
+        uint32 layerHeight = mipLayer.layerHeight;
 
         void *texels = mipLayer.texels;
         uint32 dataSize = mipLayer.dataSize;

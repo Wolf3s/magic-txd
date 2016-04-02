@@ -1,15 +1,7 @@
 // Mipmap utilities for textures.
 #include "StdInc.h"
 
-#include "pixelformat.hxx"
-
-#include "txdread.palette.hxx"
-
-#include "txdread.common.hxx"
-
-#include "txdread.nativetex.hxx"
-
-#include "txdread.rasterplg.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -36,6 +28,9 @@ uint32 Raster::getMipmapCount( void ) const
 void Raster::clearMipmaps( void )
 {
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
+
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
 
     Interface *engineInterface = this->engineInterface;
 
@@ -198,6 +193,9 @@ void Raster::generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGe
 
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
 
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
+
     PlatformTexture *platformTex = this->platformData;
 
     if ( !platformTex )
@@ -344,8 +342,8 @@ void Raster::generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGe
                 rawMipLayer.mipData.width = mipWidth;
                 rawMipLayer.mipData.height = mipHeight;
 
-                rawMipLayer.mipData.mipWidth = mipWidth;   // layer dimensions.
-                rawMipLayer.mipData.mipHeight = mipHeight;
+                rawMipLayer.mipData.layerWidth = mipWidth;   // layer dimensions.
+                rawMipLayer.mipData.layerHeight = mipHeight;
 
                 rawMipLayer.mipData.texels = newtexels;
                 rawMipLayer.mipData.dataSize = texDataSize;

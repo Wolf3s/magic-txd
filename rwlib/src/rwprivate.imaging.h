@@ -8,4 +8,9 @@
 bool DeserializeMipmapLayer( Stream *inputStream, rawMipmapLayer& rawLayer );
 bool SerializeMipmapLayer( Stream *outputStream, const char *formatDescriptor, const rawMipmapLayer& rawLayer );
 
+// Native imaging internal functions with special requirements.
+// Read them up before using them!
+void NativeImagePutToRasterNoLock( NativeImage *nativeImg, Raster *raster );
+void NativeImageFetchFromRasterNoLock( NativeImage *nativeImg, Raster *raster, const char *nativeTexName, bool& needsRefOut );
+
 #endif //_RENDERWARE_PRIVATE_IMAGING_

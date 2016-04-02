@@ -52,14 +52,10 @@ static inline bool doesRequirePlatformDestinationConversion(
 {
     return (
         fixAlpha ||
-        doesRasterFormatNeedConversion(
-            srcRasterFormat, srcItemDepth, srcColorOrder, PALETTE_NONE,
-            dstRasterFormat, dstItemDepth, dstColorOrder, PALETTE_NONE
-        ) ||
-        shouldAllocateNewRasterBuffer(
+        doesRawMipmapBufferNeedFullConversion(
             mipWidth,
-            srcItemDepth, srcRowAlignment,
-            dstItemDepth, dstRowAlignment
+            srcRasterFormat, srcItemDepth, srcRowAlignment, srcColorOrder, PALETTE_NONE,
+            dstRasterFormat, dstItemDepth, dstRowAlignment, dstColorOrder, PALETTE_NONE
         )
     );
 }

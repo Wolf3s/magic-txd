@@ -10,6 +10,7 @@
 
 #include <MemoryUtils.h>
 
+#define RWCORE
 #include "renderware.h"
 
 // Include the RenderWare configuration file.
@@ -92,27 +93,8 @@ struct EngineInterface : public Interface
     // Types that should be registered by all RenderWare implementations.
     // These can be NULL, tho.
     RwTypeSystem::typeInfoBase *streamTypeInfo;
-    RwTypeSystem::typeInfoBase *rasterTypeInfo;
     RwTypeSystem::typeInfoBase *rwobjTypeInfo;
     RwTypeSystem::typeInfoBase *textureTypeInfo;
-
-    // Factories to register plugins to the main types displayed above.
-    typedef StaticPluginClassFactory <Raster> rasterPluginFactory_t;
-
-    rasterPluginFactory_t rasterPluginFactory;
-
-    struct rasterTypeInterface : public RwTypeSystem::typeInterface
-    {
-        void Construct( void *mem, EngineInterface *intf, void *constr_params ) const override;
-        void CopyConstruct( void *mem, const void *srcMem ) const override;
-        void Destruct( void *mem ) const override;
-
-        size_t GetTypeSize( EngineInterface *intf, void *constr_params ) const override;
-        size_t GetTypeSizeByObject( EngineInterface *intf, const void *mem ) const override;
-
-        EngineInterface *engineInterface;
-    };
-    rasterTypeInterface _rasterTypeInterface;
 
     // Information about the running application.
     std::string applicationName;
@@ -133,6 +115,7 @@ typedef RwInterfaceFactory_t::pluginOffset_t RwInterfacePluginOffset_t;
 
 extern RwInterfaceFactory_t engineFactory;
 
+#include "rwprivate.bmp.h"
 #include "rwprivate.txd.h"
 #include "rwprivate.imaging.h"
 #include "rwprivate.warnings.h"

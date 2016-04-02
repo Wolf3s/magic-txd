@@ -51,6 +51,13 @@ public:
     }
 };
 
+// Sort-of make it hard to extend from native RW types outside of the core.
+#ifndef RWCORE
+#define RWSDK_FINALIZER final
+#else
+#define RWSDK_FINALIZER
+#endif
+
 // Common types used in this library.
 // These are defined against MSVC++ 32bit.
 typedef char int8;                      // 1 byte
@@ -139,15 +146,6 @@ enum CHUNK_TYPE
     CHUNK_REFLECTIONMAT    = 0x253F2FC,
     CHUNK_MESHEXTENSION    = 0x253F2FD,
     CHUNK_FRAME            = 0x253F2FE
-};
-
-// Raster format flags for RenderWare 3.
-enum
-{
-	RASTER_AUTOMIPMAP = 0x1000,
-	RASTER_PAL8 = 0x2000,
-	RASTER_PAL4 = 0x4000,
-	RASTER_MIPMAP = 0x8000
 };
 
 #pragma warning(push)
@@ -337,8 +335,10 @@ namespace KnownVersions
 
 // If this macro is inside RW types, you must not attempt to construct them from outside of RenderWare code.
 #define RW_NOT_DIRECTLY_CONSTRUCTIBLE \
+    void* operator new( size_t memSize, void *place ) { return place; } \
+    void operator delete( void *ptr, void *place ) { return; } \
     void* operator new( size_t ) = delete; \
-    void operator delete( void* ) = delete
+    void operator delete( void* ) { assert( 0 ); }
 
 // Main RenderWare abstraction type.
 struct RwObject abstract
@@ -381,10 +381,13 @@ struct RwObject abstract
         return this->objVersion;
     }
 
+    // Override this function from a special RW object to be notified of version changes.
     virtual void OnVersionChange( const LibraryVersion& oldVer, const LibraryVersion& newVer )
     {
         return;
     }
+
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
 
 protected:
     LibraryVersion objVersion;

@@ -11,46 +11,6 @@
 namespace rw
 {
 
-struct raster_constructor
-{
-    EngineInterface *intf;
-    void *constr_params;
-
-    inline Raster* Construct( void *mem ) const
-    {
-        return new (mem) Raster( this->intf, this->constr_params );
-    }
-};
-
-void EngineInterface::rasterTypeInterface::Construct( void *mem, EngineInterface *intf, void *constr_params ) const
-{
-    raster_constructor constr;
-    constr.intf = intf;
-    constr.constr_params = constr_params;
-
-    intf->rasterPluginFactory.ConstructPlacementEx( mem, constr );
-}
-
-void EngineInterface::rasterTypeInterface::CopyConstruct( void *mem, const void *srcMem ) const
-{
-    engineInterface->rasterPluginFactory.ClonePlacement( mem, (const rw::Raster*)srcMem );
-}
-
-void EngineInterface::rasterTypeInterface::Destruct( void *mem ) const
-{
-    engineInterface->rasterPluginFactory.DestroyPlacement( (rw::Raster*)mem );
-}
-
-size_t EngineInterface::rasterTypeInterface::GetTypeSize( EngineInterface *intf, void *constr_params ) const
-{
-    return intf->rasterPluginFactory.GetClassSize();
-}
-
-size_t EngineInterface::rasterTypeInterface::GetTypeSizeByObject( EngineInterface *intf, const void *mem ) const
-{
-    return intf->rasterPluginFactory.GetClassSize();
-}
-
 // Factory for interfaces.
 RwMemoryAllocator _engineMemAlloc;
 
@@ -64,13 +24,9 @@ EngineInterface::EngineInterface( void )
 
     this->typeSystem.InitializeLockProvider();
 
-    // Set up some type interfaces.
-    this->_rasterTypeInterface.engineInterface = this;
-
     // Register the main RenderWare types.
     {
         this->streamTypeInfo = this->typeSystem.RegisterAbstractType <Stream> ( "stream" );
-        this->rasterTypeInfo = this->typeSystem.RegisterType( "raster", &this->_rasterTypeInterface );
         this->rwobjTypeInfo = this->typeSystem.RegisterAbstractType <RwObject> ( "rwobj" );
         this->textureTypeInfo = this->typeSystem.RegisterStructType <TextureBase> ( "texture", this->rwobjTypeInfo );
     }
@@ -101,7 +57,6 @@ EngineInterface::~EngineInterface( void )
     {
         SafeDeleteType( this, this->textureTypeInfo );
         SafeDeleteType( this, this->rwobjTypeInfo );
-        SafeDeleteType( this, this->rasterTypeInfo );
         SafeDeleteType( this, this->streamTypeInfo );
     }
 }
@@ -610,7 +565,6 @@ bool Interface::GetIgnoreSerializationBlockRegions( void ) const
 extern void registerConfigurationEnvironment( void );
 extern void registerThreadingEnvironment( void );
 extern void registerWarningHandlerEnvironment( void );
-extern void registerRasterConsistency( void );
 extern void registerEventSystem( void );
 extern void registerTXDPlugins( void );
 extern void registerObjectExtensionsPlugins( void );
@@ -618,6 +572,7 @@ extern void registerSerializationPlugins( void );
 extern void registerStreamGlobalPlugins( void );
 extern void registerFileSystemDataRepository( void );
 extern void registerImagingPlugin( void );
+extern void registerNativeImagePluginEnvironment( void );
 extern void registerWindowingSystem( void );
 extern void registerDriverEnvironment( void );
 extern void registerDrawingLayerEnvironment( void );
@@ -662,7 +617,6 @@ Interface* CreateEngine( LibraryVersion theVersion )
             // Now do the main modules.
             registerThreadingEnvironment();
             registerWarningHandlerEnvironment();
-            registerRasterConsistency();
             registerEventSystem();
             registerStreamGlobalPlugins();
             registerFileSystemDataRepository();
@@ -670,6 +624,7 @@ Interface* CreateEngine( LibraryVersion theVersion )
             registerObjectExtensionsPlugins();
             registerTXDPlugins();
             registerImagingPlugin();
+            registerNativeImagePluginEnvironment();
             registerWindowingSystem();
             registerDriverEnvironment();
             registerDrawingLayerEnvironment();

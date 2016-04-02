@@ -10,12 +10,24 @@
 namespace rw
 {
 
+// Decides the addressing mode for a framework raster format.
+inline eByteAddressingMode getByteAddressingModeForRasterFormat( ePaletteType paletteType )
+{
+    if ( paletteType == PALETTE_4BIT_LSB )
+    {
+        return eByteAddressingMode::LEAST_SIGNIFICANT;
+    }
+
+    // Most default.
+    return eByteAddressingMode::MOST_SIGNIFICANT;
+}
+
 // Use this routine to make a raster format compliant to a pixelCapabilities configuration.
 // Returns whether the given raster format needs conversion into the new.
 inline bool TransformDestinationRasterFormat(
     Interface *engineInterface,
-    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, void *srcPaletteData, uint32 srcPaletteSize, eCompressionType srcCompressionType,
-    eRasterFormat& dstRasterFormatOut, uint32& dstDepthOut, uint32& dstRowAlignmentOut, eColorOrdering& dstColorOrderOut, ePaletteType& dstPaletteTypeOut, void*& dstPaletteDataOut, uint32& dstPaletteSizeOut, eCompressionType& dstCompressionTypeOut,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, uint32 srcPaletteSize, eCompressionType srcCompressionType,
+    eRasterFormat& dstRasterFormatOut, uint32& dstDepthOut, uint32& dstRowAlignmentOut, eColorOrdering& dstColorOrderOut, ePaletteType& dstPaletteTypeOut, uint32& dstPaletteSizeOut, eCompressionType& dstCompressionTypeOut,
     const pixelCapabilities& pixelCaps, bool hasAlpha
 )
 {
@@ -25,7 +37,6 @@ inline bool TransformDestinationRasterFormat(
     uint32 dstRowAlignment = srcRowAlignment;
     eColorOrdering dstColorOrder = srcColorOrder;
     ePaletteType dstPaletteType = srcPaletteType;
-    void *dstPaletteData = srcPaletteData;
     uint32 dstPaletteSize = srcPaletteSize;
     eCompressionType dstCompressionType = srcCompressionType;
 
@@ -51,7 +62,6 @@ inline bool TransformDestinationRasterFormat(
         dstRowAlignment = 4;    // for good measure.
         dstColorOrder = COLOR_BGRA;
         dstPaletteType = PALETTE_NONE;
-        dstPaletteData = NULL;
         dstPaletteSize = 0;
 
         // We decompress stuff.
@@ -67,7 +77,6 @@ inline bool TransformDestinationRasterFormat(
             // We want to do things without a palette.
             dstPaletteType = PALETTE_NONE;
             dstPaletteSize = 0;
-            dstPaletteData = NULL;
 
             dstDepth = Bitmap::getRasterFormatDepth(dstRasterFormat);
 
@@ -79,7 +88,7 @@ inline bool TransformDestinationRasterFormat(
     bool wantsUpdate = false;
 
     if ( srcRasterFormat != dstRasterFormat || dstDepth != srcDepth || dstColorOrder != srcColorOrder ||
-         dstPaletteType != srcPaletteType || dstPaletteData != srcPaletteData || dstPaletteSize != srcPaletteSize ||
+         dstPaletteType != srcPaletteType || dstPaletteSize != srcPaletteSize ||
          dstCompressionType != srcCompressionType )
     {
         wantsUpdate = true;
@@ -91,7 +100,6 @@ inline bool TransformDestinationRasterFormat(
     dstRowAlignmentOut = dstRowAlignment;
     dstColorOrderOut = dstColorOrder;
     dstPaletteTypeOut = dstPaletteType;
-    dstPaletteDataOut = dstPaletteData;
     dstPaletteSizeOut = dstPaletteSize;
     dstCompressionTypeOut = dstCompressionType;
 
@@ -356,16 +364,19 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
     return false;
 }
 
-inline bool calculateHasAlpha( const pixelDataTraversal& pixelData )
+template <typename mipmapVectorType>
+inline bool frameworkCalculateHasAlpha(
+    const mipmapVectorType& mipmaps,
+    eRasterFormat rasterFormat, uint32 depth, uint32 rowAlignment, eColorOrdering colorOrder,
+    ePaletteType paletteType, const void *paletteData, uint32 paletteSize, eCompressionType compressionType
+)
 {
     // If we have no mipmaps, we have no alpha.
-    if ( pixelData.mipmaps.size() == 0 )
+    if ( mipmaps.size() == 0 )
         return false;
 
     // For everything that this library supports we should have correct alpha output.
     // Anything new has to be added ASAP.
-    eCompressionType compressionType = pixelData.compressionType;
-
     bool hasAlpha = false;
 
     // Check whether we need to parse it as DXT.
@@ -373,29 +384,38 @@ inline bool calculateHasAlpha( const pixelDataTraversal& pixelData )
 
     if ( IsDXTCompressionType( compressionType, dxtType ) )
     {
-        const pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ 0 ];
+        const auto& mipLayer = mipmaps[ 0 ];
 
         // Check the alpha according to DXT block information.
         hasAlpha =
             dxtMipmapCalculateHasAlpha(
-                mipLayer.width, mipLayer.height, mipLayer.mipWidth, mipLayer.mipHeight, mipLayer.texels,
+                mipLayer.width, mipLayer.height, mipLayer.layerWidth, mipLayer.layerHeight, mipLayer.texels,
                 dxtType
             );
     }
     else if ( compressionType == RWCOMPRESS_NONE )
     {
-        const pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ 0 ];
+        const auto& mipLayer = mipmaps[ 0 ];
 
         // We assume that the first mipmap shares the same qualities like any other mipmap.
         // It is the base layer after all.
         hasAlpha = rawMipmapCalculateHasAlpha(
-            mipLayer.mipWidth, mipLayer.mipHeight, mipLayer.texels, mipLayer.dataSize,
-            pixelData.rasterFormat, pixelData.depth, pixelData.rowAlignment, pixelData.colorOrder,
-            pixelData.paletteType, pixelData.paletteData, pixelData.paletteSize
+            mipLayer.layerWidth, mipLayer.layerHeight, mipLayer.texels, mipLayer.dataSize,
+            rasterFormat, depth, rowAlignment, colorOrder,
+            paletteType, paletteData, paletteSize
         );
     }
 
     return hasAlpha;
+}
+
+inline bool calculateHasAlpha( const pixelDataTraversal& pixelData )
+{
+    return frameworkCalculateHasAlpha(
+        pixelData.mipmaps,
+        pixelData.rasterFormat, pixelData.depth, pixelData.rowAlignment, pixelData.colorOrder,
+        pixelData.paletteType, pixelData.paletteData, pixelData.paletteSize, pixelData.compressionType
+    );
 }
 
 }

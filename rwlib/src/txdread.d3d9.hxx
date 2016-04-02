@@ -1,6 +1,11 @@
+#ifndef _RENDERWARE_D3D9_NATIVETEX_MAIN_HEADER_
+#define _RENDERWARE_D3D9_NATIVETEX_MAIN_HEADER_
+
 #ifdef RWLIB_INCLUDE_NATIVETEX_D3D9
 
 #include "txdread.d3d.hxx"
+
+#include "txdread.d3d.dxt.hxx"
 
 #include "txdread.common.hxx"
 
@@ -360,32 +365,31 @@ inline bool getRasterFormatFromD3DFormat(
     return isValidFormat;
 }
 
-inline uint32 getCompressionFromD3DFormat( D3DFORMAT d3dFormat )
+inline eCompressionType getFrameworkCompressionTypeFromD3DFORMAT( D3DFORMAT fmt )
 {
-    uint32 compressionIndex = 0;
-
-    if ( d3dFormat == D3DFMT_DXT1 )
+    if ( fmt == D3DFMT_DXT1 )
     {
-        compressionIndex = 1;
+        return RWCOMPRESS_DXT1;
     }
-    else if ( d3dFormat == D3DFMT_DXT2 )
+    else if ( fmt == D3DFMT_DXT2 )
     {
-        compressionIndex = 2;
+        return RWCOMPRESS_DXT2;
     }
-    else if ( d3dFormat == D3DFMT_DXT3 )
+    else if ( fmt == D3DFMT_DXT3 )
     {
-        compressionIndex = 3;
+        return RWCOMPRESS_DXT3;
     }
-    else if ( d3dFormat == D3DFMT_DXT4 )
+    else if ( fmt == D3DFMT_DXT4 )
     {
-        compressionIndex = 4;
+        return RWCOMPRESS_DXT4;
     }
-    else if ( d3dFormat == D3DFMT_DXT5 )
+    else if ( fmt == D3DFMT_DXT5 )
     {
-        compressionIndex = 5;
+        return RWCOMPRESS_DXT5;
     }
 
-    return compressionIndex;
+    // TODO: if there is any other compression we support, update this.
+    return RWCOMPRESS_NONE;
 }
 
 struct NativeTextureD3D9 : public d3dpublic::d3dNativeTextureInterface
@@ -410,7 +414,7 @@ struct NativeTextureD3D9 : public d3dpublic::d3dNativeTextureInterface
         this->d3dRasterFormatLink = false;
         this->isOriginalRWCompatible = true;
         this->anonymousFormatLink = NULL;
-        this->dxtCompression = 0;
+        this->colorComprType = RWCOMPRESS_NONE;
         this->rasterType = 4;
         this->hasAlpha = true;
         this->colorOrdering = COLOR_BGRA;
@@ -458,7 +462,7 @@ struct NativeTextureD3D9 : public d3dpublic::d3dNativeTextureInterface
         this->d3dRasterFormatLink =     right.d3dRasterFormatLink;
         this->isOriginalRWCompatible =  right.isOriginalRWCompatible;
         this->anonymousFormatLink =     right.anonymousFormatLink;
-        this->dxtCompression =          right.dxtCompression;
+        this->colorComprType =          right.colorComprType;
         this->rasterType =              right.rasterType;
         this->hasAlpha =                right.hasAlpha;
         this->colorOrdering =           right.colorOrdering;
@@ -481,14 +485,16 @@ struct NativeTextureD3D9 : public d3dpublic::d3dNativeTextureInterface
         this->clearTexelData();
     }
 
-    inline static void getSizeRules( uint32 dxtType, nativeTextureSizeRules& rulesOut )
+    inline static void getSizeRules( eCompressionType comprType, nativeTextureSizeRules& rulesOut )
     {
-        bool isCompressed = ( dxtType != 0 );
+        uint32 dxtType; // unused.
+
+        bool isDXTCompressed = IsDXTCompressionType( comprType, dxtType );
 
         rulesOut.powerOfTwo = false;
         rulesOut.squared = false;
-        rulesOut.multipleOf = isCompressed;
-        rulesOut.multipleOfValue = ( isCompressed ? 4u : 0u );
+        rulesOut.multipleOf = isDXTCompressed;
+        rulesOut.multipleOfValue = ( isDXTCompressed ? 4u : 0u );
         rulesOut.maximum = true;
         rulesOut.maxVal = 4096;
     }
@@ -521,7 +527,7 @@ public:
     bool autoMipmaps;
 
     D3DFORMAT d3dFormat;
-    uint32 dxtCompression;
+    eCompressionType colorComprType;
     uint32 rasterType;
 
     bool d3dRasterFormatLink;
@@ -533,7 +539,7 @@ public:
     {
         // This function returns whether we can push our data to the RW implementation.
         // We cannot push anything to RW that we have no idea about how it actually looks like.
-        return ( this->d3dRasterFormatLink == true || this->dxtCompression != 0 );
+        return ( this->d3dRasterFormatLink == true || this->colorComprType != RWCOMPRESS_NONE );
     }
 
     bool hasAlpha;
@@ -543,39 +549,7 @@ public:
 
 inline eCompressionType getD3DCompressionType( const NativeTextureD3D9 *nativeTex )
 {
-    eCompressionType rwCompressionType = RWCOMPRESS_NONE;
-
-    uint32 dxtType = nativeTex->dxtCompression;
-
-    if ( dxtType != 0 )
-    {
-        if ( dxtType == 1 )
-        {
-            rwCompressionType = RWCOMPRESS_DXT1;
-        }
-        else if ( dxtType == 2 )
-        {
-            rwCompressionType = RWCOMPRESS_DXT2;
-        }
-        else if ( dxtType == 3 )
-        {
-            rwCompressionType = RWCOMPRESS_DXT3;
-        }
-        else if ( dxtType == 4 )
-        {
-            rwCompressionType = RWCOMPRESS_DXT4;
-        }
-        else if ( dxtType == 5 )
-        {
-            rwCompressionType = RWCOMPRESS_DXT5;
-        }
-        else
-        {
-            throw RwException( "unsupported DXT compression" );
-        }
-    }
-
-    return rwCompressionType;
+    return nativeTex->colorComprType;
 }
 
 struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::d3dNativeTextureDriverInterface
@@ -670,12 +644,20 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
     {
         const NativeTextureD3D9 *nativeTex = (const NativeTextureD3D9*)objMem;
 
+        // If we are not a raster format texture, we have no raster format, yea.
+        if ( !nativeTex->d3dRasterFormatLink )
+            return RASTER_DEFAULT;
+
         return nativeTex->rasterFormat;
     }
 
     ePaletteType GetTexturePaletteType( const void *objMem ) override
     {
         const NativeTextureD3D9 *nativeTex = (const NativeTextureD3D9*)objMem;
+
+        // If we are not a raster format texture, we have no palette type-
+        if ( !nativeTex->d3dRasterFormatLink )
+            return PALETTE_NONE;
 
         return nativeTex->paletteType;
     }
@@ -684,7 +666,7 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
     {
         const NativeTextureD3D9 *nativeTex = (const NativeTextureD3D9*)objMem;
 
-        return ( nativeTex->dxtCompression != 0 );
+        return ( nativeTex->colorComprType != RWCOMPRESS_NONE );
     }
 
     eCompressionType GetTextureCompressionFormat( const void *objMem ) override
@@ -716,32 +698,7 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
     void GetFormatSizeRules( const pixelFormat& format, nativeTextureSizeRules& rulesOut ) const override
     {
         // We want to know ahead of time before passing in our pixel data what size rules we have to obey.
-        eCompressionType compressionType = format.compressionType;
-
-        uint32 dxtType = 0;
-
-        if ( compressionType == RWCOMPRESS_DXT1 )
-        {
-            dxtType = 1;
-        }
-        else if ( compressionType == RWCOMPRESS_DXT2 )
-        {
-            dxtType = 2;
-        }
-        else if ( compressionType == RWCOMPRESS_DXT3 )
-        {
-            dxtType = 3;
-        }
-        else if ( compressionType == RWCOMPRESS_DXT4 )
-        {
-            dxtType = 4;
-        }
-        else if ( compressionType == RWCOMPRESS_DXT5 )
-        {
-            dxtType = 5;
-        }
-
-        NativeTextureD3D9::getSizeRules( dxtType, rulesOut );
+        NativeTextureD3D9::getSizeRules( format.compressionType, rulesOut );
     }
 
     void GetTextureSizeRules( const void *objMem, nativeTextureSizeRules& rulesOut ) const override
@@ -751,7 +708,7 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
         // But that is an issue for another day!
         const NativeTextureD3D9 *nativeTex = (const NativeTextureD3D9*)objMem;
 
-        NativeTextureD3D9::getSizeRules( nativeTex->dxtCompression, rulesOut );
+        NativeTextureD3D9::getSizeRules( nativeTex->colorComprType, rulesOut );
     }
 
     void GetRecommendedRasterFormat( eRasterFormat rasterFormat, ePaletteType paletteType, uint32& recDepth, bool& hasRecDepth, eColorOrdering& recColorOrder, bool& hasRecColorOrder ) const override
@@ -783,16 +740,6 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
             }
         }
     }
-
-    // We want to support output as DirectDraw Surface files, as they are pretty handy.
-    const char* GetNativeImageFormatExtension( void ) const override
-    {
-        return "DDS";
-    }
-
-    bool IsNativeImageFormat( Interface *engineInterface, Stream *inputStream ) const override;
-    void SerializeNativeImage( Interface *engineInterface, Stream *inputStream, void *objMem ) const override;
-    void DeserializeNativeImage( Interface *engineInterface, Stream *outputStream, void *objMem ) const override;
 
     uint32 GetDriverIdentifier( void *objMem ) const override
     {
@@ -843,34 +790,44 @@ struct d3d9NativeTextureTypeProvider : public texNativeTypeProvider, d3dpublic::
     }
 };
 
+namespace d3d9
+{
+
+inline void convertCompatiblePaletteType(
+    uint32& depth, ePaletteType& paletteType
+)
+{
+    ePaletteType srcPaletteType = paletteType;
+
+    if ( srcPaletteType == PALETTE_4BIT || srcPaletteType == PALETTE_8BIT )
+    {
+        // We only support 8bit depth palette.
+        depth = 8;
+    }
+    else if ( srcPaletteType == PALETTE_4BIT_LSB )
+    {
+        depth = 8;
+
+        // Make sure we reorder the palette.
+        paletteType = PALETTE_4BIT;
+    }
+    else
+    {
+        assert( 0 );
+    }
+}
+
 inline void convertCompatibleRasterFormat(
     bool desireWorkingFormat,
     eRasterFormat& rasterFormat, eColorOrdering& colorOrder, uint32& depth, ePaletteType& paletteType, D3DFORMAT& d3dFormatOut
 )
 {
     eRasterFormat srcRasterFormat = rasterFormat;
-    eColorOrdering srcColorOrder = colorOrder;
-    uint32 srcDepth = depth;
     ePaletteType srcPaletteType = paletteType;
 
     if ( srcPaletteType != PALETTE_NONE )
     {
-        if ( srcPaletteType == PALETTE_4BIT || srcPaletteType == PALETTE_8BIT )
-        {
-            // We only support 8bit depth palette.
-            depth = 8;
-        }
-        else if ( srcPaletteType == PALETTE_4BIT_LSB )
-        {
-            depth = 8;
-
-            // Make sure we reorder the palette.
-            paletteType = PALETTE_4BIT;
-        }
-        else
-        {
-            assert( 0 );
-        }
+        convertCompatiblePaletteType( depth, paletteType );
 
         // TODO: not all palette raster formats are supported; fix this.
 
@@ -914,6 +871,9 @@ inline void convertCompatibleRasterFormat(
     }
     else
     {
+        uint32 srcDepth = depth;
+        eColorOrdering srcColorOrder = colorOrder;
+
         if ( srcRasterFormat == RASTER_1555 )
         {
             depth = 16;
@@ -1027,9 +987,6 @@ inline void convertCompatibleRasterFormat(
     }
 }
 
-namespace d3d9
-{
-
 #pragma pack(1)
 struct textureMetaHeaderStructGeneric
 {
@@ -1063,3 +1020,5 @@ struct textureMetaHeaderStructGeneric
 }
 
 #endif //RWLIB_INCLUDE_NATIVETEX_D3D9
+
+#endif //_RENDERWARE_D3D9_NATIVETEX_MAIN_HEADER_

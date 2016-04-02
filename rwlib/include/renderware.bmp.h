@@ -50,63 +50,6 @@ inline const void* getConstTexelDataRow( const void *texelData, uint32 rowSize, 
     return (const char*)texelData + rowSize * n;
 }
 
-inline bool shouldAllocateNewRasterBuffer(
-    uint32 mipWidth,
-    uint32 srcDepth, uint32 srcRowAlignment,
-    uint32 dstDepth, uint32 dstRowAlignment
-)
-{
-    // If the depth changed, an item will take a different amount of space.
-    // This means that items cannot be placed at the positions where they belong to (swapping) so get off.
-    if ( srcDepth != dstDepth )
-    {
-        return true;
-    }
-
-    // Assuming the depth is the same, then the alignment may change the size of the resulting
-    // texel data. If it does, then we have to reallocate.
-    if ( srcRowAlignment != dstRowAlignment )
-    {
-        uint32 rowSizeWithoutPadding = getRasterDataRawRowSize( mipWidth, srcDepth );   // depth is the same!
-
-        uint32 srcRowSize = getRasterDataRowSizeAligned( rowSizeWithoutPadding, srcRowAlignment );
-        uint32 dstRowSize = getRasterDataRowSizeAligned( rowSizeWithoutPadding, dstRowAlignment );
-
-        if ( srcRowSize != dstRowSize )
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-inline bool hasConflictingAddressing(
-    uint32 mipWidth,
-    uint32 srcDepth, uint32 srcRowAlignment, ePaletteType srcPaletteType,
-    uint32 dstDepth, uint32 dstRowAlignment, ePaletteType dstPaletteType
-)
-{
-    // If the buffer dimensions are different, we should kinda think about it.
-    if ( shouldAllocateNewRasterBuffer( mipWidth, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment ) )
-        return true;
-
-    // If there is conflicting addressing, you most likely need a different destination buffer for conversion.
-    // This happens sometimes.
-    if ( srcPaletteType != PALETTE_NONE && dstPaletteType != PALETTE_NONE )
-    {
-        // Because palette types are really complicated, a change in palette type most likely
-        // introduces a change in addressing. Be careful about that.
-        if ( srcPaletteType != dstPaletteType )
-        {
-            return true;
-        }
-    }
-
-    // We are good to go.
-    return false;
-}
-
 enum eColorModel
 {
     COLORMODEL_RGBA,
@@ -157,75 +100,11 @@ struct abstractColorItem
 // Bitmap software rendering includes.
 struct Bitmap
 {
-    inline Bitmap( void )
-    {
-        this->width = 0;
-        this->height = 0;
-        this->depth = 32;
-        this->rowAlignment = 4; // good measure.
-        this->rowSize = 0;
-        this->rasterFormat = RASTER_8888;
-        this->texels = NULL;
-        this->dataSize = 0;
-
-        this->colorOrder = COLOR_RGBA;
-
-        this->bgRed = 0;
-        this->bgGreen = 0;
-        this->bgBlue = 0;
-        this->bgAlpha = 1.0;
-    }
-
-    inline Bitmap( uint32 depth, eRasterFormat theFormat, eColorOrdering colorOrder )
-    {
-        this->width = 0;
-        this->height = 0;
-        this->depth = depth;
-        this->rowAlignment = 4;
-        this->rowSize = 0;
-        this->rasterFormat = theFormat;
-        this->texels = NULL;
-        this->dataSize = 0;
-
-        this->colorOrder = colorOrder;
-
-        this->bgRed = 0;
-        this->bgGreen = 0;
-        this->bgBlue = 0;
-        this->bgAlpha = 1.0;
-    }
+    Bitmap( Interface *engineInterface );
+    Bitmap( Interface *engineInterface, uint32 depth, eRasterFormat theFormat, eColorOrdering colorOrder );
 
 private:
-    inline void assignFrom( const Bitmap& right )
-    {
-        this->width = right.width;
-        this->height = right.height;
-        this->depth = right.depth;
-        this->rowAlignment = right.rowAlignment;
-        this->rowSize = right.rowSize;
-        this->rasterFormat = right.rasterFormat;
-
-        // Copy texels.
-        void *origTexels = right.texels;
-        void *newTexels = NULL;
-
-        if ( origTexels )
-        {
-            newTexels = new uint8[ right.dataSize ];
-
-            memcpy( newTexels, origTexels, right.dataSize );
-        }
-
-        this->texels = newTexels;
-        this->dataSize = right.dataSize;
-
-        this->colorOrder = right.colorOrder;
-
-        this->bgRed = right.bgRed;
-        this->bgGreen = right.bgGreen;
-        this->bgBlue = right.bgBlue;
-        this->bgAlpha = right.bgAlpha;
-    }
+    void assignFrom( const Bitmap& right );
 
 public:
     inline Bitmap( const Bitmap& right )
@@ -234,29 +113,7 @@ public:
     }
 
 private:
-    inline void moveFrom( Bitmap&& right )
-    {
-        this->width = right.width;
-        this->height = right.height;
-        this->depth = right.depth;
-        this->rowAlignment = right.rowAlignment;
-        this->rowSize = right.rowSize;
-        this->rasterFormat = right.rasterFormat;
-
-        // Move over texels.
-        this->texels = right.texels;
-        this->dataSize = right.dataSize;
-
-        this->colorOrder = right.colorOrder;
-        
-        this->bgRed = right.bgRed;
-        this->bgGreen = right.bgGreen;
-        this->bgBlue = right.bgBlue;
-        this->bgAlpha = right.bgAlpha;
-
-        // Default the moved from object.
-        right.texels = NULL;
-    }
+    void moveFrom( Bitmap&& right );
 
 public:
     inline Bitmap( Bitmap&& right )
@@ -265,16 +122,7 @@ public:
     }
 
 private:
-    inline void clearTexelData( void )
-    {
-        // If we have texel data, deallocate it.
-        if ( void *ourTexels = this->texels )
-        {
-            delete [] ourTexels;
-
-            this->texels = NULL;
-        }
-    }
+    void clearTexelData( void );
 
 public:
     inline void operator =( const Bitmap& right )
@@ -331,44 +179,7 @@ public:
         return getRasterDataSizeByRowSize( rowSize, height );
     }
 
-    inline void setImageData( void *theTexels, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 depth, uint32 rowAlignment, uint32 width, uint32 height, uint32 dataSize, bool assignData = false )
-    {
-        this->width = width;
-        this->height = height;
-        this->depth = depth;
-        this->rowAlignment = rowAlignment;
-        this->rowSize = getRasterDataRowSize( width, depth, rowAlignment );
-        this->rasterFormat = theFormat;
-
-        // Deallocate texels if we already have some.
-        if ( void *origTexels = this->texels )
-        {
-            delete [] origTexels;
-
-            this->texels = NULL;
-        }
-
-        if ( assignData == false )
-        {
-            // Copy the texels.
-            if ( dataSize != 0 )
-            {
-                void *newTexels = new uint8[ dataSize ];
-
-                memcpy( newTexels, theTexels, dataSize );
-
-                this->texels = newTexels;
-            }
-        }
-        else
-        {
-            // Just give us the data.
-            this->texels = theTexels;
-        }
-        this->dataSize = dataSize;
-
-        this->colorOrder = colorOrder;
-    }
+    void setImageData( void *theTexels, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 depth, uint32 rowAlignment, uint32 width, uint32 height, uint32 dataSize, bool assignData = false );
 
     inline void setImageDataSimple( void *theTexels, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 depth, uint32 rowAlignment, uint32 width, uint32 height )
     {
@@ -460,20 +271,7 @@ public:
 		return this->texels;
 	}
     
-    inline void* copyPixelData( void ) const
-    {
-        void *newPixels = NULL;
-        void *ourPixels = this->texels;
-
-        if ( ourPixels )
-        {
-            newPixels = new uint8[ this->dataSize ];
-
-            memcpy( newPixels, ourPixels, this->dataSize );
-        }
-
-        return newPixels;
-    }
+    void* copyPixelData( void ) const;
 
     inline void setBgColor( double red, double green, double blue, double alpha = 1.0 )
     {
@@ -530,6 +328,8 @@ public:
     );
 
 private:
+    Interface *engineInterface;
+
     uint32 width, height;
     uint32 depth;
     uint32 rowAlignment;

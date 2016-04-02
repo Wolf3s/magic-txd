@@ -3,6 +3,8 @@
 #ifndef _RENDERWARE_PRIVATE_TEXDICT_
 #define _RENDERWARE_PRIVATE_TEXDICT_
 
+#include "rwprivate.txd.pixelformat.h"
+
 // Pixel capabilities are required for transporting data properly.
 struct pixelCapabilities
 {
@@ -107,8 +109,8 @@ struct pixelDataTraversal
             this->texels = NULL;
             this->width = 0;
             this->height = 0;
-            this->mipWidth = 0;
-            this->mipHeight = 0;
+            this->layerWidth = 0;
+            this->layerHeight = 0;
             this->dataSize = 0;
         }
 
@@ -116,7 +118,7 @@ struct pixelDataTraversal
 
         void *texels;
         uint32 width, height;
-        uint32 mipWidth, mipHeight; // do not update these fields.
+        uint32 layerWidth, layerHeight; // do not update these fields.
 
         uint32 dataSize;
     };
@@ -221,12 +223,12 @@ void ConvertPaletteDepth(
 );
 
 // Private pixel manipulation API.
-void ConvertMipmapLayer(
+void TransformMipmapLayer(
     Interface *engineInterface,
-    const pixelDataTraversal::mipmapResource& mipLayer,
+    uint32 surfWidth, uint32 surfHeight, uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
     eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, const void *srcPaletteData, uint32 srcPaletteSize,
     eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType,
-    bool forceAllocation,
+    bool hasSurfaceRowFormatChanged,
     void*& dstTexelsOut, uint32& dstDataSizeOut
 );
 
@@ -250,6 +252,23 @@ bool ConvertMipmapLayerEx(
     void*& dstTexelsOut, uint32& dstDataSizeOut
 );
 
+// Variant of mipmap surface conversion that always allocates a new destination buffer.
+void CopyTransformRawMipmapLayer(
+    Interface *engineInterface,
+    uint32 surfWidth, uint32 surfHeight, uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, const void *srcPaletteData, uint32 srcPaletteSize,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+);
+
+void DepthCopyTransformMipmapLayer(
+    Interface *engineInterface,
+    uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
+    uint32 srcDepth, uint32 srcRowAlignment, eByteAddressingMode srcByteAddr,
+    uint32 dstDepth, uint32 dstRowAlignment, eByteAddressingMode dstByteAddr,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+);
+
 // Automatic optimal compression decision algorithm for RenderWare extensions.
 bool DecideBestDXTCompressionFormat(
     Interface *engineInterface,
@@ -259,12 +278,41 @@ bool DecideBestDXTCompressionFormat(
     eCompressionType& dstCompressionTypeOut
 );
 
-// Palette conversion helper function.
+// Palette conversion helper functions.
 void ConvertPaletteData(
     const void *srcPaletteTexels, void *dstPaletteTexels,
     uint32 srcPaletteSize, uint32 dstPaletteSize,
     eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPalRasterDepth,
     eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPalRasterDepth
+);
+
+void TransformPaletteDataEx(
+    Interface *engineInterface,
+    void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPalRasterDepth,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPalRasterDepth,
+    bool canTransformIntoSource,
+    void*& dstPalDataOut
+);
+
+void TransformPaletteData(
+    Interface *engineInterface,
+    void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder,
+    bool canTransformIntoSource,
+    void*& dstPalDataOut
+);
+
+void CopyConvertPaletteData(
+    Interface *engineInterface,
+    const void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder,
+    void*& dstPaletteDataOut
 );
 
 bool ConvertPixelData( Interface *engineInterface, pixelDataTraversal& pixelsToConvert, const pixelFormat pixFormat );

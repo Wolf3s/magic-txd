@@ -10,9 +10,7 @@
 
 #include "txdread.palette.hxx"
 
-#include "txdread.natcompat.hxx"
-
-#include "txdread.rasterplg.hxx"
+#include "txdread.raster.hxx"
 
 #ifdef RWLIB_INCLUDE_LIBIMAGEQUANT
 // Include the libimagequant library headers.
@@ -124,7 +122,7 @@ static void _fetch_image_data_libquant(liq_color row_out[], int row_index, int w
     uint32 palColorCount = pixelData->paletteSize;
 
     // Get the row of colors.
-    uint32 srcRowSize = getRasterDataRowSize( mipLayer.mipWidth, itemDepth, pixelData->rowAlignment );
+    uint32 srcRowSize = getRasterDataRowSize( mipLayer.layerWidth, itemDepth, pixelData->rowAlignment );
     
     const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, row_index );
 
@@ -239,8 +237,8 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
             {
                 pixelDataTraversal::mipmapResource& mainLayer = pixelData.mipmaps[ 0 ];
 
-                uint32 srcWidth = mainLayer.mipWidth;
-                uint32 srcHeight = mainLayer.mipHeight;
+                uint32 srcWidth = mainLayer.layerWidth;
+                uint32 srcHeight = mainLayer.layerHeight;
                 uint32 srcStride = mainLayer.width;
                 void *texelSource = mainLayer.texels;
 
@@ -659,6 +657,9 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
 void Raster::convertToPalette( ePaletteType paletteType, eRasterFormat newRasterFormat )
 {
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
+
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
 
     // NULL operation.
     if ( paletteType == PALETTE_NONE )

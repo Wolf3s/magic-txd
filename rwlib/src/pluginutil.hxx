@@ -3,51 +3,88 @@
 
 #include <PluginHelpers.h>
 
-#if 0
-
-struct _rwInterfaceFactoryMeta
+namespace rw
 {
-    typedef RwInterfaceFactory_t factoryType;
 
-    inline factoryType& ResolveFactoryLink( lua_config& cfgStruct )
+// Helper to place a RW lock into a StaticPluginClassFactory type.
+template <typename factoryType, typename getFactCallbackType>
+struct factLockProviderEnv
+{
+private:
+    typedef typename factoryType::hostType_t hostType_t;
+
+    struct dynamic_rwlock
     {
-        return cfgStruct.globalStateFactory;
+        inline void Initialize( hostType_t *host )
+        {
+            CreatePlacedReadWriteLock( host->engineInterface, this );
+        }
+
+        inline void Shutdown( hostType_t *host )
+        {
+            ClosePlacedReadWriteLock( host->engineInterface, (rwlock*)this );
+        }
+
+        inline void operator = ( const dynamic_rwlock& right )
+        {
+            // Nothing to do here.
+            return;
+        }
+    };
+
+public:
+    inline void Initialize( EngineInterface *intf )
+    {
+        size_t rwlock_struct_size = GetReadWriteLockStructSize( intf );
+
+        typename factoryType::pluginOffset_t lockPluginOffset = factoryType::INVALID_PLUGIN_OFFSET;
+
+        factoryType *theFact = getFactCallbackType::getFactory( intf );
+
+        if ( theFact )
+        {
+            lockPluginOffset =
+                theFact->RegisterDependantStructPlugin <dynamic_rwlock> ( factoryType::ANONYMOUS_PLUGIN_ID, rwlock_struct_size );
+        }
+
+        this->lockPluginOffset = lockPluginOffset;
     }
 
-    template <typename structType>
-    inline RwInterfacePluginOffset_t RegisterPlugin( lua_config *cfgStruct, unsigned int pluginId )
+    inline void Shutdown( EngineInterface *intf )
     {
-        return cfgStruct->globalStateFactory.RegisterStructPlugin <structType> ( pluginId );
+        if ( factoryType::IsOffsetValid( this->lockPluginOffset ) )
+        {
+            factoryType *theFact = getFactCallbackType::getFactory( intf );
+
+            theFact->UnregisterPlugin( this->lockPluginOffset );
+        }
+    }
+
+    inline rwlock* GetLock( const hostType_t *host ) const
+    {
+        return (rwlock*)factoryType::RESOLVE_STRUCT <rwlock> ( host, this->lockPluginOffset );
+    }
+
+private:
+    typename factoryType::pluginOffset_t lockPluginOffset;
+};
+
+namespace rwFactRegPipes
+{
+
+struct rw_fact_pipeline_base
+{
+    AINLINE static RwTypeSystem& getTypeSystem( EngineInterface *intf )
+    {
+        return intf->typeSystem;
     }
 };
 
+template <typename constrType>
+using rw_defconstr_fact_pipeline_base = factRegPipes::defconstr_fact_pipeline_base <EngineInterface, constrType>;
 
-template <typename structType, typename factoryType, typename hostType>
-struct rwInterfaceFactoryMeta : public factoryMetaDefault <hostType, factoryType, structType, _rwInterfaceFactoryMeta>
-{
-};
+}
 
-struct _rwInterfaceDependantStructFactoryMeta
-{
-    typedef RwInterfaceFactory_t factoryType;
-
-    inline factoryType& ResolveFactoryLink( lua_config& cfgStruct )
-    {
-        return cfgStruct.globalStateFactory;
-    }
-
-    template <typename structType>
-    inline RwInterfacePluginOffset_t RegisterPlugin( lua_config *cfgStruct, unsigned int pluginId )
-    {
-        return cfgStruct->globalStateFactory.RegisterDependantStructPlugin <structType> ( pluginId );
-    }
-};
-
-template <typename structType, typename factoryType, typename hostType>
-struct globalStateDependantStructFactoryMeta : public factoryMetaDefault <hostType, factoryType, structType, _globalStateDependantStructFactoryMeta>
-{
-};
-
-#endif
+}
 
 #endif //_PLUGIN_UTILITIES_

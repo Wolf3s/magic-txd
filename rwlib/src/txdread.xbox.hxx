@@ -1,3 +1,6 @@
+#ifndef _RENDERWARE_XBOX_NATIVETEX_MAIN_INCLUDE_
+#define _RENDERWARE_XBOX_NATIVETEX_MAIN_INCLUDE_
+
 #ifdef RWLIB_INCLUDE_NATIVETEX_XBOX
 
 #include "txdread.nativetex.hxx"
@@ -14,6 +17,50 @@ namespace rw
 inline uint32 getXBOXTextureDataRowAlignment( void )
 {
     return sizeof( uint32 );
+}
+
+inline uint32 getXBOXCompressionTypeFromRW( eCompressionType rwCompressionType )
+{
+    uint32 xboxCompressionType = 0;
+
+    if ( rwCompressionType != RWCOMPRESS_NONE )
+    {
+        if ( rwCompressionType == RWCOMPRESS_DXT1 )
+        {
+            xboxCompressionType = 0xC;
+        }
+        else if ( rwCompressionType == RWCOMPRESS_DXT2 )
+        {
+            xboxCompressionType = 0xD;
+        }
+        else if ( rwCompressionType == RWCOMPRESS_DXT3 )
+        {
+            xboxCompressionType = 0xE;
+        }
+        else if ( rwCompressionType == RWCOMPRESS_DXT5 )
+        {
+            xboxCompressionType = 0xF;
+        }
+        else if ( rwCompressionType == RWCOMPRESS_DXT4 )
+        {
+            xboxCompressionType = 0x10;
+        }
+        else
+        {
+            assert( 0 );
+        }
+    }
+
+    return xboxCompressionType;
+}
+
+inline bool isXBOXTextureSwizzled(
+    eRasterFormat rasterFormat, uint32 depth, ePaletteType paletteType, uint32 xboxCompressionType
+)
+{
+    // TODO: verify if this swizzling is indeed like this.
+
+    return ( xboxCompressionType == 0 );
 }
 
 struct NativeTextureXBOX
@@ -221,7 +268,7 @@ struct xboxNativeTextureTypeProvider : public texNativeTypeProvider
         capsOut.supportsDXT1 = true;
         capsOut.supportsDXT2 = true;
         capsOut.supportsDXT3 = true;
-        capsOut.supportsDXT4 = true;
+        capsOut.supportsDXT4 = false;
         capsOut.supportsDXT5 = true;
         capsOut.supportsPalette = true;
     }
@@ -231,7 +278,7 @@ struct xboxNativeTextureTypeProvider : public texNativeTypeProvider
         storeCaps.pixelCaps.supportsDXT1 = true;
         storeCaps.pixelCaps.supportsDXT2 = true;
         storeCaps.pixelCaps.supportsDXT3 = true;
-        storeCaps.pixelCaps.supportsDXT4 = true;
+        storeCaps.pixelCaps.supportsDXT4 = false;
         storeCaps.pixelCaps.supportsDXT5 = true;
         storeCaps.pixelCaps.supportsPalette = true;
 
@@ -343,8 +390,97 @@ struct xboxNativeTextureTypeProvider : public texNativeTypeProvider
     }
 };
 
+namespace xbox
+{
+
+inline void convertCompatibleRasterFormat(
+    eRasterFormat& rasterFormatOut, uint32& depthOut, eColorOrdering& colorOrderOut,
+    ePaletteType& paletteTypeOut
+)
+{
+    eRasterFormat srcRasterFormat = rasterFormatOut;
+    uint32 srcDepth = depthOut;
+    eColorOrdering srcColorOrder = colorOrderOut;
+    ePaletteType srcPaletteType = paletteTypeOut;
+
+    if ( srcPaletteType != PALETTE_NONE )
+    {
+        if ( srcPaletteType == PALETTE_4BIT || srcPaletteType == PALETTE_8BIT )
+        {
+            depthOut = 8;
+        }
+        else if ( srcPaletteType == PALETTE_4BIT_LSB )
+        {
+            // We better remap it to the proper order.
+            depthOut = 8;
+
+            paletteTypeOut = PALETTE_4BIT;
+        }
+        else
+        {
+            assert( 0 );
+        }
+
+        // Make sure we have a supported palette raster format.
+        // We do not care about advanced raster formats on console architecture.
+        bool hasValidPaletteRasterFormat = false;
+
+        if ( srcRasterFormat == RASTER_8888 ||
+             srcRasterFormat == RASTER_888 )
+        {
+            hasValidPaletteRasterFormat = true;
+        }
+
+        if ( !hasValidPaletteRasterFormat )
+        {
+            // Anything invalid should be expanded to full color.
+            rasterFormatOut = RASTER_8888;
+        }
+    }
+    else
+    {
+        if ( srcRasterFormat == RASTER_1555 )
+        {
+            depthOut = 16;
+        }
+        else if ( srcRasterFormat == RASTER_565 )
+        {
+            depthOut = 16;
+        }
+        else if ( srcRasterFormat == RASTER_4444 )
+        {
+            depthOut = 16;
+        }
+        else if ( srcRasterFormat == RASTER_8888 )
+        {
+            depthOut = 32;
+        }
+        else if ( srcRasterFormat == RASTER_888 )
+        {
+            depthOut = 32;
+        }
+        else if ( srcRasterFormat == RASTER_555 )
+        {
+            depthOut = 16;
+        }
+        else if ( srcRasterFormat == RASTER_LUM )
+        {
+            depthOut = 8;
+        }
+        else
+        {
+            // Unsupported/unknown format, we have to convert it to something safe.
+            rasterFormatOut = RASTER_8888;
+            depthOut = 32;
+        }
+    }
+
+    // XBOX textures always have BGRA color order, no matter if palette.
+    colorOrderOut = COLOR_BGRA;
+}
+
 #pragma pack(1)
-struct textureMetaHeaderStructXbox
+struct textureMetaHeaderStruct
 {
     rw::texFormatInfo_serialized <endian::little_endian <uint32>> formatInfo;
 
@@ -365,6 +501,10 @@ struct textureMetaHeaderStructXbox
 };
 #pragma pack()
 
+}
+
 };
 
 #endif //RWLIB_INCLUDE_NATIVETEX_XBOX
+
+#endif //_RENDERWARE_XBOX_NATIVETEX_MAIN_INCLUDE_

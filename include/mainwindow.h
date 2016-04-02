@@ -327,7 +327,6 @@ private:
         std::list <std::string> ext_array;
 
         bool isNativeFormat;
-        std::string nativeType;
     };
 
     typedef std::list <registered_image_format> imageFormats_t;

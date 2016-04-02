@@ -1397,6 +1397,11 @@ struct StaticPluginClassFactory
         assert( aliveClasses == 0 );
     }
 
+    inline unsigned int GetNumberOfAliveClasses( void ) const
+    {
+        return this->aliveClasses;
+    }
+
     // Number type used to store the plugin offset.
     typedef ptrdiff_t pluginOffset_t;
 
