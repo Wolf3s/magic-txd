@@ -95,6 +95,8 @@ public:
     typedef ansi_iterator <char> iterator;
     typedef ansi_iterator <const char> const_iterator;
 
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint8_t>::max();
+
     struct enc_result
     {
         char data[1];
@@ -301,6 +303,8 @@ public:
     typedef utf16_iterator <wideCharType> iterator;
     typedef utf16_iterator <const wideCharType> const_iterator;
 
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint16_t>::max();
+
     struct enc_result
     {
         wideCharType data[2];
@@ -438,6 +442,8 @@ private:
 public:
     typedef utf32_iterator <char32_t> iterator;
     typedef utf32_iterator <const char32_t> const_iterator;
+
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint32_t>::max();
 
     struct enc_result
     {

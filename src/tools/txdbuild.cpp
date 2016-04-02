@@ -44,9 +44,10 @@ inline std::string DecidePlatformString(
 
 struct txdBuildImageImportMethods : public imageImportMethods
 {
-    inline txdBuildImageImportMethods( rw::Interface *engineInterface )
+    inline txdBuildImageImportMethods( rw::Interface *engineInterface, TxdBuildModule *module )
     {
         this->engineInterface = engineInterface;
+        this->module = module;
 
         // Set some standard default values.
         // Update those before loading.
@@ -58,12 +59,12 @@ struct txdBuildImageImportMethods : public imageImportMethods
 
     void OnWarning( std::string&& msg ) const override
     {
-        this->engineInterface->PushWarning( std::move( msg ) );
+        module->OnMessage( "import warning: " + std::move( msg ) );
     }
 
     void OnError( std::string&& msg ) const override
     {
-        this->engineInterface->PushWarning( std::move( msg ) );
+        module->OnMessage( "import error: " + msg );
     }
 
     rw::Raster* MakeRaster( void ) const override
@@ -101,16 +102,18 @@ struct txdBuildImageImportMethods : public imageImportMethods
 
 private:
     rw::Interface *engineInterface;
+    TxdBuildModule *module;
 };
 
 static rw::TextureBase* RwMakeTextureFromStream(
     rw::Interface *rwEngine, rw::Stream *imgStream,
+    TxdBuildModule *module,
     rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform,
     const ConfigNode& cfgNode
 )
 {
     // Load texture data.
-    txdBuildImageImportMethods imgImporter( rwEngine );
+    txdBuildImageImportMethods imgImporter( rwEngine, module );
 
     // Set things up.
     // TODO: cache the image importer somewhere and just set things up here.
@@ -330,7 +333,7 @@ void BuildSingleTexture(
     const ConfigNode& cfgParent
 )
 {
-    rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, config.targetGame, config.targetPlatform, cfgParent );
+    rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, module, config.targetGame, config.targetPlatform, cfgParent );
 
     if ( imgTex )
     {
@@ -976,112 +979,127 @@ bool TxdBuildModule::RunApplication( const run_config& config )
 {
     rw::Interface *rwEngine = this->rwEngine;
 
-    // Isolate us.
-    rw::AssignThreadedRuntimeConfig( rwEngine );
-
     try
     {
-        // Give some start message.
-        this->OnMessage( L"\nstarted build process\n\n" );
+        // Isolate us.
+        rw::AssignThreadedRuntimeConfig( rwEngine );
 
-        // Intercept warnings and send them to our system.
-        rwEngine->SetWarningLevel( 4 );
-        rwEngine->SetWarningManager( this );
-
-        // The main configuration node.
-        // Initialize it.
-        ConfigNode rootNode;
-        rootNode.SetBoolean( "genMipmaps", config.generateMipmaps );
-
-        if ( config.generateMipmaps )
+        try
         {
-            rootNode.SetInt( "genMipMaxLevel", config.curMipMaxLevel );
-        }
+            // Give some start message.
+            this->OnMessage( L"\nstarted build process\n\n" );
 
-        rootNode.SetBoolean( "compressed", config.doCompress );
+            // Intercept warnings and send them to our system.
+            rwEngine->SetWarningLevel( 4 );
+            rwEngine->SetWarningManager( this );
 
-        if ( config.doCompress )
-        {
-            rootNode.SetFloat( "comprQuality", config.compressionQuality );
-        }
+            // The main configuration node.
+            // Initialize it.
+            ConfigNode rootNode;
+            rootNode.SetBoolean( "genMipmaps", config.generateMipmaps );
 
-        rootNode.SetBoolean( "palettized", config.doPalettize );
-
-        if ( config.doPalettize )
-        {
-            rw::ePaletteType paletteType = config.paletteType;
-
-            if ( paletteType == rw::PALETTE_4BIT || paletteType == rw::PALETTE_4BIT_LSB )
+            if ( config.generateMipmaps )
             {
-                rootNode.SetString( "palType", "PAL4" );
+                rootNode.SetInt( "genMipMaxLevel", config.curMipMaxLevel );
             }
-            else if ( paletteType == rw::PALETTE_8BIT )
+
+            rootNode.SetBoolean( "compressed", config.doCompress );
+
+            if ( config.doCompress )
             {
-                rootNode.SetString( "palType", "PAL8" );
+                rootNode.SetFloat( "comprQuality", config.compressionQuality );
             }
-        }
 
-        // Get handles to the input and output directories.
-        CFileTranslator *gameRootTranslator = NULL;
+            rootNode.SetBoolean( "palettized", config.doPalettize );
 
-        bool hasGameRoot = obtainAbsolutePath( config.gameRoot.c_str(), gameRootTranslator, false );
-
-        if ( hasGameRoot )
-        {
-            try
+            if ( config.doPalettize )
             {
-                CFileTranslator *outputRootTranslator = NULL;
+                rw::ePaletteType paletteType = config.paletteType;
 
-                bool hasOutputRoot = obtainAbsolutePath( config.outputRoot.c_str(), outputRootTranslator, true );
-
-                if ( hasOutputRoot )
+                if ( paletteType == rw::PALETTE_4BIT || paletteType == rw::PALETTE_4BIT_LSB )
                 {
-                    try
+                    rootNode.SetString( "palType", "PAL4" );
+                }
+                else if ( paletteType == rw::PALETTE_8BIT )
+                {
+                    rootNode.SetString( "palType", "PAL8" );
+                }
+            }
+
+            // Get handles to the input and output directories.
+            CFileTranslator *gameRootTranslator = NULL;
+
+            bool hasGameRoot = obtainAbsolutePath( config.gameRoot.c_str(), gameRootTranslator, false );
+
+            if ( hasGameRoot )
+            {
+                try
+                {
+                    CFileTranslator *outputRootTranslator = NULL;
+
+                    bool hasOutputRoot = obtainAbsolutePath( config.outputRoot.c_str(), outputRootTranslator, true );
+
+                    if ( hasOutputRoot )
                     {
-                        if ( hasGameRoot && hasOutputRoot )
+                        try
                         {
-                            BuildTXDArchives( this->rwEngine, this, gameRootTranslator, outputRootTranslator, config, rootNode );
+                            if ( hasGameRoot && hasOutputRoot )
+                            {
+                                BuildTXDArchives( this->rwEngine, this, gameRootTranslator, outputRootTranslator, config, rootNode );
+                            }
                         }
-                    }
-                    catch( ... )
-                    {
+                        catch( ... )
+                        {
+                            delete outputRootTranslator;
+
+                            throw;
+                        }
+
                         delete outputRootTranslator;
-
-                        throw;
                     }
-
-                    delete outputRootTranslator;
+                    else
+                    {
+                        this->OnMessage( L"failed to get access to destination directory\n" );
+                    }
                 }
-                else
+                catch( ... )
                 {
-                    this->OnMessage( L"failed to get access to destination directory\n" );
+                    delete gameRootTranslator;
+
+                    throw;
                 }
-            }
-            catch( ... )
-            {
-                delete gameRootTranslator;
-
-                throw;
-            }
         
-            delete gameRootTranslator;
+                delete gameRootTranslator;
+            }
+            else
+            {
+                this->OnMessage( L"failed to get access to source directory\n" );
+            }
+
+            // Give a nice finish message.
+            this->OnMessage( L"\nfinished!" );
         }
-        else
+        catch( ... )
         {
-            this->OnMessage( L"failed to get access to source directory\n" );
+            rw::ReleaseThreadedRuntimeConfig( rwEngine );
+        
+            throw;
         }
 
-        // Give a nice finish message.
-        this->OnMessage( L"\nfinished!" );
+        rw::ReleaseThreadedRuntimeConfig( rwEngine );
+    }
+    catch( std::exception& err )
+    {
+        this->OnMessage( std::string( "\n\nSTL exception in builder: " ) + err.what() );
+
+        throw;
     }
     catch( ... )
     {
-        rw::ReleaseThreadedRuntimeConfig( rwEngine );
-        
+        this->OnMessage( "\n\nunexpected termination of builder" );
+
         throw;
     }
-
-    rw::ReleaseThreadedRuntimeConfig( rwEngine );
 
     return true;
 }

@@ -3137,11 +3137,17 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             // Next calculate the data size.
             uint32 mipDataSize;
 
-            calculateDDSMipmapDataSize(
+            bool hasDataSize = calculateDDSMipmapDataSize(
                 surfWidth, surfHeight,
                 hasValidBitDepth, bitDepth,
                 mipDataSize
             );
+
+            if ( !hasDataSize )
+            {
+                // We cannot read mipmap data that has no valid known data size.
+                throw RwException( "failed to read DDS native image because unknown mipmap data size" );
+            }
 
             // Read the data.
             // The data size we fetch here has to be valid depending on the format, with byte-row-alignment.

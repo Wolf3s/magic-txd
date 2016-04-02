@@ -161,43 +161,118 @@ protected:
 
     stringProvider *strData;
 
-    // Thanks to http://codereview.stackexchange.com/questions/419/converting-between-stdwstring-and-stdstring !
+    template <typename charType>
+    AINLINE static const charType GetDefaultConvFailureChar( void )
+    {
+        static_assert( false, "invalid character type for default conv failure string" );
+    }
+
+    template <>
+    AINLINE static const char GetDefaultConvFailureChar <char> ( void )
+    {
+        return '_';
+    }
+
+    template <>
+    AINLINE static const wchar_t GetDefaultConvFailureChar <wchar_t> ( void )
+    {
+        return L'_';
+    }
+
+    template <>
+    AINLINE static const char32_t GetDefaultConvFailureChar <char32_t> ( void )
+    {
+        return U'_';
+    }
+
+    template <typename charType>
+    AINLINE static const charType* GetDefaultConfErrorString( void )
+    {
+        static_assert( false, "invalid character type in default conversion error string routine" );
+    }
+
+    template <>
+    AINLINE static const char* GetDefaultConfErrorString <char> ( void )
+    {
+        return "<codepoint_error>";
+    }
+
+    template <>
+    AINLINE static const wchar_t* GetDefaultConfErrorString <wchar_t> ( void )
+    {
+        return L"<codepoint_error>";
+    }
+
+    template <>
+    AINLINE static const char32_t* GetDefaultConfErrorString <char32_t> ( void )
+    {
+        return U"<codepoint_error>";
+    }
+
+    template <typename inputCharType, typename outputCharType>
+    static std::basic_string <outputCharType> ConvertStrings( const std::basic_string <inputCharType>& inputStr )
+    {
+        typedef character_env <inputCharType> input_env;
+        typedef character_env <outputCharType> output_env;
+
+        try
+        {
+            std::basic_string <outputCharType> output_str;
+
+            // Convert things into the output.
+            {
+                input_env::const_iterator iter( inputStr.c_str() );
+
+                while ( !iter.IsEnd() )
+                {
+                    input_env::ucp_t codepoint = iter.ResolveAndIncrement();
+
+                    // Encode it into the output string, if possible.
+                    if ( codepoint < output_env::ucp_max )
+                    {
+                        output_env::ucp_t enc_codepoint = (output_env::ucp_t)codepoint;
+
+                        output_env::encoding_iterator enc_iter( &enc_codepoint, 1 );
+                        {
+                            output_env::enc_result result;
+
+                            enc_iter.Resolve( result );
+
+                            for ( size_t n = 0; n < result.numData; n++ )
+                            {
+                                output_str += result.data[ n ];
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // We encode a failure.
+                        output_str += GetDefaultConvFailureChar <outputCharType> ();
+                    }
+                }
+            }
+
+            return output_str;
+        }
+        catch( codepoint_exception& )
+        {
+            // On error we just return an error string.
+            return GetDefaultConfErrorString <outputCharType> ();
+        }
+    }
+
     template <typename wideType>
     static std::basic_string <wideType> s2ws(const std::string& s)
     {
-        std::wstring_convert <std::codecvt <wideType, char, std::mbstate_t>, wideType> wideConv;
-
-        return wideConv.from_bytes( s );
+        // Since I am not happy with how the STL implementation works I am just gonna do this myself here.
+        return ConvertStrings <char, wideType> ( s );
     }
-
-#if (_MSC_VER == 1900)
-    // FIX FOR VS 2015.
-    template <>
-    static std::u32string s2ws(const std::string& s)
-    {
-        std::wstring_convert <std::codecvt <unsigned int, char, std::mbstate_t>, unsigned int> wideConv;
-
-        return reinterpret_cast <std::u32string&&> ( wideConv.from_bytes( s ) );
-    }
-#endif // VS2015
 
     template <typename wideType>
     static std::string ws2s(const std::basic_string <wideType>& s)
     {
-        std::wstring_convert <std::codecvt <wideType, char, std::mbstate_t>, wideType> wideConv;
-
-        return wideConv.to_bytes( s );
+        return ConvertStrings <wideType, char> ( s );
     }
-
-#if (_MSC_VER == 1900)
-    template <>
-    static std::string ws2s(const std::u32string& s)
-    {
-        std::wstring_convert <std::codecvt <unsigned int, char, std::mbstate_t>, unsigned int> wideConv;
-
-        return wideConv.to_bytes( *(const std::basic_string <unsigned int>*)&s );
-    }
-#endif // VS2015
 
     template <typename charType>
     inline static const charType* GetEmptyStringLiteral( void )

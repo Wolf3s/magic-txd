@@ -176,7 +176,7 @@ bool imageImportMethods::LoadImage( rw::Stream *stream, eImportExpectation imp_e
                         if ( foundExpectedFormat )
                         {
                             this->OnWarning(
-                                std::string( "tried parsing \"" ) + std::string( exp_name ) + "\" but found \"" + reg.name + "\""
+                                std::string( "tried parsing \"" ) + std::string( exp_name ) + "\" but found \"" + reg.name + "\"\n"
                             );
                         }
 
@@ -184,7 +184,7 @@ bool imageImportMethods::LoadImage( rw::Stream *stream, eImportExpectation imp_e
                         break;
                     }
                 }
-                catch( rw::RwException& )
+                catch( rw::RwException& except )
                 {
                     // A format simply did not work out. Continue.
                 }
@@ -200,7 +200,7 @@ bool imageImportMethods::LoadImage( rw::Stream *stream, eImportExpectation imp_e
 
         if ( exp_format_error.empty() == false )
         {
-            this->OnError( std::string( "error while loading image data: " ) + exp_format_error );
+            this->OnError( std::string( "error while loading image data: " ) + exp_format_error + "\n" );
         }
     }
 
