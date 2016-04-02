@@ -42,6 +42,7 @@ template <>
 struct character_env <char>
 {
     typedef char ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef unsigned char u_ucp_t;
 
 private:
     // ANSI strings are very simple and fast. Each byte represents one unique character.
@@ -144,6 +145,7 @@ template <typename wideCharType>
 struct utf16_character_env
 {
     typedef char32_t ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef ucp_t u_ucp_t;
 
 private:
     struct code_point_hi_surrogate
@@ -390,6 +392,7 @@ template <>
 struct character_env <char32_t>
 {
     typedef char32_t ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef ucp_t u_ucp_t;
 
 private:
     // We represent UTF-32 strings here. They are the fastest Unicode strings available.

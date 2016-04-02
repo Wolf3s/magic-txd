@@ -225,7 +225,7 @@ protected:
 
                 while ( !iter.IsEnd() )
                 {
-                    input_env::ucp_t codepoint = iter.ResolveAndIncrement();
+                    input_env::u_ucp_t codepoint = (input_env::u_ucp_t)iter.ResolveAndIncrement();
 
                     // Encode it into the output string, if possible.
                     if ( codepoint < output_env::ucp_max )
