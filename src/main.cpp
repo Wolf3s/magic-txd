@@ -254,7 +254,39 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                iRet = a.exec();
+                // Try to catch some known C++ exceptions and display things for them.
+                try
+                {
+                    iRet = a.exec();
+                }
+                catch( rw::RwException& except )
+                {
+                    std::string errMsg = "uncaught RenderWare exception: " + except.message;
+
+                    MessageBoxA(
+                        NULL,
+                        errMsg.c_str(),
+                        "Uncaught C++ Exception",
+                        MB_OK
+                    );
+
+                    // Continue excecution.
+                    iRet = -1;
+                }
+                catch( std::exception& except )
+                {
+                    std::string errMsg = std::string( "uncaught C++ STL exception: " ) + except.what();
+
+                    MessageBoxA(
+                        NULL,
+                        errMsg.c_str(),
+                        "Uncaught C++ Exception",
+                        MB_OK
+                    );
+
+                    // Continue execution.
+                    iRet = -2;
+                }
             }
             catch( ... )
             {

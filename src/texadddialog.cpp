@@ -1471,7 +1471,14 @@ void TexAddDialog::OnTextureAddRequest(bool checked)
         // Maybe generate mipmaps.
         if (this->propGenerateMipmaps->isChecked())
         {
-            displayRaster->generateMipmaps( 0xFFFFFFFF, rw::MIPMAPGEN_DEFAULT);
+            try
+            {
+                displayRaster->generateMipmaps( 0xFFFFFFFF, rw::MIPMAPGEN_DEFAULT );
+            }
+            catch( rw::RwException& )
+            {
+                // We do not have to be able to generate mipmaps.
+            }
         }
 
         this->cb(desc);

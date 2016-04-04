@@ -1161,23 +1161,23 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             // DXT compressed?
             dds_compressionType = getFrameworkCompressionTypeFromD3DFORMAT( dds_d3dFormat );
 
-            if ( dds_compressionType == RWCOMPRESS_NONE )
+            bool isVirtualMapping = false;
+            
+            bool hasRepresentingFormat = getRasterFormatFromD3DFormat(
+                dds_d3dFormat, dds_hasAlphaChannel || formatType == eDDSPixelFormatType::FMT_ALPHA,
+                dds_rasterFormat, dds_colorOrder, isVirtualMapping
+            );
+
+            if ( hasRepresentingFormat )
             {
-                bool isVirtualMapping = false;
-
-                bool hasRepresentingFormat = getRasterFormatFromD3DFormat(
-                    dds_d3dFormat, dds_hasAlphaChannel || formatType == eDDSPixelFormatType::FMT_ALPHA,
-                    dds_rasterFormat, dds_colorOrder, isVirtualMapping
-                );
-
-                if ( hasRepresentingFormat )
+                if ( isVirtualMapping == false )
                 {
-                    if ( isVirtualMapping == false )
-                    {
-                        dds_d3dRasterFormatLink = true;
-                    }
+                    dds_d3dRasterFormatLink = true;
                 }
-                else
+            }
+            else
+            {
+                if ( dds_compressionType == RWCOMPRESS_NONE )
                 {
                     // We could still have an extension that takes care of us.
                     // That is if we have the Direct3D 9 native texture environment.
@@ -1358,6 +1358,8 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             nativeTex->paletteType = dstPaletteType;
             nativeTex->paletteSize = dds_paletteSize;
             nativeTex->palette = dstPaletteData;
+
+            nativeTex->d3dFormat = dds_d3dFormat;
             
             nativeTex->d3dRasterFormatLink = dds_d3dRasterFormatLink;
             nativeTex->anonymousFormatLink = dds_usedFormatHandler;

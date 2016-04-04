@@ -51,6 +51,13 @@ void atcNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
 
     NativeTextureATC *platformTex = (NativeTextureATC*)nativeTex;
 
+    size_t mipmapCount = platformTex->mipmaps.size();
+
+    if ( mipmapCount == 0 )
+    {
+        throw RwException( "attempt to write ATC native texture which has no mipmap layers" );
+    }
+
 	{
 		// Write the actual struct.
         BlockProvider texNativeImageStruct( &outputProvider );
@@ -72,8 +79,6 @@ void atcNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
             // Also, print a warning if the name is changed this way.
             writeStringIntoBufferSafe( engineInterface, theTexture->GetName(), metaHeader.name, sizeof( metaHeader.name ), theTexture->GetName(), "name" );
             writeStringIntoBufferSafe( engineInterface, theTexture->GetMaskName(), metaHeader.maskName, sizeof( metaHeader.maskName ), theTexture->GetName(), "mask name" );
-
-            size_t mipmapCount = platformTex->mipmaps.size();
 
             metaHeader.mipmapCount = (uint8)mipmapCount;
             metaHeader.unk1 = platformTex->unk1;

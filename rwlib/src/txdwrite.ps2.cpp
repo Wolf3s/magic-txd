@@ -750,7 +750,7 @@ void ps2NativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
 
     if ( mipmapCount == 0 )
     {
-        throw RwException( "empty texture" );
+        throw RwException( "attempt to write PS2 native texture which has no mipmap layerss" );
     }
 
     // Make sure all textures are in the required encoding format.

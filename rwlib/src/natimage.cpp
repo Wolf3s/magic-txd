@@ -952,6 +952,7 @@ bool UnregisterNativeImageType(
 
 // Native image formats.
 extern void registerDDSNativeImageFormatEnv( void );
+extern void registerPVRNativeImageTypeEnv( void );
 
 void registerNativeImagePluginEnvironment( void )
 {
@@ -963,6 +964,7 @@ void registerNativeImagePluginEnvironment( void )
 
     // TODO: register all native image formats here.
     registerDDSNativeImageFormatEnv();
+    registerPVRNativeImageTypeEnv();
 }
 
 };

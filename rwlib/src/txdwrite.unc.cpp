@@ -18,6 +18,16 @@ void uncNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
 {
     Interface *engineInterface = theTexture->engineInterface;
 
+    // Cast to our native texture format.
+    NativeTextureMobileUNC *platformTex = (NativeTextureMobileUNC*)nativeTex;
+
+    size_t mipmapCount = platformTex->mipmaps.size();
+
+    if ( mipmapCount == 0 )
+    {
+        throw RwException( "attempt to write UNC mobile native texture which has no mipmap layers" );
+    }
+
     // Write the texture image data block.
     {
         BlockProvider texImageDataBlock( &outputProvider );
@@ -39,11 +49,6 @@ void uncNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
             // Also, print a warning if the name is changed this way.
             writeStringIntoBufferSafe( engineInterface, theTexture->GetName(), metaHeader.name, sizeof( metaHeader.name ), theTexture->GetName(), "name" );
             writeStringIntoBufferSafe( engineInterface, theTexture->GetMaskName(), metaHeader.maskName, sizeof( metaHeader.maskName ), theTexture->GetName(), "mask name" );
-
-            // Cast to our native texture format.
-            NativeTextureMobileUNC *platformTex = (NativeTextureMobileUNC*)nativeTex;
-
-            size_t mipmapCount = platformTex->mipmaps.size();
 
             bool hasAlpha = platformTex->hasAlpha;
 

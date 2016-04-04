@@ -316,14 +316,7 @@ inline bool getRasterFormatFromD3DFormat(
     }
     else if (d3dFormat == D3DFMT_DXT1)
     {
-        if ( canHaveAlpha )
-        {
-            rasterFormatOut = RASTER_1555;
-        }
-        else
-        {
-            rasterFormatOut = RASTER_565;
-        }
+        rasterFormatOut = getVirtualRasterFormat( canHaveAlpha, RWCOMPRESS_DXT1 );
 
         colorOrderOut = COLOR_BGRA;
 
@@ -333,7 +326,9 @@ inline bool getRasterFormatFromD3DFormat(
     }
     else if (d3dFormat == D3DFMT_DXT2 || d3dFormat == D3DFMT_DXT3)
     {
-        rasterFormatOut = RASTER_4444;
+        const eCompressionType comprType = ( d3dFormat == D3DFMT_DXT2 ? RWCOMPRESS_DXT2 : RWCOMPRESS_DXT3 );
+
+        rasterFormatOut = getVirtualRasterFormat( canHaveAlpha, comprType );
 
         colorOrderOut = COLOR_BGRA;
 
@@ -343,7 +338,9 @@ inline bool getRasterFormatFromD3DFormat(
     }
     else if (d3dFormat == D3DFMT_DXT4 || d3dFormat == D3DFMT_DXT5)
     {
-        rasterFormatOut = RASTER_4444;
+        const eCompressionType comprType = ( d3dFormat == D3DFMT_DXT4 ? RWCOMPRESS_DXT4 : RWCOMPRESS_DXT5 );
+
+        rasterFormatOut = getVirtualRasterFormat( canHaveAlpha, comprType );
 
         colorOrderOut = COLOR_BGRA;
 

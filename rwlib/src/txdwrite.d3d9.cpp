@@ -55,6 +55,13 @@ void d3d9NativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, P
 
     NativeTextureD3D9 *platformTex = (NativeTextureD3D9*)nativeTex;
 
+    size_t mipmapCount = platformTex->mipmaps.size();
+
+    if ( mipmapCount == 0 )
+    {
+        throw RwException( "attempt to write Direct3D 9 native texture which has no mipmap layers" );
+    }
+
     // Make sure the texture has some qualities before it can even be written.
     ePaletteType paletteType = platformTex->paletteType;
 
@@ -85,8 +92,6 @@ void d3d9NativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, P
             writeStringIntoBufferSafe( engineInterface, theTexture->GetMaskName(), metaHeader.maskName, sizeof( metaHeader.maskName ), theTexture->GetName(), "mask name" );
 
             // Construct raster flags.
-            size_t mipmapCount = platformTex->mipmaps.size();
-
             metaHeader.rasterFormat = generateRasterFormatFlags( platformTex->rasterFormat, paletteType, mipmapCount > 1, platformTex->autoMipmaps );
 
 		    metaHeader.d3dFormat = platformTex->d3dFormat;

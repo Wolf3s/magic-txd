@@ -305,7 +305,7 @@ public:
     typedef utf16_iterator <wideCharType> iterator;
     typedef utf16_iterator <const wideCharType> const_iterator;
 
-    static constexpr size_t ucp_max = std::numeric_limits <std::uint16_t>::max();
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint32_t>::max();
 
     struct enc_result
     {

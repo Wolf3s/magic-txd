@@ -720,26 +720,25 @@ struct tgaImagingExtension : public imagingFormatExtension
 
                 if ( getTGAFullColorConfiguration( srcRasterFormat, dstRasterFormat, dstColorDepth, dstAlphaBits ) )
                 {
-                    hasDstRasterFormat = true;
+                    // OK.
                 }
                 else
                 {
                     dstRasterFormat = RASTER_8888;
                     dstColorDepth = 32;
                     dstAlphaBits = 8;
-
-                    hasDstRasterFormat = true;
                 }
+
+                hasDstRasterFormat = true;
             }
             else
             {
                 // Do no palettize.
                 dstPaletteType = PALETTE_NONE;
-                dstItemDepth = dstColorDepth;
 
                 if ( getTGAFullColorConfiguration( srcRasterFormat, dstRasterFormat, dstColorDepth, dstAlphaBits ) )
                 {
-                    hasDstRasterFormat = true;
+                    // OK.
                 }
                 // TGA in non-palette mode can store Luminance color data.
                 else if ( srcRasterFormat == RASTER_LUM )
@@ -747,25 +746,25 @@ struct tgaImagingExtension : public imagingFormatExtension
                     dstRasterFormat = RASTER_LUM;
                     dstColorDepth = 8;
                     dstAlphaBits = 0;
-
-                    hasDstRasterFormat = true;
                 }
                 else if ( srcRasterFormat == RASTER_LUM_ALPHA )
                 {
                     dstRasterFormat = RASTER_LUM_ALPHA;
                     dstColorDepth = 16;
                     dstAlphaBits = 8;
-
-                    hasDstRasterFormat = true;
                 }
                 else
                 {
                     dstRasterFormat = RASTER_8888;
                     dstColorDepth = 32;
                     dstAlphaBits = 8;
-
-                    hasDstRasterFormat = true;
                 }
+
+                // We kinda always have an answer :)
+                hasDstRasterFormat = true;
+
+                // Since we do not palettize, the item depth is the same as the color depth.
+                dstItemDepth = dstColorDepth;
             }
         }
 

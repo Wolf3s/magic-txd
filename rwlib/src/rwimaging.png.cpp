@@ -714,7 +714,6 @@ struct pngImagingExtension : public imagingFormatExtension
                     if ( colorModel == COLORMODEL_RGBA || colorModel == COLORMODEL_LUMINANCE )
                     {
                         // We have to write a palette PNG.
-                        png_depth = depth;
                         color_type = 3;
 
                         wantedRasterFormat = RASTER_888;
@@ -737,6 +736,8 @@ struct pngImagingExtension : public imagingFormatExtension
                             wantedPaletteType = PALETTE_8BIT;
                             wantedItemDepth = 8;
                         }
+                        
+                        png_depth = wantedItemDepth;
                     }
                     else
                     {

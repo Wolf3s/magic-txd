@@ -479,6 +479,7 @@
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\natimage.cpp" />
     <ClCompile Include="..\..\src\natimage.dds.cpp" />
+    <ClCompile Include="..\..\src\natimage.pvr.cpp" />
     <ClCompile Include="..\..\src\oglnative.cpp" />
     <ClCompile Include="..\..\src\ps2native.cpp" />
     <ClCompile Include="..\..\src\renderware.cpp" />

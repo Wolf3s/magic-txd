@@ -91,42 +91,65 @@ void Raster::writeImage(Stream *outputStream, const char *method)
 
                 try
                 {
-                    // Now that we have the native image handle, we push data into it,
-                    // then we write using it and then we delete it.
-
-                    // Add a const reference.
-                    this->constRefCount++;
-
-                    // We need the typeName of our native texture.
-                    const char *nativeTypeName;
+                    try
                     {
-                        GenericRTTI *rtObj = RwTypeSystem::GetTypeStructFromObject( platformTex );
+                        // Now that we have the native image handle, we push data into it,
+                        // then we write using it and then we delete it.
 
-                        RwTypeSystem::typeInfoBase *typeInfo = RwTypeSystem::GetTypeInfoFromTypeStruct( rtObj );
+                        // Add a const reference.
+                        this->constRefCount++;
 
-                        nativeTypeName = typeInfo->name;
+                        try
+                        {
+                            // We need the typeName of our native texture.
+                            const char *nativeTypeName;
+                            {
+                                GenericRTTI *rtObj = RwTypeSystem::GetTypeStructFromObject( platformTex );
+
+                                RwTypeSystem::typeInfoBase *typeInfo = RwTypeSystem::GetTypeInfoFromTypeStruct( rtObj );
+
+                                nativeTypeName = typeInfo->name;
+                            }
+
+                            NativeImageFetchFromRasterNoLock( natImg, this, nativeTypeName, needsRef );
+                        }
+                        catch( ... )
+                        {
+                            // We didnt get anything done, so clear the refence.
+                            this->constRefCount--;
+
+                            throw;
+                        }
+
+                        // Clean up the reference if not required.
+                        if ( !needsRef )
+                        {
+                            this->constRefCount--;
+                        }
+
+                        natImg->writeToStream( outputStream );
+                    }
+                    catch( ... )
+                    {
+                        // Some sort of error happened.
+                        DeleteNativeImage( natImg );
+
+                        throw;
                     }
 
-                    NativeImageFetchFromRasterNoLock( natImg, this, nativeTypeName, needsRef );
-
-                    // Clean up the reference if not required.
-                    if ( !needsRef )
+                    // Clean things up.
+                    DeleteNativeImage( natImg );
+                }
+                catch( ... )
+                {
+                    // Remember to clean up the const reference!
+                    if ( needsRef )
                     {
                         this->constRefCount--;
                     }
 
-                    natImg->writeToStream( outputStream );
-                }
-                catch( ... )
-                {
-                    // Some sort of error happened.
-                    DeleteNativeImage( natImg );
-
                     throw;
                 }
-
-                // Clean things up.
-                DeleteNativeImage( natImg );
 
                 // If the raster still had a reference, clean it up.
                 if ( needsRef )
