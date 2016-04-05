@@ -142,125 +142,107 @@ void pvrNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
     engineInterface->SerializeExtensions( theTexture, outputProvider );
 }
 
-inline bool getPVRCompressionTypeFromInternalFormat( ePVRInternalFormat internalFormat, EPVRTPixelFormat& pvrFormatOut )
-{
-    EPVRTPixelFormat compressionPixelType;
-
-    if ( internalFormat == GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG )
-    {
-        compressionPixelType = ePVRTPF_PVRTCI_4bpp_RGB;
-    }
-    else if ( internalFormat == GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG )
-    {
-        compressionPixelType = ePVRTPF_PVRTCI_2bpp_RGB;
-    }
-    else if ( internalFormat == GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG )
-    {
-        compressionPixelType = ePVRTPF_PVRTCI_4bpp_RGBA;
-    }
-    else if ( internalFormat == GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG )
-    {
-        compressionPixelType = ePVRTPF_PVRTCI_2bpp_RGBA;
-    }
-    else
-    {
-        return false;
-    }
-
-    pvrFormatOut = compressionPixelType;
-    return true;
-}
-
-inline void DecompressPVRMipmap(
+void pvrNativeTextureTypeProvider::DecompressPVRMipmap(
     Interface *engineInterface,
     uint32 mipWidth, uint32 mipHeight, uint32 layerWidth, uint32 layerHeight, const void *srcTexels,
     eRasterFormat pvrRasterFormat, uint32 pvrDepth, eColorOrdering pvrColorOrder,
     eRasterFormat targetRasterFormat, uint32 targetDepth, uint32 targetRowAlignment, eColorOrdering targetColorOrder,
-    const pvrtexture::PixelType& pvrSrcPixelType, const pvrtexture::PixelType& pvrDstPixelType,
+    PVRPixelType pvrSrcPixelType, PVRPixelType pvrDstPixelType,
     void*& dstTexelsOut, uint32& dstDataSizeOut
 )
 {
-    using namespace pvrtexture;
-
     // Create a PVR texture.
-    CPVRTextureHeader pvrHeader( pvrSrcPixelType.PixelTypeID, mipHeight, mipWidth );
+    PVRTextureHeader pvrHeader = PVRTextureHeaderCreate( PVRPixelTypeGetID( pvrSrcPixelType ), mipHeight, mipWidth );
 
-    CPVRTexture pvrSourceTexture( pvrHeader, srcTexels );
-
-    // Decompress it.
-    bool transcodeSuccess =
-        Transcode( pvrSourceTexture, pvrDstPixelType, ePVRTVarTypeUnsignedByteNorm, ePVRTCSpacelRGB );
-
-    assert( transcodeSuccess == true );
-
-    uint32 srcDataSize = pvrSourceTexture.getDataSize();
-    
-    // Create a new raw texture of the layer dimensions.
-    uint32 dstRowSize = getRasterDataRowSize( layerWidth, targetDepth, targetRowAlignment );
-
-    uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, layerHeight );
-
-    uint32 pvrWidth = pvrSourceTexture.getWidth();
-    uint32 pvrHeight = pvrSourceTexture.getHeight();
-
-    uint32 pvrRowSize = getRasterDataRowSize( pvrWidth, pvrDepth, getPVRToolTextureDataRowAlignment() );
-
-    const void *srcTexelPtr = pvrSourceTexture.getDataPtr();
-
-    // Allocate new texels.
-    void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+    if ( !pvrHeader )
+    {
+        throw RwException( "failed to create PVRTexLib texture header" );
+    }
 
     try
     {
-        colorModelDispatcher <const void> fetchDispatch( pvrRasterFormat, pvrColorOrder, pvrDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( targetRasterFormat, targetColorOrder, targetDepth, NULL, 0, PALETTE_NONE );
+        PVRTexture pvrSourceTexture = PVRTextureCreate( pvrHeader, srcTexels );
 
-        for ( uint32 y = 0; y < layerHeight; y++ )
+        if ( !pvrSourceTexture )
         {
-            const void *srcRow = NULL;
-
-            if ( y < pvrHeight )
-            {
-                srcRow = getConstTexelDataRow( srcTexelPtr, pvrRowSize, y );
-            }
-
-            void *dstRow = getTexelDataRow( dstTexels, dstRowSize, y );
-
-            for ( uint32 x = 0; x < layerWidth; x++ )
-            {
-                uint8 r, g, b, a;
-
-                bool hasColor = false;
-
-                if ( srcRow && x < pvrWidth )
-                {
-                    hasColor = fetchDispatch.getRGBA( srcRow, x, r, g, b, a );
-                }
-            
-                if ( !hasColor )
-                {
-                    r = 0;
-                    g = 0;
-                    b = 0;
-                    a = 0;
-                }
-
-                // Put the color in the correct format.
-                putDispatch.setRGBA( dstRow, x, r, g, b, a );
-            }
+            throw RwException( "failed to create PVRTexLib texture" );
         }
+        
+        try
+        {
+            // Decompress it.
+            bool transcodeSuccess =
+                PVRTranscode( pvrSourceTexture, pvrDstPixelType, ePVRTVarTypeUnsignedByteNorm, ePVRTCSpacelRGB );
+
+            if ( transcodeSuccess == false )
+            {
+                throw RwException( "failed to decompress PVRTC compressed data using PVRTexLib" );
+            }
+
+            // Create a new raw texture of the layer dimensions.
+            uint32 dstRowSize = getRasterDataRowSize( layerWidth, targetDepth, targetRowAlignment );
+
+            uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, layerHeight );
+
+            uint32 pvrWidth = mipWidth;
+            uint32 pvrHeight = mipHeight;
+
+            uint32 pvrRowSize = getRasterDataRowSize( pvrWidth, pvrDepth, getPVRToolTextureDataRowAlignment() );
+
+            const void *srcTexelPtr = PVRTextureGetDataPtr( pvrSourceTexture );
+
+            // Allocate new texels.
+            void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+            if ( !dstTexels )
+            {
+                throw RwException( "failed to allocate destination surface for decompressed PowerVR native texture data" );
+            }
+
+            try
+            {
+                colorModelDispatcher <const void> fetchDispatch( pvrRasterFormat, pvrColorOrder, pvrDepth, NULL, 0, PALETTE_NONE );
+                colorModelDispatcher <void> putDispatch( targetRasterFormat, targetColorOrder, targetDepth, NULL, 0, PALETTE_NONE );
+
+                copyTexelDataBounded(
+                    srcTexelPtr, dstTexels,
+                    fetchDispatch, putDispatch,
+                    pvrWidth, pvrHeight,
+                    layerWidth, layerHeight,
+                    0, 0,
+                    0, 0,
+                    pvrRowSize, dstRowSize
+                );
+            }
+            catch( ... )
+            {
+                // If anything went wrong in the pixel fetching, we free our data.
+                engineInterface->PixelFree( dstTexels );
+
+                throw;
+            }
+
+            // Give things to the runtime.
+            dstTexelsOut = dstTexels;
+            dstDataSizeOut = dstDataSize;
+        }
+        catch( ... )
+        {
+            PVRTextureDelete( pvrSourceTexture );
+
+            throw;
+        }
+
+        PVRTextureDelete( pvrSourceTexture );
     }
     catch( ... )
     {
-        // If anything went wrong in the pixel fetching, we free our data.
-        engineInterface->PixelFree( dstTexels );
+        PVRTextureHeaderDelete( pvrHeader );
 
         throw;
     }
 
-    // Give things to the runtime.
-    dstTexelsOut = dstTexels;
-    dstDataSizeOut = dstDataSize;
+    PVRTextureHeaderDelete( pvrHeader );
 }
 
 inline void getPVRTargetRasterFormat( ePVRInternalFormat internalFormat, eRasterFormat& targetRasterFormat, uint32& targetDepth, eColorOrdering& targetColorOrder )
@@ -300,27 +282,21 @@ void pvrNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
 
     getPVRTargetRasterFormat( internalFormat, targetRasterFormat, targetDepth, targetColorOrder );
 
-    // Decompress the PVR texture and put it in RGBA format into the D3D texture.
+    // Decompress the PVR texture and put it into framework format.
     size_t mipmapCount = platformTex->mipmaps.size();
 
     pixelsOut.mipmaps.resize( mipmapCount );
     {
-        using namespace pvrtexture;
+        // Create source of the pixel type descriptor.
+        PVRPixelType pvrSrcPixelType = PVRGetCachedPixelType( internalFormat );
 
-        EPVRTPixelFormat compressionPixelType;
-
-        bool gotLibFormat = getPVRCompressionTypeFromInternalFormat( internalFormat, compressionPixelType );
-
-        if ( !gotLibFormat )
+        if ( !pvrSrcPixelType )
         {
             throw RwException( "failed to decompress PVRTC due to unknown internalFormat" );
         }
 
-        // Create source of the pixel type descriptor.
-        const PixelType pvrSrcPixelType( compressionPixelType );
-
         // We need a pixel type for the decompressed format.
-        const PixelType pvrDstPixelType = PVRStandard8PixelType;
+        PVRPixelType pvrDstPixelType = this->pvrPixelType_rgba8888;
 
         for ( size_t n = 0; n < mipmapCount; n++ )
         {
@@ -391,12 +367,12 @@ void pvrNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
     pixelsOut.isNewlyAllocated = true;
 }
 
-inline void CompressMipmapToPVR(
+void pvrNativeTextureTypeProvider::CompressMipmapToPVR(
     Interface *engineInterface,
     uint32 mipWidth, uint32 mipHeight, const void *srcTexels,
     eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, const void *srcPaletteData, uint32 srcPaletteSize,
     eRasterFormat pvrRasterFormat, uint32 pvrDepth, eColorOrdering pvrColorOrder,
-    const pvrtexture::PixelType pvrSrcPixelType, const pvrtexture::PixelType& pvrDstPixelType,
+    PVRPixelType pvrSrcPixelType, PVRPixelType pvrDstPixelType,
     uint32 pvrBlockWidth, uint32 pvrBlockHeight,
     uint32 pvrBlockDepth,
     uint32& widthOut, uint32& heightOut,
@@ -404,8 +380,6 @@ inline void CompressMipmapToPVR(
 )
 {
     // Create a PVR texture.
-    using namespace pvrtexture;
-
     uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcDepth, srcRowAlignment );
 
     // We need to determine dimensions that the PVR texture has to use.
@@ -414,88 +388,85 @@ inline void CompressMipmapToPVR(
 
     uint32 pvrRowSize = getRasterDataRowSize( pvrTexWidth, pvrDepth, getPVRToolTextureDataRowAlignment() );
 
-    CPVRTextureHeader pvrHeader( pvrSrcPixelType.PixelTypeID, pvrTexHeight, pvrTexWidth );
+    PVRTextureHeader pvrHeader = PVRTextureHeaderCreate( PVRPixelTypeGetID( pvrSrcPixelType ), pvrTexHeight, pvrTexWidth );
 
-    // Copy stuff into the PVR texture properly.
-    CPVRTexture pvrTexture( pvrHeader );
-
-    void *pvrDstBuf = pvrTexture.getDataPtr();
-
-    colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-    colorModelDispatcher <void> putDispatch( pvrRasterFormat, pvrColorOrder, pvrDepth, NULL, 0, PALETTE_NONE );
-
-    for ( uint32 y = 0; y < pvrTexHeight; y++ )
+    if ( !pvrHeader )
     {
-        void *dstRow = getTexelDataRow( pvrDstBuf, pvrRowSize, y );
-        const void *srcRow = NULL;
+        throw RwException( "failed to create PVRTexLib texture header" );
+    }
 
-        if ( y < mipHeight )
+    try
+    {
+        // Copy stuff into the PVR texture properly.
+        PVRTexture pvrTexture = PVRTextureCreate( pvrHeader );
+
+        if ( !pvrTexture )
         {
-            srcRow = getConstTexelDataRow( srcTexels, srcRowSize, y );
+            throw RwException( "failed to create PVRTexLib texture handle" );
         }
 
-        for ( uint32 x = 0; x < pvrTexWidth; x++ )
+        try
         {
-            bool hasColor = false;
-
-            uint8 r, g, b, a;
-
-            if ( srcRow && x < mipWidth )
+            // Process the colors into the PowerVR texture.
             {
-                hasColor = fetchDispatch.getRGBA( srcRow, x, r, g, b, a );
+                void *pvrDstBuf = PVRTextureGetDataPtr( pvrTexture );
+
+                colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+                colorModelDispatcher <void> putDispatch( pvrRasterFormat, pvrColorOrder, pvrDepth, NULL, 0, PALETTE_NONE );
+
+                copyTexelDataBounded(
+                    srcTexels, pvrDstBuf,
+                    fetchDispatch, putDispatch,
+                    mipWidth, mipHeight,
+                    pvrTexWidth, pvrTexHeight,
+                    0, 0,
+                    0, 0,
+                    srcRowSize, pvrRowSize
+                );
             }
 
-            if ( !hasColor )
+            // Transcode it.
+            bool transcodeSuccess =
+                PVRTranscode( pvrTexture, pvrDstPixelType, ePVRTVarTypeUnsignedByteNorm, ePVRTCSpacelRGB );
+
+            if ( transcodeSuccess == false )
             {
-                r = 0;
-                g = 0;
-                b = 0;
-                a = 0;
+                throw RwException( "failed to compress texture data to PVRTC using PVRTexLib" );
             }
 
-            putDispatch.setRGBA( dstRow, x, r, g, b, a );
+            // Copy the PowerVR pixels into a local array.
+            uint32 dstDataSize = getPackedRasterDataSize(pvrTexWidth * pvrTexHeight, pvrBlockDepth);
+
+            PVRTextureHeaderCheckDataSize( pvrTexture, dstDataSize );
+
+            void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+            memcpy( dstTexels, PVRTextureGetDataPtr( pvrTexture ), dstDataSize );
+
+            // Give parameters to the runtime.
+            widthOut = pvrTexWidth;
+            heightOut = pvrTexHeight;
+
+            dstTexelsOut = dstTexels;
+            dstDataSizeOut = dstDataSize;
         }
+        catch( ... )
+        {
+            PVRTextureDelete( pvrTexture );
+
+            throw;
+        }
+
+        PVRTextureDelete( pvrTexture );
     }
-
-    // Transcode it.
-    bool transcodeSuccess =
-        Transcode( pvrTexture, pvrDstPixelType, ePVRTVarTypeUnsignedByteNorm, ePVRTCSpacelRGB );
-
-    assert( transcodeSuccess == true );
-
-    // Copy the PowerVR pixels into a local array.
-    uint32 dstDataSize = getPackedRasterDataSize(pvrTexWidth * pvrTexHeight, pvrBlockDepth);
-
-    assert(dstDataSize <= pvrTexture.getDataSize());
-
-    void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
-
-    memcpy( dstTexels, pvrTexture.getDataPtr(), dstDataSize );
-
-    // Give parameters to the runtime.
-    widthOut = pvrTexWidth;
-    heightOut = pvrTexHeight;
-
-    dstTexelsOut = dstTexels;
-    dstDataSizeOut = dstDataSize;
-}
-
-inline void getPVRCompressionBlockDimensions( uint32 pvrDepth, uint32& pvrBlockWidth, uint32& pvrBlockHeight )
-{
-    if ( pvrDepth == 2 )
+    catch( ... )
     {
-        pvrBlockWidth = 16;
-        pvrBlockHeight = 8;
+        PVRTextureHeaderDelete( pvrHeader );
+
+        throw;
     }
-    else if ( pvrDepth == 4 )
-    {
-        pvrBlockWidth = 8;
-        pvrBlockHeight = 8;
-    }
-    else
-    {
-        throw RwException( "failed to compress PVRTC due to unknown compression depth" );
-    }
+
+    PVRTextureHeaderDelete( pvrHeader );
 }
 
 void pvrNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut )
@@ -565,29 +536,28 @@ void pvrNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
     size_t mipmapCount = pixelsIn.mipmaps.size();
 
     {
-        using namespace pvrtexture;
-
         // Determine the source pixel format.
-        const PixelType pvrSrcPixelType = PVRStandard8PixelType;
+        PVRPixelType pvrSrcPixelType = this->pvrPixelType_rgba8888;
 
         // Transform the internal format into a pvrtexlib parameter.
-        EPVRTPixelFormat compressionPixelType;
+        PVRPixelType pvrDstPixelType = PVRGetCachedPixelType( internalFormat );
 
-        bool gotLibFormat = getPVRCompressionTypeFromInternalFormat( internalFormat, compressionPixelType );
-
-        if ( !gotLibFormat )
+        if ( !pvrDstPixelType )
         {
             throw RwException( "failed to compress PVRTC due to unknown internalFormat" );
         }
-
-        const PixelType pvrDstPixelType( compressionPixelType );
 
         // Determine the block dimensions of the PVR destination texture.
         uint32 pvrBlockWidth, pvrBlockHeight;
 
         uint32 pvrDepth = getDepthByPVRFormat( internalFormat );
 
-        getPVRCompressionBlockDimensions( pvrDepth, pvrBlockWidth, pvrBlockHeight );
+        bool gotDimms = getPVRCompressionBlockDimensions( pvrDepth, pvrBlockWidth, pvrBlockHeight );
+
+        if ( !gotDimms )
+        {
+            throw RwException( "failed to get PVR block compression dimensions in PVR native texture texel acquisition" );
+        }
 
         // Pre-allocate the mipmap array.
         pvrTex->mipmaps.resize( mipmapCount );
@@ -664,10 +634,12 @@ void pvrNativeTextureTypeProvider::UnsetPixelDataFromTexture( Interface *engineI
 
 struct pvrMipmapManager
 {
+    pvrNativeTextureTypeProvider *typeProv;
     NativeTexturePVR *nativeTex;
 
-    inline pvrMipmapManager( NativeTexturePVR *nativeTex )
+    inline pvrMipmapManager( pvrNativeTextureTypeProvider *typeProv, NativeTexturePVR *nativeTex )
     {
+        this->typeProv = typeProv;
         this->nativeTex = nativeTex;
     }
 
@@ -697,8 +669,6 @@ struct pvrMipmapManager
         bool& isNewlyAllocatedOut, bool& isPaletteNewlyAllocated
     )
     {
-        using namespace pvrtexture;
-
         ePVRInternalFormat internalFormat = nativeTex->internalFormat;
 
         uint32 mipWidth = mipLayer.width;
@@ -718,27 +688,22 @@ struct pvrMipmapManager
 
         getPVRTargetRasterFormat( internalFormat, targetRasterFormat, targetDepth, targetColorOrder );
 
-        // Decompress the layer and return it as raw bitmap.
-        EPVRTPixelFormat compressionPixelType;
+        // Create source of the pixel type descriptor.
+        pvrNativeTextureTypeProvider::PVRPixelType pvrSrcPixelType = typeProv->PVRGetCachedPixelType( internalFormat );
 
-        bool gotLibFormat = getPVRCompressionTypeFromInternalFormat( internalFormat, compressionPixelType );
-
-        if ( !gotLibFormat )
+        if ( !pvrSrcPixelType )
         {
             throw RwException( "failed to decompress PVRTC due to unknown internalFormat" );
         }
 
-        // Create source of the pixel type descriptor.
-        const PixelType pvrSrcPixelType( compressionPixelType );
-
         // We need a pixel type for the decompressed format.
-        const PixelType pvrDstPixelType = PVRStandard8PixelType;
+        pvrNativeTextureTypeProvider::PVRPixelType pvrDstPixelType = typeProv->pvrPixelType_rgba8888;
 
         // Do the decompression.
         void *dstTexels = NULL;
         uint32 dstDataSize = 0;
 
-        DecompressPVRMipmap(
+        typeProv->DecompressPVRMipmap(
             engineInterface,
             mipWidth, mipHeight, layerWidth, layerHeight, srcTexels,
             RASTER_8888, 32, COLOR_RGBA,
@@ -785,8 +750,6 @@ struct pvrMipmapManager
         bool& hasDirectlyAcquiredOut
     )
     {
-        using namespace pvrtexture;
-
         // We want to compress the input and insert it into our texture.
         ePVRInternalFormat internalFormat = nativeTex->internalFormat;
 
@@ -833,26 +796,27 @@ struct pvrMipmapManager
         }
 
         // Determine the source pixel format.
-        const PixelType pvrSrcPixelType = PVRStandard8PixelType;
+        pvrNativeTextureTypeProvider::PVRPixelType pvrSrcPixelType = typeProv->pvrPixelType_rgba8888;
 
         // Transform the internal format into a pvrtexlib parameter.
-        EPVRTPixelFormat compressionPixelType;
+        pvrNativeTextureTypeProvider::PVRPixelType pvrDstPixelType = typeProv->PVRGetCachedPixelType( internalFormat );
 
-        bool gotLibFormat = getPVRCompressionTypeFromInternalFormat( internalFormat, compressionPixelType );
-
-        if ( !gotLibFormat )
+        if ( !pvrDstPixelType )
         {
             throw RwException( "failed to compress PVRTC due to unknown internalFormat" );
         }
-
-        const PixelType pvrDstPixelType( compressionPixelType );
 
         // Determine the block dimensions of the PVR destination texture.
         uint32 pvrBlockWidth, pvrBlockHeight;
 
         uint32 pvrDepth = getDepthByPVRFormat( internalFormat );
 
-        getPVRCompressionBlockDimensions( pvrDepth, pvrBlockWidth, pvrBlockHeight );
+        bool gotDimms = getPVRCompressionBlockDimensions( pvrDepth, pvrBlockWidth, pvrBlockHeight );
+
+        if ( gotDimms )
+        {
+            throw RwException( "failed to get PVR native texture block compression dimensions in mipmap texel acquisition" );
+        }
 
         // Do the compression.
         uint32 compressedWidth, compressedHeight;
@@ -860,7 +824,7 @@ struct pvrMipmapManager
         void *dstTexels = NULL;
         uint32 dstDataSize = 0;
 
-        CompressMipmapToPVR(
+        typeProv->CompressMipmapToPVR(
             engineInterface,
             width, height, srcTexels,
             rasterFormat, depth, rowAlignment, colorOrder, paletteType, paletteData, paletteSize,
@@ -897,7 +861,7 @@ bool pvrNativeTextureTypeProvider::GetMipmapLayer( Interface *engineInterface, v
 {
     NativeTexturePVR *nativeTex = (NativeTexturePVR*)objMem;
 
-    pvrMipmapManager mipMan( nativeTex );
+    pvrMipmapManager mipMan( this, nativeTex );
 
     return
         virtualGetMipmapLayer <NativeTexturePVR::mipmapLayer> (
@@ -911,7 +875,7 @@ bool pvrNativeTextureTypeProvider::AddMipmapLayer( Interface *engineInterface, v
 {
     NativeTexturePVR *nativeTex = (NativeTexturePVR*)objMem;
 
-    pvrMipmapManager mipMan( nativeTex );
+    pvrMipmapManager mipMan( this, nativeTex );
 
     return
         virtualAddMipmapLayer <NativeTexturePVR::mipmapLayer> (

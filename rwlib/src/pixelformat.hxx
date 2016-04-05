@@ -1076,6 +1076,70 @@ inline void copyTexelDataEx(
     }
 }
 
+template <typename srcColorDispatcher, typename dstColorDispatcher>
+inline void copyTexelDataBounded(
+    const void *srcTexels, void *dstTexels,
+    srcColorDispatcher& fetchDispatch, dstColorDispatcher& putDispatch,
+    uint32 srcWidth, uint32 srcHeight,
+    uint32 dstWidth, uint32 dstHeight,
+    uint32 srcOffX, uint32 srcOffY,
+    uint32 dstOffX, uint32 dstOffY,
+    uint32 srcRowSize, uint32 dstRowSize
+)
+{
+    // If we are not a palette, then we have to process colors.
+    for ( uint32 row = 0; row < srcHeight; row++ )
+    {
+        const uint32 src_pos_y = ( row + srcOffY );
+        const uint32 dst_pos_y = ( row + dstOffY );
+
+        void *dstRow = NULL;
+
+        if ( dst_pos_y < dstHeight )
+        {
+            dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
+
+            const void *srcRow = NULL;
+
+            if ( src_pos_y < srcHeight )
+            {
+                srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
+            }
+
+            for ( uint32 col = 0; col < srcWidth; col++ )
+            {
+                const uint32 src_pos_x = ( col + srcOffX );
+                const uint32 dst_pos_x = ( col + dstOffX );
+
+                // Only proceed if we can actually write.
+                if ( dst_pos_x < dstWidth )
+                {
+                    abstractColorItem colorItem;
+            
+                    // Attempt to get the source color.
+                    bool gotColor = false;
+
+                    if ( srcRow && src_pos_x < srcWidth )
+                    {
+                        fetchDispatch.getColor( srcRow, src_pos_x, colorItem );
+
+                        gotColor = true;
+                    }
+
+                    // If we failed to get a color, we will just write a cleared one.
+                    if ( !gotColor )
+                    {
+                        putDispatch.setClearedColor( colorItem );
+                    }
+
+                    // Just put the color inside.
+                    putDispatch.setColor( dstRow, dst_pos_x, colorItem );
+                }
+            }
+        }
+    }
+}
+
 // Move color items from one array position to another array at position.
 AINLINE void moveTexels(
     const void *srcTexels, void *dstTexels,

@@ -1,5 +1,7 @@
 ﻿MAGL|1|Russian|Русский|RUS|Magic.TXD Team
 
+Translated by DK22Pac and Flame
+
 # language
 Lang.Lang                Язык:
 Lang.Authors             от _PARAM_1
@@ -178,6 +180,11 @@ Tools.MassExp.Cancel     Отмена
 Tools.MassBld.Desc       Массовая сборка
 Tools.MassBld.Build      Собрать
 Tools.MassBld.Cancel     Отмена
+Tools.MassBld.CloseOnCmplt  Закрыть по завершении
+Tools.MassBld.Cmprs      Сжатие
+Tools.MassBld.DescQual   Качество
+Tools.MassBld.DoPal      Палитра
+Tools.MassBld.DescPType  Тип
 
 # Mass convert
 Tools.MassCnv.Desc       Массовый конверт

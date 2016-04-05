@@ -178,6 +178,11 @@ Tools.MassExp.Cancel     Скасувати
 Tools.MassBld.Desc       Масова збірка
 Tools.MassBld.Build      Зібрати
 Tools.MassBld.Cancel     Скасувати
+Tools.MassBld.CloseOnCmplt  Закрити після завершення
+Tools.MassBld.Cmprs      Стиснення
+Tools.MassBld.DescQual   Якість
+Tools.MassBld.DoPal      Палітра
+Tools.MassBld.DescPType  Тип
 
 # Mass convert
 Tools.MassCnv.Desc       Масова конвертація

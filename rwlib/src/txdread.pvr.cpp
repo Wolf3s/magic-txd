@@ -111,9 +111,19 @@ void pvrNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                     throw RwException( "texture " + theTexture->GetName() + " has an invalid image stream section size" );
                 }
 
-                // Read the mipmap layers.
+                // Prepare format compression dimensions.
                 uint32 texDepth = getDepthByPVRFormat( internalFormat );
 
+                uint32 comprBlockWidth, comprBlockHeight;
+                
+                bool gotComprDimms = getPVRCompressionBlockDimensions( texDepth, comprBlockWidth, comprBlockHeight );
+
+                if ( !gotComprDimms )
+                {
+                    throw RwException( "failed to determine compression block dimensions for PowerVR native texture " + theTexture->GetName() );
+                }
+
+                // Read the mipmap layers.
                 mipGenLevelGenerator mipLevelGen( metaHeader.width, metaHeader.height );
 
                 if ( !mipLevelGen.isValidLevel() )
@@ -147,20 +157,8 @@ void pvrNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                     uint32 texHeight = newLayer.layerHeight;
                     {
                         // We need to make sure the dimensions are aligned.
-                        if ( texDepth == 2 )
-                        {
-                            texWidth = ALIGN_SIZE( texWidth, 16u );
-                            texHeight = ALIGN_SIZE( texHeight, 8u );
-                        }
-                        else if ( texDepth == 4 )
-                        {
-                            texWidth = ALIGN_SIZE( texWidth, 8u );
-                            texHeight = ALIGN_SIZE( texHeight, 8u );
-                        }
-                        else
-                        {
-                            assert( 0 );
-                        }
+                        texWidth = ALIGN_SIZE( texWidth, comprBlockWidth );
+                        texHeight = ALIGN_SIZE( texHeight, comprBlockHeight );
                     }
 
                     newLayer.width = texWidth;

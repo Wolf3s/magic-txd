@@ -2,6 +2,9 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="endian::little_endian &lt;*&gt;">
     <DisplayString>{*($T1*)data}</DisplayString>
+    <Expand>
+      <Item Name="Value">*($T1*)data</Item>
+    </Expand>
   </Type>
   <Type Name="endian::big_endian &lt;unsigned char&gt;">
     <DisplayString>{*(unsigned char*)data}</DisplayString>
