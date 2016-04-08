@@ -338,11 +338,29 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
 	    exportMenu = menu->addMenu("");
 
-        this->addTextureFormatExportLinkToMenu( exportMenu, "PNG", "PNG", "Portable Network Graphics" );
+        // We should check if formats are available first :)
+        if ( rw::IsImagingFormatAvailable( rwEngine, "PNG" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "PNG", "PNG", "Portable Network Graphics" );
+        }
+
+        // RWTEX should always be available. Otherwise there'd be no purpose in Magic.TXD :p
         this->addTextureFormatExportLinkToMenu( exportMenu, "RWTEX", "RWTEX", "RW Texture Chunk" );
-        this->addTextureFormatExportLinkToMenu( exportMenu, "DDS", "DDS", "DirectDraw Surface" );
-        this->addTextureFormatExportLinkToMenu( exportMenu, "PVR", "PVR", "PowerVR Image" );
-        this->addTextureFormatExportLinkToMenu( exportMenu, "BMP", "BMP", "Raw Bitmap" );
+
+        if ( rw::IsNativeImageFormatAvailable( rwEngine, "DDS" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "DDS", "DDS", "DirectDraw Surface" );
+        }
+
+        if ( rw::IsNativeImageFormatAvailable( rwEngine, "PVR" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "PVR", "PVR", "PowerVR Image" );
+        }
+
+        if ( rw::IsImagingFormatAvailable( rwEngine, "BMP" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "BMP", "BMP", "Raw Bitmap" );
+        }
 
         // Add remaining formats that rwlib supports.
         {
@@ -370,6 +388,7 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
                 {
                     if ( stricmp( defaultExt, "PNG" ) != 0 &&
                          stricmp( defaultExt, "DDS" ) != 0 &&
+                         stricmp( defaultExt, "PVR" ) != 0 &&
                          stricmp( defaultExt, "BMP" ) != 0 )
                     {
                         this->addTextureFormatExportLinkToMenu( exportMenu, displayName, defaultExt, theFormat.formatName );

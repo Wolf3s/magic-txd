@@ -510,6 +510,24 @@ bool GetNativeImageInfo( Interface *intf, const char *nativeImageName, registere
     return false;
 }
 
+bool IsNativeImageFormatAvailable( Interface *intf, const char *nativeImageName )
+{
+    // Return whether a native image format is ultimatively available on this RW engine.
+
+    EngineInterface *engineInterface = (EngineInterface*)intf;
+
+    if ( const nativeImageEnv *imgEnv = nativeImageEnvRegister.GetConstPluginStruct( engineInterface ) )
+    {
+        if ( nativeImageTypeManager *typeMan = imgEnv->GetNativeImageTypeManagerByName( nativeImageName ) )
+        {
+            // We found something addressible.
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void GetRegisteredNativeImageTypes( Interface *intf, registered_image_formats_t& formatsOut )
 {
     // Return an array of image format information of all registered native image types.
@@ -951,8 +969,12 @@ bool UnregisterNativeImageType(
 }
 
 // Native image formats.
+#ifdef RWLIB_INCLUDE_DDS_NATIVEIMG
 extern void registerDDSNativeImageFormatEnv( void );
+#endif //RWLIB_INCLUDE_DDS_NATIVEIMG
+#ifdef RWLIB_INCLUDE_PVR_NATIVEIMG
 extern void registerPVRNativeImageTypeEnv( void );
+#endif //RWLIB_INCLUDE_PVR_NATIVEIMG
 
 void registerNativeImagePluginEnvironment( void )
 {
@@ -963,8 +985,12 @@ void registerNativeImagePluginEnvironment( void )
     nativeImgLockRegister.RegisterPlugin( engineFactory );
 
     // TODO: register all native image formats here.
+#ifdef RWLIB_INCLUDE_DDS_NATIVEIMG
     registerDDSNativeImageFormatEnv();
+#endif //RWLIB_INCLUDE_DDS_NATIVEIMG
+#ifdef RWLIB_INCLUDE_PVR_NATIVEIMG
     registerPVRNativeImageTypeEnv();
+#endif //RWLIB_INCLUDE_PVR_NATIVEIMG
 }
 
 };

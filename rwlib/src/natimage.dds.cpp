@@ -1,5 +1,7 @@
 #include "StdInc.h"
 
+#ifdef RWLIB_INCLUDE_DDS_NATIVEIMG
+
 #include "natimage.hxx"
 
 // Include all native texture environments that we support.
@@ -3413,3 +3415,5 @@ void registerDDSNativeImageFormatEnv( void )
 }
 
 };
+
+#endif //RWLIB_INCLUDE_DDS_NATIVEIMG

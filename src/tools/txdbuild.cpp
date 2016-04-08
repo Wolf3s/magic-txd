@@ -106,12 +106,43 @@ private:
 };
 
 static rw::TextureBase* RwMakeTextureFromStream(
-    rw::Interface *rwEngine, rw::Stream *imgStream,
+    rw::Interface *rwEngine, rw::Stream *imgStream, const filePath& extention,
     TxdBuildModule *module,
     rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform,
     const ConfigNode& cfgNode
 )
 {
+    // Based on the extention, try to figure out what the user wants to import.
+    // For that we better verify that it really is an image type extention.
+    eImportExpectation defImpExp = IMPORTE_NONE;
+    {
+        std::string ansi_ext = extention.convert_ansi();
+
+        // Is it a generic imaging extension?
+        if ( rw::IsImagingFormatAvailable( rwEngine, ansi_ext.c_str() ) )
+        {
+            defImpExp = IMPORTE_IMAGE;
+        }
+        
+        if ( defImpExp == IMPORTE_NONE )
+        {
+            // We could still be a native imaging format.
+            if ( rw::IsNativeImageFormatAvailable( rwEngine, ansi_ext.c_str() ) )
+            {
+                defImpExp = IMPORTE_IMAGE;
+            }
+        }
+
+        if ( defImpExp == IMPORTE_NONE )
+        {
+            // Other than that, we can still be a texture chunk.
+            if ( extention.equals( L"RWTEX", false ) )
+            {
+                defImpExp = IMPORTE_TEXCHUNK;
+            }
+        }
+    }
+
     // Load texture data.
     txdBuildImageImportMethods imgImporter( rwEngine, module );
 
@@ -123,7 +154,7 @@ static rw::TextureBase* RwMakeTextureFromStream(
 
     txdBuildImageImportMethods::loadActionResult load_result;
 
-    bool didLoad = imgImporter.LoadImage( imgStream, IMPORTE_NONE, load_result );
+    bool didLoad = imgImporter.LoadImage( imgStream, defImpExp, load_result );
 
     if ( didLoad )
     {
@@ -329,11 +360,11 @@ inline void PutVersionOnObjectFromConfig( rw::RwObject *rwObj, const ConfigNode&
 void BuildSingleTexture(
     rw::Interface *rwEngine, rw::TexDictionary *texDict,
     const filePath& texturePath, rw::Stream *imgStream,
-    TxdBuildModule *module, const TxdBuildModule::run_config& config,
+    TxdBuildModule *module, const TxdBuildModule::run_config& config, const filePath& extention,
     const ConfigNode& cfgParent
 )
 {
-    rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, module, config.targetGame, config.targetPlatform, cfgParent );
+    rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, extention, module, config.targetGame, config.targetPlatform, cfgParent );
 
     if ( imgTex )
     {
@@ -849,7 +880,7 @@ void BuildTXDArchives(
                                                         BuildSingleTexture(
                                                             rwEngine, texDict,
                                                             texturePath, imgStream,
-                                                            module, config,
+                                                            module, config, extOut,
                                                             textureCfgNode
                                                         );
                                                     }

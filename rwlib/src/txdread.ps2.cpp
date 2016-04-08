@@ -58,7 +58,7 @@ inline void verifyTexture( Interface *engineInterface, const NativeTexturePS2::G
                 {
                     engineInterface->PushWarning( "PS2 native texture TRXPOS register: invalid value for ssay" );
                 }
-                if ( trxpos.dir == 0 )
+                if ( trxpos.dir != 0 )
                 {
                     engineInterface->PushWarning( "PS2 native texture TRXPOS register: invalid value for dir" );
                 }

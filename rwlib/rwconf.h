@@ -36,6 +36,11 @@
 #define RWLIB_INCLUDE_GIF_IMAGING
 #define RWLIB_INCLUDE_TIFF_IMAGING
 
+// Define those if you want to include support for certain native image formats.
+// Native image formats are more powerful than generic imaging formats but are more complicated.
+#define RWLIB_INCLUDE_DDS_NATIVEIMG
+#define RWLIB_INCLUDE_PVR_NATIVEIMG
+
 // Define this if you want to enable the "libimagequant" library for palletizing
 // image data. This is highly recommended, as that library produces high
 // quality color-mapped images.

@@ -622,16 +622,7 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
 
             eImportExpectation expImp = IMPORTE_IMAGE;
 
-            if ( extension.equals( L"RWTEX", false ) )
-            {
-                expImp = IMPORTE_TEXCHUNK;
-            }
-            else
-            {
-                expImp = IMPORTE_IMAGE;
-            }
-
-            this->img_exp = expImp;
+            this->img_exp = getRecommendedImageImportExpectation( extension );
         }
 
         // We want to load the raster on demand.

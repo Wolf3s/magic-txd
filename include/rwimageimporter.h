@@ -9,6 +9,16 @@ enum eImportExpectation
     IMPORTE_TEXCHUNK
 };
 
+inline eImportExpectation getRecommendedImageImportExpectation( const filePath& extention )
+{
+    if ( extention.equals( L"RWTEX", false ) )
+    {
+        return IMPORTE_TEXCHUNK;
+    }
+
+    return IMPORTE_IMAGE;
+}
+
 // Image import method manager.
 struct imageImportMethods abstract
 {

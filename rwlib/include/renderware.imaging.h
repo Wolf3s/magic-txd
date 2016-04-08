@@ -67,4 +67,5 @@ bool DoesNativeImageSupportNativeTextureFriendly( Interface *engineInterface, co
 const char* GetNativeImageTypeNameFromFriendlyName( Interface *engineInterface, const char *nativeImageName );
 
 bool GetNativeImageInfo( Interface *engineInterface, const char *nativeImageName, registered_image_format& infoOut );
+bool IsNativeImageFormatAvailable( Interface *engineInterface, const char *nativeImageName );
 void GetRegisteredNativeImageTypes( Interface *engineInterface, registered_image_formats_t& formatsOut );

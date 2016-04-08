@@ -88,17 +88,26 @@ AboutDialog::AboutDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     vendorRowOne->addWidget(rwLogo);
 
-    QLabel *amdLogo = new QLabel();
-    amdLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/amdlogo.png")));
-    amdLogo->setToolTip("AMD");
+    // Do some smart stuff: only include native texture images if rwlib actually supports the things.
+    rw::Interface *rwEngine = mainWnd->GetEngine();
 
-    vendorRowOne->addWidget(amdLogo);
+    if ( rw::IsNativeTexture( rwEngine, "AMDCompress" ) )
+    {
+        QLabel *amdLogo = new QLabel();
+        amdLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/amdlogo.png")));
+        amdLogo->setToolTip("AMD");
 
-    QLabel *powervrLogo = new QLabel();
-    powervrLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/powervrlogo.png")));
-    powervrLogo->setToolTip("PowerVR");
+        vendorRowOne->addWidget(amdLogo);
+    }
 
-    vendorRowOne->addWidget(powervrLogo);
+    if ( rw::IsNativeTexture( rwEngine, "PowerVR" ) )
+    {
+        QLabel *powervrLogo = new QLabel();
+        powervrLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/powervrlogo.png")));
+        powervrLogo->setToolTip("PowerVR");
+
+        vendorRowOne->addWidget(powervrLogo);
+    }
 
     rootLayout->addLayout(vendorRowOne);
 
@@ -108,11 +117,14 @@ AboutDialog::AboutDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     vendorRowTwo->setSpacing(10);
 
-    QLabel *xboxLogo = new QLabel();
-    xboxLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/xboxlogo.png")));
-    xboxLogo->setToolTip("XBOX");
+    if ( rw::IsNativeTexture( rwEngine, "XBOX" ) )
+    {
+        QLabel *xboxLogo = new QLabel();
+        xboxLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/xboxlogo.png")));
+        xboxLogo->setToolTip("XBOX");
 
-    vendorRowTwo->addWidget(xboxLogo);
+        vendorRowTwo->addWidget(xboxLogo);
+    }
 
     QLabel *pngquantLogo = new QLabel();
     pngquantLogo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/pngquantlogo.png")));
@@ -126,11 +138,14 @@ AboutDialog::AboutDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     vendorRowTwo->addWidget(libsquishLogo);
 
-    QLabel *ps2Logo = new QLabel();
-    ps2Logo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/ps2logo.png")));
-    ps2Logo->setToolTip("Playstation 2");
+    if ( rw::IsNativeTexture( rwEngine, "PlayStation2" ) )
+    {
+        QLabel *ps2Logo = new QLabel();
+        ps2Logo->setPixmap(QPixmap(mainWnd->makeAppPath("resources/about/ps2logo.png")));
+        ps2Logo->setToolTip("Playstation 2");
 
-    vendorRowTwo->addWidget(ps2Logo);
+        vendorRowTwo->addWidget(ps2Logo);
+    }
 
     QLabel *qtLogo = new QLabel();
     qtLogo->setPixmap( QPixmap( mainWnd->makeAppPath( "resources/about/qtlogo.png" ) ) );

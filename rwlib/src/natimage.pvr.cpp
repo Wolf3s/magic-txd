@@ -4,6 +4,8 @@
 
 #include "StdInc.h"
 
+#ifdef RWLIB_INCLUDE_PVR_NATIVEIMG
+
 #include "natimage.hxx"
 
 #include "txdread.pvr.hxx"
@@ -3726,3 +3728,5 @@ void registerPVRNativeImageTypeEnv( void )
 }
 
 };
+
+#endif //RWLIB_INCLUDE_PVR_NATIVEIMG

@@ -71,7 +71,7 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
     // Also patch the platform if feasible.
     if ( rw::TexDictionary *currentTXD = this->mainWnd->currentTXD )
     {
-        // todo: Maybe make SetEngineVersion sets the version for all children objects?
+        // todo: Maybe make SetEngineVersion set the version for all children objects?
         currentTXD->SetEngineVersion(libVer);
 
         bool hasChangedVersion = false;
@@ -167,6 +167,7 @@ void RwVersionDialog::updateVersionConfig()
         }
     }
 
+    // If we could not find a correct set, we still try to display good settings.
     if (!setFound)
     {
         if (this->versionGUI.gameSelectBox->currentIndex() != 0)
@@ -180,22 +181,35 @@ void RwVersionDialog::updateVersionConfig()
 
         if (rw::TexDictionary *currentTXD = mainWnd->getCurrentTXD())
         {
-            const rw::LibraryVersion& txdVersion = currentTXD->GetEngineVersion();
-
-            std::string verString = rwVersionToString( txdVersion );
-            std::string buildString;
-
-            if (txdVersion.buildNumber != 0xFFFF)
+            // Deduce the best data type from the current platform of the TXD.
             {
-                std::stringstream hex_stream;
+                QString platformName = mainWnd->GetCurrentPlatform();
 
-                hex_stream << std::hex << txdVersion.buildNumber;
-
-                buildString = hex_stream.str();
+                if ( platformName.isEmpty() == false )
+                {
+                    this->versionGUI.dataTypeSelectBox->setCurrentText( platformName );
+                }
             }
 
-            this->versionGUI.versionLineEdit->setText(ansi_to_qt(verString));
-            this->versionGUI.buildLineEdit->setText(ansi_to_qt(buildString));
+            // Fill out the custom version string
+            {
+                const rw::LibraryVersion& txdVersion = currentTXD->GetEngineVersion();
+
+                std::string verString = rwVersionToString( txdVersion );
+                std::string buildString;
+
+                if (txdVersion.buildNumber != 0xFFFF)
+                {
+                    std::stringstream hex_stream;
+
+                    hex_stream << std::hex << txdVersion.buildNumber;
+
+                    buildString = hex_stream.str();
+                }
+
+                this->versionGUI.versionLineEdit->setText(ansi_to_qt(verString));
+                this->versionGUI.buildLineEdit->setText(ansi_to_qt(buildString));
+            }
         }
     }
 }
