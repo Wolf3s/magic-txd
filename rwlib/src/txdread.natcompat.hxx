@@ -413,16 +413,19 @@ inline void AdjustPixelDataDimensions( Interface *engineInterface, pixelDataTrav
 
 inline void AdjustPixelDataDimensionsByFormat( Interface *engineInterface, texNativeTypeProvider *texProvider, pixelDataTraversal& pixelData )
 {
-    pixelFormat pixFormat;
-    pixFormat.rasterFormat = pixelData.rasterFormat;
-    pixFormat.depth = pixelData.depth;
-    pixFormat.rowAlignment = pixelData.rowAlignment;
-    pixFormat.colorOrder = pixelData.colorOrder;
-    pixFormat.paletteType = pixelData.paletteType;
-    pixFormat.compressionType = pixelData.compressionType;
-
+    // This is just a helper function to get the required size rules.
     nativeTextureSizeRules sizeRules;
-    texProvider->GetFormatSizeRules( pixFormat, sizeRules );
+    {
+        pixelFormat pixFormat;
+        pixFormat.rasterFormat = pixelData.rasterFormat;
+        pixFormat.depth = pixelData.depth;
+        pixFormat.rowAlignment = pixelData.rowAlignment;
+        pixFormat.colorOrder = pixelData.colorOrder;
+        pixFormat.paletteType = pixelData.paletteType;
+        pixFormat.compressionType = pixelData.compressionType;
+
+        texProvider->GetFormatSizeRules( pixFormat, sizeRules );
+    }
 
     AdjustPixelDataDimensions( engineInterface, pixelData, sizeRules );
 }

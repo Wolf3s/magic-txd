@@ -2690,6 +2690,19 @@ struct pvrNativeImageTypeManager : public nativeImageTypeManager
                 // If we have no PVRTC data, we must compress to it.
                 if ( !hasFormatDirectMapping )
                 {
+                    // I dont take any gambles for the PVR native image format, as it is not that important.
+                    // Will have to overhaul this code anyway, improve the code sharing, optimize away some hurdles, etc.
+                    // With that said, PowerVR images but be power-of-two before being compressed to PVRTC, and I DO NOT DO THAT HERE.
+                    {
+                        nativeTextureSizeRules sizeRules;
+                        getPVRNativeTextureSizeRules( sizeRules );
+
+                        if ( sizeRules.verifyMipmaps( *useColorLayers ) == false )
+                        {
+                            throw RwException( "PVR native image must be power-of-two before compressing to PVRTC for the PowerVR native texture" );
+                        }
+                    }
+
                     ePVRLegacyPixelFormat tmpPixelFormat = pixelFormat;
                     ePVRLegacyPixelFormatType tmpPixelFormatType = colorFormatType;
                     uint32 tmpPixelDepth = pvr_bitDepth;

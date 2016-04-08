@@ -6,7 +6,11 @@
 #include "languages.h"
 #include "testmessage.h"
 
+#ifdef _DEBUG
 static const bool _lockdownPlatform = false;        // SET THIS TO TRUE FOR RELEASE.
+#else
+static const bool _lockdownPlatform = true;         // WE ARE RELEASING SOON.
+#endif 
 static const size_t _recommendedPlatformMaxName = 32;
 static const bool _enableMaskName = false;
 
