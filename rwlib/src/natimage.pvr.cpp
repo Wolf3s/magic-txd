@@ -1293,6 +1293,24 @@ static inline void getPVRRasterFormatMapping(
 
         isDirectMappingOut = ( isLittleEndian == true );
     }
+    else if ( format == ePVRLegacyPixelFormat::AI88 ||
+              format == ePVRLegacyPixelFormat::AI88_SEC ||
+              format == ePVRLegacyPixelFormat::AL_88 )
+    {
+        rasterFormatOut = RASTER_LUM_ALPHA;
+        colorOrderingOut = COLOR_RGBA;
+        compressionTypeOut = RWCOMPRESS_NONE;
+
+        isDirectMappingOut = ( isLittleEndian == true );
+    }
+    else if ( format == ePVRLegacyPixelFormat::AL_44 )
+    {
+        rasterFormatOut = RASTER_LUM_ALPHA;
+        colorOrderingOut = COLOR_RGBA;
+        compressionTypeOut = RWCOMPRESS_NONE;
+
+        isDirectMappingOut = ( isLittleEndian == true );
+    }
     else if ( format == ePVRLegacyPixelFormat::BGRA_8888 )
     {
         rasterFormatOut = RASTER_8888;
@@ -1421,13 +1439,21 @@ inline void getPVRLegacyRawColorFormatLink(
         if ( depth == 8 )
         {
             pixelFormatOut = ePVRLegacyPixelFormat::AL_44;
+
+            canDirectlyAcquireOut = true;
         }
         else if ( depth == 16 )
         {
             pixelFormatOut = ePVRLegacyPixelFormat::AL_88;
-        }
 
-        canDirectlyAcquireOut = false;  // TODO.
+            canDirectlyAcquireOut = true;
+        }
+        else
+        {
+            pixelFormatOut = ePVRLegacyPixelFormat::AL_88;
+
+            canDirectlyAcquireOut = false;
+        }
     }
     else
     {
@@ -2553,6 +2579,10 @@ struct pvrNativeImageTypeManager : public nativeImageTypeManager
                     else if ( colorFormatType == ePVRLegacyPixelFormatType::RGBA ||
                               colorFormatType == ePVRLegacyPixelFormatType::LUMINANCE )
                     {
+                        // Prepare the color pipelines.
+                        pvrColorDispatcher srcDispatch( pixelFormat, colorFormatType, isLittleEndian );
+                        colorModelDispatcher dstDispatch( frm_pvrRasterFormat, frm_pvrColorOrder, frm_pvrDepth, NULL, 0, PALETTE_NONE );
+
                         // Perform easy conversion from PVR color samples to framework samples.
                         pvrNativeImage::mipmaps_t convLayers;
 
@@ -2587,9 +2617,6 @@ struct pvrNativeImageTypeManager : public nativeImageTypeManager
 
                                 try
                                 {
-                                    pvrColorDispatcher srcDispatch( pixelFormat, colorFormatType, isLittleEndian );
-                                    colorModelDispatcher dstDispatch( frm_pvrRasterFormat, frm_pvrColorOrder, frm_pvrDepth, NULL, 0, PALETTE_NONE );
-
                                     copyTexelDataEx(
                                         srcTexels, dstTexels,
                                         srcDispatch, dstDispatch,
