@@ -52,7 +52,7 @@ inline void nativePaletteRemap(
 
     try
     {
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
 
         for ( uint32 row = 0; row < mipHeight; row++ )
         {
@@ -126,7 +126,7 @@ static void _fetch_image_data_libquant(liq_color row_out[], int row_index, int w
     
     const void *srcRow = getConstTexelDataRow( texelSource, srcRowSize, row_index );
 
-    colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, itemDepth, palColors, palColorCount, paletteType );
+    colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, itemDepth, palColors, palColorCount, paletteType );
 
     for (int n = 0; n < width; n++)
     {
@@ -266,7 +266,7 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
                 conv.after_characterize();
 #endif
 
-                colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
+                colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteCount, srcPaletteType );
 
                 // Linear eliminate.
                 for (uint32 y = 0; y < srcHeight; y++)
@@ -552,7 +552,7 @@ void PalettizePixelData( Interface *engineInterface, pixelDataTraversal& pixelDa
 
                             uint32 palDepth = Bitmap::getRasterFormatDepth(dstRasterFormat);
 
-                            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, palDepth, NULL, 0, PALETTE_NONE );
+                            colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, palDepth, NULL, 0, PALETTE_NONE );
 
                             uint32 palDataSize = getPaletteDataSize( newPalItemCount, palDepth );
 
@@ -852,7 +852,7 @@ static void liq_single_mip_rgba_fetch_callback( liq_color row_out[], int row, in
 
     const void *texelSource = imgData->texelSource;
 
-    colorModelDispatcher <const void> fetchDispatch(
+    colorModelDispatcher fetchDispatch(
         imgData->rasterFormat, imgData->colorOrder, imgData->depth,
         imgData->paletteData, imgData->paletteSize, imgData->paletteType
     );
@@ -886,7 +886,7 @@ void RemapMipmapLayer(
 
     uint32 palItemDepth = Bitmap::getRasterFormatDepth(palRasterFormat);
 
-    colorModelDispatcher <const void> fetchPalDispatch( palRasterFormat, palColorOrder, palItemDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher fetchPalDispatch( palRasterFormat, palColorOrder, palItemDepth, NULL, 0, PALETTE_NONE );
 
     // Even if the palette size is bigger than the indices can address, we shall only care about the actually addressible colors.
     uint32 addressiblePaletteSize = (uint32)pow( 2, convItemDepth );

@@ -79,7 +79,9 @@ void pvrNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                 platformTex->unk1 = metaHeader.unk1;
                 platformTex->unk8 = metaHeader.unk8;
 
+#ifdef _DEBUG
                 assert( metaHeader.unk1 == false );
+#endif
 
                 // Read the data sizes and keep track of how much we have read already.
                 uint32 validImageStreamSize = metaHeader.imageDataStreamSize;
@@ -239,11 +241,11 @@ void pvrNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
     engineInterface->DeserializeExtensions( theTexture, inputProvider );
 }
 
-static PluginDependantStructRegister <pvrNativeTextureTypeProvider, RwInterfaceFactory_t> pvrNativeTexturePlugin;
+pvrNativeTextureTypeProviderRegister_t pvrNativeTextureTypeProviderRegister;
 
 void registerPVRNativePlugin( void )
 {
-    pvrNativeTexturePlugin.RegisterPlugin( engineFactory );
+    pvrNativeTextureTypeProviderRegister.RegisterPlugin( engineFactory );
 }
 
 };

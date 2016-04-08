@@ -424,7 +424,7 @@ struct pngImagingExtension : public imagingFormatExtension
 
                     try
                     {
-                        colorModelDispatcher <void> putDispatch( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE );
+                        colorModelDispatcher putDispatch( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE );
 
                         // Transform!
                         for ( uint32 n = 0; n < paletteSize; n++ )
@@ -685,7 +685,7 @@ struct pngImagingExtension : public imagingFormatExtension
                 uint32 texelDataSize = inputPixels.dataSize;
 
                 // We will need this to fetch pixels.
-                colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType );
+                colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType );
 
                 eColorModel colorModel = fetchDispatch.getColorModel();
 
@@ -843,12 +843,12 @@ struct pngImagingExtension : public imagingFormatExtension
                     
                     try
                     {
-                        colorModelDispatcher <void> putPalDispatch(
+                        colorModelDispatcher putPalDispatch(
                             requiredPalRasterFormat, requiredPalColorOrder, requiredPalDepth,
                             NULL, 0, PALETTE_NONE
                         );
 
-                        colorModelDispatcher <const void> fetchPalDispatch(
+                        colorModelDispatcher fetchPalDispatch(
                             rasterFormat, colorOrder, palRasterDepth,
                             NULL, 0, PALETTE_NONE
                         );

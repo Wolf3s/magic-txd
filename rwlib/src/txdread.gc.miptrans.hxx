@@ -124,14 +124,6 @@ inline void DXTIndexListInverseCopy( uint32& dstIndexList, uint32 srcIndexList, 
 }
 
 // Gamecube DXT1 compression struct.
-struct gc_dxt1_block
-{
-    endian::big_endian <rgb565> rgb0;
-    endian::big_endian <rgb565> rgb1;
-
-    endian::big_endian <uint32> indexList;
-};
-
 template <typename dispatchType, typename reEstablishColorProc>
 AINLINE void readGCNativeColor(
     const void *srcRow, dispatchType& srcDispatch, uint32 src_pos_x,
@@ -228,6 +220,8 @@ inline void copyPaletteIndexAcrossSurfaces(
     }
 }
 
+typedef dxt1_block <endian::big_endian> gc_dxt1_block;
+
 inline void ConvertGCMipmapToRasterFormat(
     Interface *engineInterface,
     uint32 mipWidth, uint32 mipHeight, uint32 layerWidth, uint32 layerHeight, void *texelSource, uint32 dataSize,
@@ -315,7 +309,7 @@ inline void ConvertGCMipmapToRasterFormat(
                 );
 
                 // We need a destination dispatcher.
-                colorModelDispatcher <void> dstDispatch(
+                colorModelDispatcher dstDispatch(
                     dstRasterFormat, dstColorOrder, dstDepth,
                     NULL, 0, PALETTE_NONE
                 );
@@ -407,7 +401,7 @@ inline void ConvertGCMipmapToRasterFormat(
 
         uint32 dxtBlockCount = ( dxtBlocksWidth * dxtBlocksHeight );
 
-        uint32 dxtDataSize = ( dxtBlockCount * sizeof( dxt1_block ) );
+        uint32 dxtDataSize = ( dxtBlockCount * getDXTBlockSize( 1 ) );
 
         void *dstTexels = engineInterface->PixelAllocate( dxtDataSize );
 
@@ -415,6 +409,8 @@ inline void ConvertGCMipmapToRasterFormat(
         {
             throw RwException( "failed to allocate DXT1 destination buffer for GC to framework conversion" );
         }
+
+        typedef dxt1_block <endian::little_endian> frm_dxt1_block;
 
         try
         {
@@ -425,7 +421,7 @@ inline void ConvertGCMipmapToRasterFormat(
 
             const gc_dxt1_block *gcBlocks = (const gc_dxt1_block*)texelSource;
 
-            dxt1_block *dstBlocks = (dxt1_block*)dstTexels;
+            frm_dxt1_block *dstBlocks = (frm_dxt1_block*)dstTexels;
 
             memcodec::permutationUtilities::ProcessTextureLayerPackedTiles(
                 gcBlocksWidth, gcBlocksHeight,
@@ -439,7 +435,7 @@ inline void ConvertGCMipmapToRasterFormat(
                     // Get the destination block ptr.
                     uint32 dstBlockIndex = ( dst_pos_x + dst_pos_y * dxtBlocksWidth );
 
-                    dxt1_block *dstBlock = ( dstBlocks + dstBlockIndex );
+                    frm_dxt1_block *dstBlock = ( dstBlocks + dstBlockIndex );
 
                     // Attempt to get the source block.
                     if ( src_pos_x < gcBlocksWidth && src_pos_y < gcBlocksHeight )
@@ -449,8 +445,8 @@ inline void ConvertGCMipmapToRasterFormat(
                         const gc_dxt1_block *srcBlock = ( gcBlocks + srcBlockIndex );
 
                         // Copy things over properly.
-                        dstBlock->col0 = srcBlock->rgb0;
-                        dstBlock->col1 = srcBlock->rgb1;
+                        dstBlock->col0 = srcBlock->col0;
+                        dstBlock->col1 = srcBlock->col1;
 
                         // The index list needs special handling.
                         uint32 dstIndexList = 0;
@@ -462,8 +458,11 @@ inline void ConvertGCMipmapToRasterFormat(
                     else
                     {
                         // We sort of just clear our block.
-                        dstBlock->col0.val = 0;
-                        dstBlock->col1.val = 0;
+                        rgb565 clearColor;
+                        clearColor.val = 0;
+
+                        dstBlock->col0 = clearColor;
+                        dstBlock->col1 = clearColor;
                         dstBlock->indexList = 0;
                     }
                 }
@@ -633,7 +632,7 @@ inline void TranscodeIntoNativeGCLayer(
                 bool isSurfaceSwizzled = isGVRNativeFormatSwizzled( internalFormat );
 
                 // Create the source and destination color model dispatchers.
-                colorModelDispatcher <const void> srcDispatch(
+                colorModelDispatcher srcDispatch(
                     srcRasterFormat, srcColorOrder, srcDepth,
                     NULL, 0, PALETTE_NONE
                 );
@@ -733,13 +732,15 @@ inline void TranscodeIntoNativeGCLayer(
             throw RwException( "failed to allocate GC native DXT1 surface buffer for swizzling" );
         }
 
+        typedef dxt1_block <endian::little_endian> frm_dxt1_block;
+
         try
         {
             // Get properties about the source DXT1 layer.
             uint32 srcDXTBlocksWidth = ( mipWidth / dxt_blockPixelWidth );
             uint32 srcDXTBlocksHeight = ( mipHeight / dxt_blockPixelHeight );
 
-            const dxt1_block *srcBlocks = (const dxt1_block*)srcTexels;
+            const frm_dxt1_block *srcBlocks = (const frm_dxt1_block*)srcTexels;
             gc_dxt1_block *dstBlocks = (gc_dxt1_block*)gcTexels;
 
             // Process the framework DXT1 structs into native GC DXT1 structs.
@@ -761,10 +762,10 @@ inline void TranscodeIntoNativeGCLayer(
                     {
                         uint32 srcBlockIndex = ( src_pos_x + srcDXTBlocksWidth * src_pos_y );
 
-                        const dxt1_block *srcBlock = ( (const dxt1_block*)srcTexels + srcBlockIndex );
+                        const frm_dxt1_block *srcBlock = ( (const frm_dxt1_block*)srcTexels + srcBlockIndex );
 
-                        dstBlock->rgb0 = srcBlock->col0;
-                        dstBlock->rgb1 = srcBlock->col1;
+                        dstBlock->col0 = srcBlock->col0;
+                        dstBlock->col1 = srcBlock->col1;
                         
                         // Indexlist needs special handling.
                         uint32 dstIndexList = 0;
@@ -779,8 +780,8 @@ inline void TranscodeIntoNativeGCLayer(
                         rgb565 clearColor;
                         clearColor.val = 0;
 
-                        dstBlock->rgb0 = clearColor;
-                        dstBlock->rgb1 = clearColor;
+                        dstBlock->col0 = clearColor;
+                        dstBlock->col1 = clearColor;
                         dstBlock->indexList = 0;
                     }
                 }
@@ -1020,7 +1021,7 @@ inline void* GetGCPaletteData(
             0, PALETTE_NONE, NULL, 0    // those parameters are only required if you want to read palette indices.
         );
 
-        colorModelDispatcher <void> dstDispatch(
+        colorModelDispatcher dstDispatch(
             dstRasterFormat, dstColorOrder, dstPalRasterDepth,
             NULL, 0, PALETTE_NONE
         );
@@ -1060,7 +1061,7 @@ inline void* TranscodeGCPaletteData(
     uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
 
     // Prepare the color dispatchers.
-    colorModelDispatcher <const void> srcDispatch(
+    colorModelDispatcher srcDispatch(
         srcRasterFormat, srcColorOrder, srcPalRasterDepth,
         NULL, 0, PALETTE_NONE
     );

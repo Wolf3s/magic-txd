@@ -152,7 +152,7 @@ private:
     uint32 layerWidth, layerHeight;
     void *texelSource;
 
-    colorModelDispatcher <void> dispatch;
+    colorModelDispatcher dispatch;
 
 public:
     uint32 coord_mult_x, coord_mult_y;

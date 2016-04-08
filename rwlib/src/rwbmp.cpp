@@ -222,8 +222,8 @@ void Bitmap::setSize( uint32 width, uint32 height )
         const uint8 srcBgBlue = packcolor( this->bgBlue );
         const uint8 srcBgAlpha = packcolor( this->bgAlpha );
 
-        colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
 
         // Do an image copy.
         uint32 srcRowSize = this->rowSize;
@@ -354,7 +354,7 @@ AINLINE void fetchpackedcolor(
     const void *texels, uint32 x, uint32 y, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 itemDepth, uint32 rowSize, double& redOut, double& greenOut, double& blueOut, double& alphaOut
 )
 {
-    colorModelDispatcher <const void> fetchDispatch( theFormat, colorOrder, itemDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher fetchDispatch( theFormat, colorOrder, itemDepth, NULL, 0, PALETTE_NONE );
 
     const void *srcRow = getConstTexelDataRow( texels, rowSize, y );
 
@@ -429,7 +429,7 @@ bool Bitmap::browsecolor(uint32 x, uint32 y, uint8& redOut, uint8& greenOut, uin
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         hasColor = fetchDispatch.getRGBA(
             srcRow, x,
@@ -448,7 +448,7 @@ bool Bitmap::browselum(uint32 x, uint32 y, uint8& lum, uint8& a) const
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         hasColor = fetchDispatch.getLuminance(
             srcRow, x,
@@ -467,7 +467,7 @@ bool Bitmap::browsecolorex(uint32 x, uint32 y, abstractColorItem& colorItem) con
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         fetchDispatch.getColor(
             srcRow, x,
@@ -498,7 +498,7 @@ void Bitmap::draw(
     uint32 theirHeight = colorSource.getHeight();
 
     // Determine the output codec for pixel set.
-    colorModelDispatcher <void> putDispatch( ourFormat, ourOrder, ourDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher putDispatch( ourFormat, ourOrder, ourDepth, NULL, 0, PALETTE_NONE );
 
     // Calculate drawing parameters.
     double floatOffX = (double)offX;

@@ -138,6 +138,40 @@ inline bool RasterFormatSamplePackingTransform(
 }
 
 // Alpha flag calculation helpers.
+template <typename srcRawDispatchType>
+AINLINE bool rawGenericColorBufferHasAlpha(
+    uint32 layerWidth, uint32 layerHeight, const void *texelSource, uint32 texelDataSize,
+    srcRawDispatchType& fetchDispatch, uint32 depth, uint32 rowAlignment
+)
+{
+    // You want to check yourself whether the pixel format you work against has an alpha channel in the first place.
+
+    uint32 srcRowSize = getRasterDataRowSize( layerWidth, depth, rowAlignment );
+
+    // We have to process the entire image. Oh boy.
+    // For that, we decide based on the main raster only.
+    for ( uint32 row = 0; row < layerHeight; row++ )
+    {
+        const void *srcRowData = getConstTexelDataRow( texelSource, srcRowSize, row );
+
+        for ( uint32 col = 0; col < layerWidth; col++ )
+        {
+            uint8 r, g, b, a;
+
+            bool hasColor = fetchDispatch.getRGBA(srcRowData, col, r, g, b, a);
+
+            if (hasColor && a != 255)
+            {
+                // We just found a color that is transparent!
+                return true;
+            }
+        }
+    }
+
+    // We found no color that is transparent.
+    return false;
+}
+
 // Returns whether a original RW types only mipmap has transparent texels.
 AINLINE bool rawMipmapCalculateHasAlpha(
     uint32 layerWidth, uint32 layerHeight, const void *texelSource, uint32 texelDataSize,
@@ -150,8 +184,6 @@ AINLINE bool rawMipmapCalculateHasAlpha(
     // Otherwise there is no point in going through the pixels.
     if (canRasterFormatHaveAlpha(rasterFormat))
     {
-        uint32 srcRowSize = getRasterDataRowSize( layerWidth, depth, rowAlignment );
-
         // Alright, the raster can have alpha.
         // If we are palettized, we can just check the palette colors.
         if (paletteType != PALETTE_NONE)
@@ -165,6 +197,8 @@ AINLINE bool rawMipmapCalculateHasAlpha(
             {
                 usageFlags[ n ] = false;
             }
+
+            uint32 srcRowSize = getRasterDataRowSize( layerWidth, depth, rowAlignment );
 
             // Loop through all pixels of the image.
             {
@@ -192,7 +226,7 @@ AINLINE bool rawMipmapCalculateHasAlpha(
 
             uint32 palFormatDepth = Bitmap::getRasterFormatDepth(rasterFormat);
 
-            colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, palFormatDepth, NULL, 0, PALETTE_NONE );
+            colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, palFormatDepth, NULL, 0, PALETTE_NONE );
 
             for (uint32 n = 0; n < palItemCount; n++)
             {
@@ -215,27 +249,9 @@ AINLINE bool rawMipmapCalculateHasAlpha(
         }
         else
         {
-            colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE );
+            colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE );
 
-            // We have to process the entire image. Oh boy.
-            // For that, we decide based on the main raster only.
-            for ( uint32 row = 0; row < layerHeight; row++ )
-            {
-                const void *srcRowData = getConstTexelDataRow( texelSource, srcRowSize, row );
-
-                for ( uint32 col = 0; col < layerWidth; col++ )
-                {
-                    uint8 r, g, b, a;
-
-                    bool hasColor = fetchDispatch.getRGBA(srcRowData, col, r, g, b, a);
-
-                    if (hasColor && a != 255)
-                    {
-                        hasAlpha = true;
-                        break;
-                    }
-                }
-            }
+            hasAlpha = rawGenericColorBufferHasAlpha( layerWidth, layerHeight, texelSource, texelDataSize, fetchDispatch, depth, rowAlignment );
         }
     }
 
@@ -255,7 +271,7 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
     uint32 alignedSurfWidth = ALIGN_SIZE( mipWidth, block_width );
     uint32 alignedSurfHeight = ALIGN_SIZE( mipHeight, block_height );
 
-    uint32 compressionBlockCount = ( alignedSurfWidth * alignedSurfHeight ) / 16;
+    uint32 compressionBlockCount = ( alignedSurfWidth * alignedSurfHeight ) / ( block_width * block_height );
 
     // Process the blocks. 
     uint32 cur_block_x = 0;
@@ -269,9 +285,12 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
         // Check whether this block can even have alpha.
         if ( dxtType == 1 )
         {
-            const dxt1_block *dxtBlock = (const dxt1_block*)srcTexels + n;
+            const dxt1_block <endian::little_endian> *dxtBlock = (const dxt1_block <endian::little_endian> *)srcTexels + n;
 
-            canBlockHaveAlpha = ( dxtBlock->col0.val <= dxtBlock->col1.val );
+            rgb565 col0 = dxtBlock->col0;
+            rgb565 col1 = dxtBlock->col1;
+
+            canBlockHaveAlpha = ( col0.val <= col1.val );
         }
 
         bool doesHaveAlpha = false;
@@ -284,7 +303,7 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
                 {
                     if ( dxtType == 1 )
                     {
-                        const dxt1_block *dxtBlock = (const dxt1_block*)srcTexels + n;
+                        const dxt1_block <endian::little_endian> *dxtBlock = (const dxt1_block <endian::little_endian> *)srcTexels + n;
 
                         // If this pixel is on index 3, it is transparent.
                         uint32 index = fetchDXTIndexList( dxtBlock->indexList, local_x, local_y );
@@ -297,7 +316,7 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
                     }
                     else if ( dxtType == 2 || dxtType == 3 )
                     {
-                        const dxt2_3_block *dxtBlock = (const dxt2_3_block*)srcTexels + n;
+                        const dxt2_3_block <endian::little_endian> *dxtBlock = (const dxt2_3_block <endian::little_endian> *)srcTexels + n;
 
                         // Here, we have individual alpha fields.
                         // That is why we have to index it properly.
@@ -313,16 +332,18 @@ AINLINE bool dxtMipmapCalculateHasAlpha(
                     }
                     else if ( dxtType == 4 || dxtType == 5 )
                     {
-                        const dxt4_5_block *dxtBlock = (const dxt4_5_block*)srcTexels + n;
+                        const dxt4_5_block <endian::little_endian> *dxtBlock = (const dxt4_5_block <endian::little_endian> *)srcTexels + n;
 
                         // In this format there is really high quality alpha, sort of.
                         uint32 coord_index = getDXTLocalBlockIndex( local_x, local_y );
 
-                        const uint64 *alphaList = (const uint64*)dxtBlock->alphaList;
+                        uint48_t alphaListMetric = dxtBlock->alphaList;
+
+                        const uint64 *alphaList = (const uint64*)&alphaListMetric;
 
                         uint32 alphaIndex = (uint32)indexlist_lookup( *alphaList, (uint64)coord_index, (uint64)3 );
 
-                        uint8 theAlpha = dxt4_5_block::getAlphaByIndex( dxtBlock->alphaPreMult[0], dxtBlock->alphaPreMult[1], alphaIndex );
+                        uint8 theAlpha = dxt4_5_block <endian::little_endian>::getAlphaByIndex( dxtBlock->alphaPreMult[0], dxtBlock->alphaPreMult[1], alphaIndex );
 
                         if ( theAlpha != 255u )
                         {

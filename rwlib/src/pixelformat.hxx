@@ -146,6 +146,27 @@ AINLINE uint8 scalecolor(uint8 color, uint32 curMax, uint32 newMax)
     return (uint8)( (double)color / (double)curMax * (double)newMax );
 }
 
+template <typename numberType, typename maxNumType>
+AINLINE numberType putscalecolor( numberType color, const maxNumType desiredMax )
+{
+    return (numberType)( (double)color / (double)std::numeric_limits <numberType>().max() * (double)desiredMax );
+}
+
+template <typename numberType, typename srcNumberType, typename maxNumberType>
+AINLINE void destscalecolor( srcNumberType color, const maxNumberType curMax, numberType& outVal )
+{
+    static_assert( std::is_integral <srcNumberType>::value == true, "the source number type must be of integral type" );
+    static_assert( std::is_integral <numberType>::value == true, "the destination number type must be of integral type" );
+
+    outVal = (numberType)( (double)color / (double)curMax * (double)std::numeric_limits <numberType>().max() );
+}
+
+template <typename numberType, typename srcNumberType>
+AINLINE void destscalecolorf( srcNumberType color, numberType& outVal )
+{
+    outVal = (numberType)( (double)color * (double)std::numeric_limits <numberType>().max() );
+}
+
 AINLINE uint8 rgb2lum( uint8 red, uint8 green, uint8 blue )
 {
     return ( (uint32)red + (uint32)green + (uint32)blue ) / 3;
@@ -209,10 +230,9 @@ inline eColorModel getColorModelFromRasterFormat( eRasterFormat rasterFormat )
     return usedColorModel;
 }
 
-template <typename texel_t>
 struct colorModelDispatcher
 {
-    // TODO: make every color request through this struct.
+    // TODO: make every framework-color request through this struct.
 
     eRasterFormat rasterFormat;
     eColorOrdering colorOrder;
@@ -497,6 +517,20 @@ private:
                 blue = pregreen;
                 alpha = prered;
             }
+            else if ( colorOrder == COLOR_ARGB )
+            {
+                red = prealpha;
+                green = prered;
+                blue = pregreen;
+                alpha = preblue;
+            }
+            else if ( colorOrder == COLOR_BARG )
+            {
+                red = preblue;
+                green = prealpha;
+                blue = prered;
+                alpha = pregreen;
+            }
             else
             {
                 assert( 0 );
@@ -507,7 +541,7 @@ private:
     }
 
 public:
-    AINLINE bool getRGBA( texel_t *texelSource, unsigned int index, uint8& red, uint8& green, uint8& blue, uint8& alpha ) const
+    AINLINE bool getRGBA( const void *texelSource, unsigned int index, uint8& red, uint8& green, uint8& blue, uint8& alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -579,6 +613,20 @@ private:
             putgreen = blue;
             putblue = green;
             putalpha = red;
+        }
+        else if ( colorOrder == COLOR_ARGB )
+        {
+            putred = alpha;
+            putgreen = red;
+            putblue = green;
+            putalpha = blue;
+        }
+        else if ( colorOrder == COLOR_BARG )
+        {
+            putred = blue;
+            putgreen = alpha;
+            putblue = red;
+            putalpha = green;
         }
         else
         {
@@ -745,7 +793,7 @@ private:
     }
 
 public:
-    AINLINE bool setRGBA( texel_t *texelSource, unsigned int index, uint8 red, uint8 green, uint8 blue, uint8 alpha ) const
+    AINLINE bool setRGBA( void *texelSource, unsigned int index, uint8 red, uint8 green, uint8 blue, uint8 alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -786,7 +834,7 @@ public:
         return success;
     }
 
-    AINLINE bool setLuminance( texel_t *texelSource, unsigned int index, uint8 lum, uint8 alpha ) const
+    AINLINE bool setLuminance( void *texelSource, unsigned int index, uint8 lum, uint8 alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -869,7 +917,7 @@ public:
         return success;
     }
 
-    AINLINE bool getLuminance( texel_t *texelSource, unsigned int index, uint8& lum, uint8& alpha ) const
+    AINLINE bool getLuminance( const void *texelSource, unsigned int index, uint8& lum, uint8& alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -978,7 +1026,7 @@ public:
         return success;
     }
 
-    AINLINE void setColor( texel_t *texelSource, unsigned int index, const abstractColorItem& colorItem ) const
+    AINLINE void setColor( void *texelSource, unsigned int index, const abstractColorItem& colorItem ) const
     {
         eColorModel model = colorItem.model;
 
@@ -998,7 +1046,7 @@ public:
         }
     }
 
-    AINLINE void getColor( texel_t *texelSource, unsigned int index, abstractColorItem& colorItem ) const
+    AINLINE void getColor( const void *texelSource, unsigned int index, abstractColorItem& colorItem ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -1034,7 +1082,7 @@ public:
         }
     }
 
-    AINLINE void clearColor( texel_t *texelSource, unsigned int index )
+    AINLINE void clearColor( void *texelSource, unsigned int index )
     {
         // TODO.
         this->setLuminance( texelSource, index, 0, 0 );
@@ -1171,8 +1219,8 @@ AINLINE void moveTexels(
         assert( dstPaletteType == PALETTE_NONE );
 
         // Move color items.
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
 
         uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcItemDepth, srcRowAlignment );
         uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstItemDepth, dstRowAlignment );

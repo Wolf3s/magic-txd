@@ -287,7 +287,7 @@ void Raster::generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGe
                 // Process the pixels.
                 bool hasAlpha = false;
 
-                colorModelDispatcher <void> putDispatch( tmpRasterFormat, tmpColorOrder, firstLevelDepth, NULL, 0, PALETTE_NONE );
+                colorModelDispatcher putDispatch( tmpRasterFormat, tmpColorOrder, firstLevelDepth, NULL, 0, PALETTE_NONE );
 
                 eColorModel srcColorModel = textureBitmap.getColorModel();
                    

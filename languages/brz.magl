@@ -175,6 +175,11 @@ Tools.MassExp.Cancel   Cancelar
 Tools.MassBld.Desc     Compilação em Massa
 Tools.MassBld.Build    Compilar
 Tools.MassBld.Cancel   Cancelar
+Tools.MassBld.CloseOnCmplt  Fechar ao completar
+Tools.MassBld.Cmprs    Comprimido
+Tools.MassBld.DescQual Qualidade
+Tools.MassBld.DoPal    Paletizado
+Tools.MassBld.DescPType    Tipo
 
 # Mass convert
 Tools.MassCnv.Desc     Conversão em Massa
@@ -187,7 +192,7 @@ Tools.MassCnv.Convert  Converter
 Tools.MassCnv.Cancel   Cancelar
 
 # New txd
-New.Desc               !NT Create new txd
-New.Name               !NT Name
-New.Create             !NT Create
-New.Cancel             !NT Cancel
+New.Desc               Criar novo TXD
+New.Name               Nome
+New.Create             Criar
+New.Cancel             Cancelar

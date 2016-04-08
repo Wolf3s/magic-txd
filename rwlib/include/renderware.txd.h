@@ -122,7 +122,9 @@ enum eColorOrdering
 {
     COLOR_RGBA,
     COLOR_BGRA,
-    COLOR_ABGR
+    COLOR_ABGR,
+    COLOR_ARGB,
+    COLOR_BARG
 };
 
 // utility to calculate palette item count.

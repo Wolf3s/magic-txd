@@ -141,7 +141,7 @@ bool DebugDrawMipmaps( Interface *engineInterface, Raster *debugRaster, Bitmap& 
                     uint32 mipWidth, mipHeight; 
                     uint32 rowSize;
 
-                    colorModelDispatcher <const void> fetchDispatch;
+                    colorModelDispatcher fetchDispatch;
 
                     inline mipmapColorSourcePipeline(
                         uint32 mipWidth, uint32 mipHeight, uint32 depth, uint32 rowAlignment,

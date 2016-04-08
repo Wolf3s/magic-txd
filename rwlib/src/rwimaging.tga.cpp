@@ -92,8 +92,8 @@ static void writeTGAPixels(
         try
         {
             // Transform the raw color data.
-            colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcMaxPalette, srcPaletteType );
-            colorModelDispatcher <void> putDispatch( dstRasterFormat, tgaColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
+            colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, srcPaletteData, srcMaxPalette, srcPaletteType );
+            colorModelDispatcher putDispatch( dstRasterFormat, tgaColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
 
             copyTexelDataEx(
                 texelSource, tgaColors,

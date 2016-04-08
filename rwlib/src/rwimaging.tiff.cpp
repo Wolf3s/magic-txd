@@ -859,7 +859,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                         else
                         {
                             // Create a put dispatch.
-                            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+                            colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
                             void *scanlineBuf = engineInterface->PixelAllocate( scanline_size );
 
@@ -942,7 +942,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                             // Create a put dispatch.
                             uint32 palRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
 
-                            colorModelDispatcher <void> palPutDispatch( dstRasterFormat, dstColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
+                            colorModelDispatcher palPutDispatch( dstRasterFormat, dstColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
 
                             // Sadly, I have not found a way to retrieve the actual palette length from the TIFF.
                             // TIFF really is an outdated format. :(
@@ -1193,7 +1193,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                     uint32 palRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
 
                     // Create a color dispatch for copying palette colors.
-                    colorModelDispatcher <const void> palFetchDispatch( srcRasterFormat, srcColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
+                    colorModelDispatcher palFetchDispatch( srcRasterFormat, srcColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
 
                     // Partition the data into three chunks for r, g, b.
                     colormap_red = (uint16*)colormap;

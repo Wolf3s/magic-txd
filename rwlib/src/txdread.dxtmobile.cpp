@@ -114,7 +114,9 @@ void dxtMobileNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTex
                 platformTex->internalFormat = internalFormat;
                 platformTex->unk3 = metaHeader.unk3;
 
+#ifdef _DEBUG
                 assert( metaHeader.unk1 == false );
+#endif
 
                 // Read the data sizes of the mipmaps.
                 std::vector <uint32> dataSizes;

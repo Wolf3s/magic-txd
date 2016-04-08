@@ -13,97 +13,6 @@ namespace rw
 
 typedef rw::uint32 max_depth_item_type;
 
-inline bool decompressTexelsUsingDXT(
-    Interface *engineInterface, uint32 dxtType, eDXTCompressionMethod dxtMethod,
-    uint32 texWidth, uint32 texHeight, uint32 texRowAlignment,
-    uint32 texLayerWidth, uint32 texLayerHeight,
-    const void *srcTexels, eRasterFormat rawRasterFormat, eColorOrdering rawColorOrder, uint32 rawDepth,
-    void*& dstTexelsOut, uint32& dstTexelsDataSizeOut
-)
-{
-	uint32 x = 0, y = 0;
-
-    // Allocate the new texel array.
-	uint32 rowSize = getRasterDataRowSize( texLayerWidth, rawDepth, texRowAlignment );
-
-    uint32 dataSize = getRasterDataSizeByRowSize( rowSize, texHeight );
-
-	void *newtexels = engineInterface->PixelAllocate( dataSize );
-
-    // Get the compressed block count.
-    uint32 compressedBlockCount = ( texWidth * texHeight ) / 16;
-
-    bool successfullyDecompressed = true;
-
-    colorModelDispatcher <void> putDispatch( rawRasterFormat, rawColorOrder, rawDepth, NULL, 0, PALETTE_NONE );
-
-	for (uint32 n = 0; n < compressedBlockCount; n++)
-    {
-        PixelFormat::pixeldata32bit colors[4][4];
-
-        bool couldDecompressBlock = decompressDXTBlock(dxtMethod, srcTexels, n, dxtType, colors);
-
-        if (couldDecompressBlock == false)
-        {
-            // If even one block fails to decompress, abort.
-            successfullyDecompressed = false;
-            break;
-        }
-
-        // Write the colors.
-        for (uint32 y_block = 0; y_block < 4; y_block++)
-        {
-            for (uint32 x_block = 0; x_block < 4; x_block++)
-            {
-                uint32 target_x = ( x + x_block );
-                uint32 target_y = ( y + y_block );
-
-                if ( target_x < texLayerWidth && target_y < texLayerHeight )
-                {
-                    const PixelFormat::pixeldata32bit& srcColor = colors[ y_block ][ x_block ];
-
-                    uint8 red       = srcColor.red;
-                    uint8 green     = srcColor.green;
-                    uint8 blue      = srcColor.blue;
-                    uint8 alpha     = srcColor.alpha;
-
-                    // Get the target row.
-                    void *theRow = getTexelDataRow( newtexels, rowSize, target_y );
-
-                    putDispatch.setRGBA(theRow, target_x, red, green, blue, alpha);
-                }
-            }
-        }
-
-		x += 4;
-
-		if (x >= texWidth)
-        {
-			y += 4;
-			x = 0;
-		}
-
-        if (y >= texHeight)
-        {
-            break;
-        }
-	}
-
-    if ( !successfullyDecompressed )
-    {
-        // Delete the new texel array again.
-        engineInterface->PixelFree( newtexels );
-    }
-    else
-    {
-        // Give the data to the runtime.
-        dstTexelsOut = newtexels;
-        dstTexelsDataSizeOut = dataSize;
-    }
-
-    return successfullyDecompressed;
-}
-
 bool genericDecompressDXTNative(
     Interface *engineInterface, pixelDataTraversal& pixelData, uint32 dxtType,
     eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder
@@ -126,8 +35,6 @@ bool genericDecompressDXTNative(
 
         void *texelData = mipLayer.texels;
 
-		uint32 x = 0, y = 0;
-
         // Allocate the new texel array.
         uint32 texLayerWidth = mipLayer.layerWidth;
         uint32 texLayerHeight = mipLayer.layerHeight;
@@ -140,7 +47,7 @@ bool genericDecompressDXTNative(
         uint32 texHeight = mipLayer.height;
 
         bool successfullyDecompressed =
-            decompressTexelsUsingDXT(
+            decompressTexelsUsingDXT <endian::little_endian> (
                 engineInterface, dxtType, dxtMethod,
                 texWidth, texHeight, dstRowAlignment,
                 texLayerWidth, texLayerHeight,
@@ -226,7 +133,7 @@ void genericCompressDXTNative( Interface *engineInterface, pixelDataTraversal& p
         // Create the new DXT array.
         uint32 realMipWidth, realMipHeight;
 
-        compressTexelsUsingDXT(
+        compressTexelsUsingDXT <endian::little_endian> (
             engineInterface,
             dxtType, texelSource, mipWidth, mipHeight, rowAlignment,
             rasterFormat, paletteData, paletteType, maxpalette, colorOrder, itemDepth,
@@ -493,8 +400,8 @@ void TransformMipmapLayer(
             else
             {
                 // We always have to do work, but very often we are optimized.
-                colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-                colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+                colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+                colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
                 copyTexelData(
                     srcTexels, dstTexels,
@@ -551,7 +458,7 @@ bool ConvertMipmapLayerNative(
             void *decompressedTexels;
             uint32 decompressedSize;
 
-            bool success = decompressTexelsUsingDXT(
+            bool success = decompressTexelsUsingDXT <endian::little_endian> (
                 engineInterface, srcDXTType, dxtMethod,
                 mipWidth, mipHeight, dstRowAlignment,
                 layerWidth, layerHeight,
@@ -601,8 +508,8 @@ bool ConvertMipmapLayerNative(
 
             try
             {
-                colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-                colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+                colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+                colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
                 // Do the conversion.
                 copyTexelDataEx(
@@ -735,7 +642,7 @@ bool ConvertMipmapLayerNative(
 
             try
             {
-                compressTexelsUsingDXT(
+                compressTexelsUsingDXT <endian::little_endian> (
                     engineInterface,
                     dstDXTType, srcTexels, mipWidth, mipHeight, srcRowAlignment,
                     srcRasterFormat, srcPaletteData, srcPaletteType, srcPaletteSize, srcColorOrder, srcDepth,
@@ -869,8 +776,8 @@ void CopyTransformRawMipmapLayer(
         }
         else
         {
-            colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+            colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+            colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
             copyTexelDataEx(
                 srcTexels, dstTexels,
@@ -1043,8 +950,8 @@ void ConvertPaletteData(
     // Process valid colors.
     uint32 canProcessCount = std::min( srcPaletteSize, dstPaletteSize );
 
-    colorModelDispatcher <const void> fetchDispatcher( srcRasterFormat, srcColorOrder, srcPalRasterDepth, NULL, 0, PALETTE_NONE );
-    colorModelDispatcher <void> putDispatcher( dstRasterFormat, dstColorOrder, dstPalRasterDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher fetchDispatcher( srcRasterFormat, srcColorOrder, srcPalRasterDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher putDispatcher( dstRasterFormat, dstColorOrder, dstPalRasterDepth, NULL, 0, PALETTE_NONE );
 
     for ( uint32 n = 0; n < canProcessCount; n++ )
     {
@@ -1551,7 +1458,7 @@ bool BrowseTexelRGBA(
     uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut
 )
 {
-    return colorModelDispatcher <const void> ( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType ).getRGBA( texelSource, texelIndex, redOut, greenOut, blueOut, alphaOut );
+    return colorModelDispatcher ( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType ).getRGBA( texelSource, texelIndex, redOut, greenOut, blueOut, alphaOut );
 }
 
 bool BrowseTexelLuminance(
@@ -1560,7 +1467,7 @@ bool BrowseTexelLuminance(
     uint8& lumOut, uint8& alphaOut
 )
 {
-    return colorModelDispatcher <const void> ( rasterFormat, COLOR_RGBA, depth, paletteData, paletteSize, paletteType ).getLuminance( texelSource, texelIndex, lumOut, alphaOut );
+    return colorModelDispatcher ( rasterFormat, COLOR_RGBA, depth, paletteData, paletteSize, paletteType ).getLuminance( texelSource, texelIndex, lumOut, alphaOut );
 }
 
 eColorModel GetRasterFormatColorModel( eRasterFormat rasterFormat )
@@ -1574,7 +1481,7 @@ bool PutTexelRGBA(
     uint8 red, uint8 green, uint8 blue, uint8 alpha
 )
 {
-    return colorModelDispatcher <void> ( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE ).setRGBA( texelSource, texelIndex, red, green, blue, alpha );
+    return colorModelDispatcher ( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE ).setRGBA( texelSource, texelIndex, red, green, blue, alpha );
 }
 
 bool PutTexelLuminance(
@@ -1583,7 +1490,7 @@ bool PutTexelLuminance(
     uint8 lum, uint8 alpha
 )
 {
-    return colorModelDispatcher <void> ( rasterFormat, COLOR_RGBA, depth, NULL, 0, PALETTE_NONE ).setLuminance( texelSource, texelIndex, lum, alpha );
+    return colorModelDispatcher ( rasterFormat, COLOR_RGBA, depth, NULL, 0, PALETTE_NONE ).setLuminance( texelSource, texelIndex, lum, alpha );
 }
 
 void pixelDataTraversal::FreeMipmap( Interface *engineInterface, mipmapResource& mipData )

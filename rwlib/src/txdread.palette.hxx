@@ -866,7 +866,7 @@ struct palettizer
 
         uint32 n = 0;
 
-        colorModelDispatcher <void> putDispatch( rasterFormat, colorOrder, palDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( rasterFormat, colorOrder, palDepth, NULL, 0, PALETTE_NONE );
 
         for ( texelContainer_t::const_iterator iter = texelElimData.begin(); iter != texelElimData.end(); iter++ )
         {

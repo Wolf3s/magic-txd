@@ -4,7 +4,7 @@
 // Endianness compatibility definitions.
 namespace endian
 {
-    AINLINE bool is_little_endian( void )
+    AINLINE static bool is_little_endian( void )
     {
         // SHOULD be evaluating without runtime code.
         return ( *(unsigned short*)"\xFF\x00" == 0x00FF );

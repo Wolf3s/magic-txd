@@ -77,8 +77,8 @@ inline void convertTexelsFromPS2(
         )
     )
     {
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
         uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcDepth, srcRowAlignment );
         uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstDepth, dstRowAlignment );
@@ -133,8 +133,8 @@ inline void convertTexelsToPS2(
         )
     )
     {
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( dstRasterFormat, ps2ColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( dstRasterFormat, ps2ColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
 
         uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcItemDepth, srcRowAlignment );
         uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstItemDepth, dstRowAlignment );
