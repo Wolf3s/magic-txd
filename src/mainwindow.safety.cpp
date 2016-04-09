@@ -17,7 +17,7 @@ void MainWindow::ModifiedStateBarrier( bool blocking, modifiedEndCallback_t cb )
 
             // We are a modal dialog.
             setWindowModality( Qt::WindowModal );
-            setWindowFlags( windowFlags() & ~Qt::WindowContextHelpButtonHint );
+            setWindowFlags( ( windowFlags() | Qt::WindowStaysOnTopHint ) & ~Qt::WindowContextHelpButtonHint );
             setAttribute( Qt::WA_DeleteOnClose );
 
             // This dialog consists of a warning message and selectable

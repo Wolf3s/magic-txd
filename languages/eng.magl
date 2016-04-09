@@ -15,7 +15,7 @@ Main.Cut               Cut
 Main.Copy              Copy
 Main.Paste             Paste
 Main.Delete            Delete
-Main.SelectA           SelectA
+Main.SelectA           Select all
 
 # main menu            
 Main.File              File

@@ -2,6 +2,8 @@ REM rd /S /Q qt5
 git clone git://code.qt.io/qt/qt5.git
 cd qt5
 
+call "../_userconf.bat"
+
 set _ROOT=%CD%
 SET PATH=%_ROOT%\qtbase\bin;%_ROOT%\gnuwin32\bin;%PATH%
 SET _ROOT=
@@ -13,4 +15,4 @@ call "../configure_repo.bat"
 nmake
 nmake install
 cd ..
-move "C:/QtCustom" %QTOUTNAME%
+move "%_TMPOUTPATH%" %QTOUTNAME%

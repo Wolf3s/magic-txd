@@ -15,20 +15,33 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
     // This will be a fairly complicated dialog.
     MagicLayout<QVBoxLayout> layout(this);
 
+    QTabWidget *optTabs = new QTabWidget( this );
+
+    // Create a tab with main editor configurations.
+    QWidget *mainTab = new QWidget( this );
+
+    QVBoxLayout *mainTabLayout = new QVBoxLayout( this );
+
     this->optionShowLogOnWarning = CreateCheckBoxL( "Main.Options.ShowLog" );
     this->optionShowLogOnWarning->setChecked( mainWnd->showLogOnWarning );
-    layout.top->addWidget(optionShowLogOnWarning);
+    mainTabLayout->addWidget(optionShowLogOnWarning);
     this->optionShowGameIcon = CreateCheckBoxL( "Main.Options.DispIcn" );
     this->optionShowGameIcon->setChecked(mainWnd->showGameIcon);
-    layout.top->addWidget( optionShowGameIcon );
+    mainTabLayout->addWidget( optionShowGameIcon );
 
     // Display language select.
     this->languageBox = new QComboBox();
 
     this->languageBox->setFixedWidth(300);
+    {
+        size_t languageCount = ourLanguages.languages.size();
 
-    for (unsigned int i = 0; i < ourLanguages.languages.size(); i++) {
-        this->languageBox->addItem(ourLanguages.languages[i].info.nameInOriginal + " - " + ourLanguages.languages[i].info.name);
+        for (unsigned int i = 0; i < languageCount; i++)
+        {
+            const MagicLanguage& lang = ourLanguages.languages[ i ];
+
+            this->languageBox->addItem(lang.info.nameInOriginal + " - " + lang.info.name);
+        }
     }
 
     connect(this->languageBox, static_cast<void (QComboBox::*)(int index)>(&QComboBox::currentIndexChanged), this, &OptionsDialog::OnChangeSelectedLanguage);
@@ -36,15 +49,21 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
     QFormLayout *languageFormLayout = new QFormLayout();
     languageFormLayout->addRow(CreateLabelL( "Lang.Lang" ), languageBox);
 
-    layout.top->addLayout(languageFormLayout);
+    mainTabLayout->addLayout(languageFormLayout);
 
     this->languageAuthorLabel = new QLabel();
 
-    layout.top->addWidget(this->languageAuthorLabel);
+    mainTabLayout->addWidget(this->languageAuthorLabel);
 
     this->languageBox->setCurrentIndex(ourLanguages.currentLanguage);
 
-    layout.top->setAlignment(this->languageAuthorLabel, Qt::AlignRight);
+    mainTabLayout->setAlignment(this->languageAuthorLabel, Qt::AlignRight);
+
+    mainTab->setLayout( mainTabLayout );
+
+    optTabs->addTab( mainTab, "Main" );
+
+    layout.top->addWidget( optTabs );
 
     QPushButton *buttonAccept = CreateButtonL( "Main.Options.Accept" );
     layout.bottom->addWidget(buttonAccept);
@@ -100,9 +119,6 @@ void OptionsDialog::serialize( void )
 
         if (mainWnd->lastLanguageFileName != magLang.languageFileName) {
             mainWnd->lastLanguageFileName = magLang.languageFileName;
-
-            // Ask to restart the tool for language changing
-            // may b.
         }
     }
 }

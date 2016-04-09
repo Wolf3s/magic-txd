@@ -11,13 +11,13 @@ Main.TexInfo.Level     Fläche
 Main.TexInfo.Levels    Flächen
 Main.TexInfo.NoTex     Keine Farbinformationen
 Main.TexInfo.Invalid   ungültig
-Main.Undo              Undo
-Main.Redo              Redo
-Main.Cut               Cut
-Main.Copy              Copy
-Main.Paste             Paste
-Main.Delete            Delete
-Main.SelectA           SelectA
+Main.Undo              Rückgängig
+Main.Redo              Wiederherstellen
+Main.Cut               Ausschneiden
+Main.Copy              Kopieren
+Main.Paste             Einfügen
+Main.Delete            Löschen
+Main.SelectA           Alles auswählen
 
 # main menu            
 Main.File              Datei

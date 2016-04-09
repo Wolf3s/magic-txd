@@ -703,6 +703,7 @@ MainWindow::~MainWindow()
     SafeDelete( optionsDlg );
 
     // Kill any sub windows.
+    // Less dangerous than killing by language context.
     {
         QObjectList children = this->children();
         
@@ -716,6 +717,8 @@ MainWindow::~MainWindow()
         }
     }
 
+    // Cannot do this, because it is VERY dangerous.
+#if 0
     // Kill off localization items that are dialogs and not the main window.
     {
         localizations_t culturalItems = GetTextLocalizationItems();
@@ -731,6 +734,7 @@ MainWindow::~MainWindow()
             }
         }
     }
+#endif
 
     // Remove the warning manager again.
     this->rwEngine->SetWarningManager( NULL );
