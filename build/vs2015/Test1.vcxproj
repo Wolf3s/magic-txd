@@ -744,6 +744,7 @@
     <ClInclude Include="..\..\src\toolshared.hxx" />
     <ClInclude Include="..\..\src\tools\configtree.h" />
     <ClInclude Include="..\..\src\tools\dirtools.h" />
+    <ClInclude Include="..\..\src\tools\imagepipe.hxx" />
     <ClInclude Include="..\..\src\tools\shared.h" />
     <ClInclude Include="..\..\src\tools\txdbuild.h" />
     <ClInclude Include="..\..\src\tools\txdexport.h" />

@@ -104,13 +104,20 @@ private:
     void UpdateExportAccessibility(void);
     void UpdateAccessibility(void);
 
+    // Drag and drop support.
+    void dragEnterEvent( QDragEnterEvent *evt ) override;
+    void dragLeaveEvent( QDragLeaveEvent *evt ) override;
+    void dropEvent( QDropEvent *evt ) override;
+
 public:
-    void openTxdFile(QString fileName);
+    bool openTxdFile(QString fileName, bool silent = false);
     void setCurrentTXD(rw::TexDictionary *txdObj);
     rw::TexDictionary* getCurrentTXD(void)              { return this->currentTXD; }
     void updateTextureList(bool selectLastItemInList);
 
     void updateFriendlyIcons();
+
+    void adjustDimensionsByViewport();
 
 public:
     void updateWindowTitle(void);
@@ -142,6 +149,8 @@ public:
     void UnregisterThemeItem( magicThemeAwareItem *item );
 
 private:
+    void DefaultTextureAddAndPrepare( rw::TextureBase *rwtex, const char *name, const char *maskName );
+
     void DoAddTexture(const TexAddDialog::texAddOperation& params);
 
     inline void setCurrentFilePath(const QString& newPath)
@@ -195,7 +204,9 @@ public slots:
 private:
     QString requestValidImagePath(void);
 
-    public slots:
+    void spawnTextureAddDialog( QString imgPath );
+
+public slots:
     void onAddTexture(bool checked);
     void onReplaceTexture(bool checked);
     void onRemoveTexture(bool checked);
@@ -322,6 +333,9 @@ private:
 
     std::list <TextureExportAction*> actionsExportItems;
     QAction *exportAllImages;
+
+    // REMEMBER TO DELETE EVERY WIDGET THAT DEPENDS ON MAINWINDOW INSIDE OF MAINWINDOW DESTRUCTOR.
+    // OTHERWISE THE EDITOR COULD CRASH.
 
 	TxdLog *txdLog; // log management class
     RwVersionDialog *verDlg; // txd version setup class

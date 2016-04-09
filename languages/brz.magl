@@ -83,27 +83,27 @@ Main.SetupRP.Set       Mudar
 Main.SetupRP.Cancel    Cancelar
 
 [Modify.Help.DXTNotice]
-You have selected DXT compression. DXT is a very efficient compression
-type for world textures. Textures stored in DXT use far less space, but
-they degrade the image quality significantly. It is NOT recommended to
-compress GUI textures.
+Você selecionou compressão DXT. DXT é um tipo de compressão bastante eficiente
+para as texturas do mundo. Texturas em DXT usam muito menos espaço, mas a qualidade
+da imagem é degradada significativamente. NÃO é recomendado comprimir texturas da
+interface de usuário.
 
-DXT1 is good for textures that use alpha for cut-out regions.
-DXT2/3 is good for textures with sharp alpha.
-DXT4/5 is good for textures with smooth alpha.
-If your image has no alpha, just pick DXT1.
+DXT1 é bom para texturas que usam alpha somente para delimitar sua área visível.
+DXT2/3 é bom para texturas em que o alpha tem arestas pontudas.
+DXT4/5 é bom para texturas com alpha suave.
+Se a imagem não tem alpha, use DXT1.
 
-Be careful which textures you compress and which type you choose!
+Seja cuidadoso com quais texturas você comprime e com qual tipo de compressão.
 [END]
 
 [Modify.Help.PALNotice]
-You have selected palette format. Images are palettized by selecting
-the most important colors and putting them into an array. The actual
-texture surface contains indices into the palette buffer, greatly
-decreasing the texture size.
+Você selecionou o formato paletizado. O algoritmo de paletização escolhe
+as cores mais importantes da imagem e as coloca em uma tabela. Os bits que
+então seriam pixels, tornam-se indices para esta tabela, diminuindo o tamanho
+da textura de forma significativa.
 
-Note that palette format is legacy technology and is no longer supported
-by modern hardware.
+Note, porém, que paletização é uma tecnologia ultrapassada não mais presente
+no hardware dos dias de hoje.
 [END]
 
 # Setup TXD Version
@@ -175,7 +175,7 @@ Main.About.Desc        Sobre nós
 Main.About.Credits     criado por _AUTHOR_NAME_1 e _AUTHOR_NAME_2
 Main.About.ComUse1     Esta ferramenta NÃO PODE ser usada comercialmente sem autorização escrita de todos os terceiros que contribuiram para a mesma. Veja as licenças para mais informações.
 Main.About.ComUse2     A equipe do _MAGIC_TXD_NAME aguarda com expectativa a sua contribuição!
-Main.About.SpecThx     !NT Special thanks to:
+Main.About.SpecThx     Agradecimentos à
 
 # Tools
 Tools.Browse           Procurar
@@ -207,10 +207,10 @@ Tools.MassBld.DoPal    Paletizado
 Tools.MassBld.DescPType    Tipo
 
 [Tools.MassBld.Welcome]
-Welcome to the Mass Build tool! This tool creates TXD files out of image
-files inside of a folder hierarchy. You can use INI files inside of those
-folders to specialize the building process. Try building some random folders
-and see the results!
+Bem vindo a ferramenta de compilação em massa! Esta ferramenta cria arquivos TXD
+a partir de arquivos IMG em uma hierarquia de pastas. Você também pode usar arquivos INI
+dentro dessas pastas para especializar o processo de compilação. Tente compilar algumas
+pastas e veja o resultado!
 
 Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
 [END]
@@ -233,5 +233,5 @@ New.Cancel             Cancelar
 
 # Helper runtime generics.
 Helper.Confirm         OK
-Helper.Title           Notice
-Helper.NotShowAgain    Do not show again
+Helper.Title           Nota
+Helper.NotShowAgain    Não mostrar novamente

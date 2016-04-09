@@ -10,6 +10,8 @@
 
 #include <regex>
 
+#include "imagepipe.hxx"
+
 static const std::regex gameVer_regex( "(\\w+),(\\w+)" );
 static const std::regex game_regex( "(\\w+),(\\w+)" );
 
@@ -19,7 +21,7 @@ static const std::regex size_tuple( "(\\d+),(\\d+)" );
 inline std::string DecidePlatformString(
     rw::Interface *engineInterface,
     const ConfigNode& cfgNode,
-    rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform
+    rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatformType
 )
 {
     // Check if there is a target platform in the configuration system.
@@ -39,14 +41,13 @@ inline std::string DecidePlatformString(
     }
 
     // Return the thing that is given by the runtime as default.
-    return rwkind::GetTargetNativeFormatName( targetPlatform, targetGame );
+    return rwkind::GetTargetNativeFormatName( targetPlatformType, targetGame );
 }
 
-struct txdBuildImageImportMethods : public imageImportMethods
+struct txdBuildImageImportMethods : public makeRasterImageImportMethods
 {
-    inline txdBuildImageImportMethods( rw::Interface *engineInterface, TxdBuildModule *module )
+    inline txdBuildImageImportMethods( rw::Interface *engineInterface, TxdBuildModule *module ) : makeRasterImageImportMethods( engineInterface )
     {
-        this->engineInterface = engineInterface;
         this->module = module;
 
         // Set some standard default values.
@@ -59,40 +60,12 @@ struct txdBuildImageImportMethods : public imageImportMethods
 
     void OnWarning( std::string&& msg ) const override
     {
-        module->OnMessage( "import warning: " + std::move( msg ) );
+        this->module->OnMessage( "import warning: " + std::move( msg ) );
     }
 
     void OnError( std::string&& msg ) const override
     {
-        module->OnMessage( "import error: " + msg );
-    }
-
-    rw::Raster* MakeRaster( void ) const override
-    {
-        rw::Interface *rwEngine = this->engineInterface;
-
-        rw::Raster *texRaster = rw::CreateRaster( rwEngine );
-
-        if ( texRaster )
-        {
-            try
-            {
-                // We need to give this raster a start native format.
-                // For that we should give it the format it actually should have.
-                std::string nativeName = DecidePlatformString( rwEngine, *this->cfgNode, this->targetGame, this->targetPlatform );
-
-                texRaster->newNativeData( nativeName.c_str() );
-            }
-            catch( ... )
-            {
-                // Clean up after error.
-                rw::DeleteRaster( texRaster );
-
-                throw;
-            }
-        }
-
-        return texRaster;
+        this->module->OnMessage( "import error: " + msg );
     }
 
     // Properties for loading.
@@ -100,50 +73,22 @@ struct txdBuildImageImportMethods : public imageImportMethods
     rwkind::eTargetGame targetGame;
     const ConfigNode *cfgNode;
 
+    std::string GetNativeTextureName( void ) const override
+    {
+        return DecidePlatformString( this->engineInterface, *this->cfgNode, this->targetGame, this->targetPlatform );
+    }
+
 private:
-    rw::Interface *engineInterface;
     TxdBuildModule *module;
 };
 
-static rw::TextureBase* RwMakeTextureFromStream(
+static rw::TextureBase* BuilderMakeTextureFromStream( 
     rw::Interface *rwEngine, rw::Stream *imgStream, const filePath& extention,
     TxdBuildModule *module,
     rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform,
     const ConfigNode& cfgNode
 )
 {
-    // Based on the extention, try to figure out what the user wants to import.
-    // For that we better verify that it really is an image type extention.
-    eImportExpectation defImpExp = IMPORTE_NONE;
-    {
-        std::string ansi_ext = extention.convert_ansi();
-
-        // Is it a generic imaging extension?
-        if ( rw::IsImagingFormatAvailable( rwEngine, ansi_ext.c_str() ) )
-        {
-            defImpExp = IMPORTE_IMAGE;
-        }
-        
-        if ( defImpExp == IMPORTE_NONE )
-        {
-            // We could still be a native imaging format.
-            if ( rw::IsNativeImageFormatAvailable( rwEngine, ansi_ext.c_str() ) )
-            {
-                defImpExp = IMPORTE_IMAGE;
-            }
-        }
-
-        if ( defImpExp == IMPORTE_NONE )
-        {
-            // Other than that, we can still be a texture chunk.
-            if ( extention.equals( L"RWTEX", false ) )
-            {
-                defImpExp = IMPORTE_TEXCHUNK;
-            }
-        }
-    }
-
-    // Load texture data.
     txdBuildImageImportMethods imgImporter( rwEngine, module );
 
     // Set things up.
@@ -152,60 +97,7 @@ static rw::TextureBase* RwMakeTextureFromStream(
     imgImporter.targetPlatform = targetPlatform;
     imgImporter.cfgNode = &cfgNode;
 
-    txdBuildImageImportMethods::loadActionResult load_result;
-
-    bool didLoad = imgImporter.LoadImage( imgStream, defImpExp, load_result );
-
-    if ( didLoad )
-    {
-        rw::Raster *texRaster = load_result.texRaster;
-
-        rw::TextureBase *texReturn = NULL;
-
-        try
-        {
-            // If we have a texture, we just return it.
-            if ( rw::TextureBase *loadedTex = load_result.texHandle )
-            {
-                // Prepare the texture.
-                if ( rw::Raster *texRaster = loadedTex->GetRaster() )
-                {
-                    std::string nativeName = DecidePlatformString(
-                        rwEngine, cfgNode, targetGame, targetPlatform
-                    );
-
-                    // Convert the raster to the desired platform.
-                    bool couldConvert = rw::ConvertRasterTo( texRaster, nativeName.c_str() );
-
-                    if ( !couldConvert )
-                    {
-                        rwEngine->PushWarning( "failed to convert raster to platform '" + nativeName + "'\n" );
-                    }
-                }
-
-                texReturn = loadedTex;
-            }
-            else
-            {
-                // OK, we got an image. This means we should put the raster into a texture and return it!
-                texReturn = rw::CreateTexture( rwEngine, texRaster );
-            }
-        }
-        catch( ... )
-        {
-            // Clean up the stuff.
-            load_result.cleanUpSuccessful();
-            throw;
-        }
-
-        // We have to release our reference to the raster.
-        rw::DeleteRaster( texRaster );
-
-        return texReturn;
-    }
-
-    // Nothing I guess.
-    return NULL;
+    return RwMakeTextureFromStream( rwEngine, imgStream, extention, imgImporter );
 }
 
 inline bool getFilterModeFromString( const char *string, rw::eRasterStageFilterMode& filter_out )
@@ -364,7 +256,7 @@ void BuildSingleTexture(
     const ConfigNode& cfgParent
 )
 {
-    rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, extention, module, config.targetGame, config.targetPlatform, cfgParent );
+    rw::TextureBase *imgTex = BuilderMakeTextureFromStream( rwEngine, imgStream, extention, module, config.targetGame, config.targetPlatform, cfgParent );
 
     if ( imgTex )
     {

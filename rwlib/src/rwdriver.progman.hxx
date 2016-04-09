@@ -25,7 +25,7 @@ struct driverProgramHandle
         this->programType = progType;
         this->nativeHandle = nativeHandle;
         
-        // Rememeber to add ourselves to the list.
+        // Remember to add ourselves to the list.
     }
 
     EngineInterface *engineInterface;

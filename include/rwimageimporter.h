@@ -19,6 +19,31 @@ inline eImportExpectation getRecommendedImageImportExpectation( const filePath& 
     return IMPORTE_IMAGE;
 }
 
+inline eImportExpectation getActualImageImportExpectation( rw::Interface *rwEngine, const filePath& extention )
+{
+    std::string ansi_ext = extention.convert_ansi();
+
+    // Is it a generic imaging extension?
+    if ( rw::IsImagingFormatAvailable( rwEngine, ansi_ext.c_str() ) )
+    {
+        return IMPORTE_IMAGE;
+    }
+        
+    // We could still be a native imaging format.
+    if ( rw::IsNativeImageFormatAvailable( rwEngine, ansi_ext.c_str() ) )
+    {
+        return IMPORTE_IMAGE;
+    }
+
+    // Other than that, we can still be a texture chunk.
+    if ( extention.equals( L"RWTEX", false ) )
+    {
+        return IMPORTE_TEXCHUNK;
+    }
+
+    return IMPORTE_NONE;
+}
+
 // Image import method manager.
 struct imageImportMethods abstract
 {

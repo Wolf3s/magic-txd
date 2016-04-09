@@ -79,7 +79,7 @@ bool UnregisterTextLocalizationItem( magicTextLocalizationItem *provider )
     bool success = false;
     {
         // Try to find this item.
-        MagicLanguages::localizations_t::const_iterator iter = std::find( ourLanguages.culturalItems.begin(), ourLanguages.culturalItems.end(), provider );
+        localizations_t::const_iterator iter = std::find( ourLanguages.culturalItems.begin(), ourLanguages.culturalItems.end(), provider );
 
         if ( iter != ourLanguages.culturalItems.end() )
         {
@@ -91,6 +91,11 @@ bool UnregisterTextLocalizationItem( magicTextLocalizationItem *provider )
     }
 
     return success;
+}
+
+localizations_t GetTextLocalizationItems( void )
+{
+    return ourLanguages.culturalItems;
 }
 
 QString getLanguageItemByKey( QString token, bool *found )  // RIP mainWnd param

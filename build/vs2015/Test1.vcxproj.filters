@@ -193,6 +193,9 @@
     <ClInclude Include="..\..\include\helperruntime.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\tools\imagepipe.hxx">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="include">

@@ -143,8 +143,6 @@ public:
 
     int currentLanguage; // index of current language in languages array, -1 if not defined
 
-    typedef std::list <magicTextLocalizationItem*> localizations_t;
-
     localizations_t culturalItems;
 };
 
