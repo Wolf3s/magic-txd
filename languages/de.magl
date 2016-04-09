@@ -219,12 +219,11 @@ Tools.MassBld.DoPal    Farbreduziert
 Tools.MassBld.DescPType    Typ
 
 [Tools.MassBld.Welcome]
-Willkommen zum Massenerbauer von TXDs! Mit diesem Werkzeug erstellst du
-im Handumdrehen TXD Dateien aus einer Bild-Datei-Hierarchy. Du kannst
-sogar INI Dateien in den Ordnern benutzen, um den Bauprozess speziell
-auf deine Bedürfnisse zuzuschneiden.
-
-Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+Willkommen zum Massenerbauer von TXDs! Mit diesem Werkzeug erstellst du<br>
+im Handumdrehen TXD Dateien aus einer Bild-Datei-Hierarchy. Du kannst<br>
+sogar INI Dateien in den Ordnern benutzen, um den Bauprozess speziell<br>
+auf deine Bedürfnisse zuzuschneiden.<br><br>
+Wiki: <a href="http://www.gtamodding.com/wiki/Magic.TXD/Build_System/" style="color: #0063b1">http://www.gtamodding.com/wiki/Magic.TXD/Build_System/</a>
 [END]
 
 # Mass convert

@@ -217,12 +217,11 @@ Tools.MassBld.DoPal    Palettized
 Tools.MassBld.DescPType    Type
 
 [Tools.MassBld.Welcome]
-Welcome to the Mass Build tool! This tool creates TXD files out of image
-files inside of a folder hierarchy. You can use INI files inside of those
-folders to specialize the building process. Try building some random folders
-and see the results!
-
-Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+Welcome to the Mass Build tool! This tool creates TXD files out of image<br>
+files inside of a folder hierarchy. You can use INI files inside of those<br>
+folders to specialize the building process. Try building some random folders<br>
+and see the results!<br><br>
+Wiki: <a href="http://www.gtamodding.com/wiki/Magic.TXD/Build_System/" style="color: #0063b1">http://www.gtamodding.com/wiki/Magic.TXD/Build_System/</a>
 [END]
 
 # Mass convert

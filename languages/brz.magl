@@ -177,6 +177,16 @@ Main.About.ComUse1     Esta ferramenta NÃO PODE ser usada comercialmente sem au
 Main.About.ComUse2     A equipe do _MAGIC_TXD_NAME aguarda com expectativa a sua contribuição!
 Main.About.SpecThx     Agradecimentos à
 
+# Save changes
+[Main.SavChange.Warn]
+There are unsaved changes in the open TXD archive.
+Do you want to save them now?
+[END]
+Main.SavChange.Save    Save
+Main.SavChange.Ignore  Ignore
+Main.SavChange.Cancel  Cancel
+Main.SavChange.Title   Unsaved changes
+
 # Tools
 Tools.Browse           Procurar
 Tools.BrwDesc          Procurar Pasta...
@@ -207,12 +217,11 @@ Tools.MassBld.DoPal    Paletizado
 Tools.MassBld.DescPType    Tipo
 
 [Tools.MassBld.Welcome]
-Bem vindo a ferramenta de compilação em massa! Esta ferramenta cria arquivos TXD
-a partir de arquivos IMG em uma hierarquia de pastas. Você também pode usar arquivos INI
-dentro dessas pastas para especializar o processo de compilação. Tente compilar algumas
-pastas e veja o resultado!
-
-Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+Bem vindo a ferramenta de compilação em massa! Esta ferramenta cria arquivos TXD<br>
+a partir de arquivos IMG em uma hierarquia de pastas. Você também pode usar arquivos INI<br>
+dentro dessas pastas para especializar o processo de compilação. Tente compilar algumas<br>
+pastas e veja o resultado!<br><br>
+Wiki: <a href="http://www.gtamodding.com/wiki/Magic.TXD/Build_System/" style="color: #0063b1">http://www.gtamodding.com/wiki/Magic.TXD/Build_System/</a>
 [END]
 
 # Mass convert

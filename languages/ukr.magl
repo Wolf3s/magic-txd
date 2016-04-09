@@ -178,6 +178,13 @@ Main.About.ComUse1       Ця програма НЕ ПОВИННА викори�
 Main.About.ComUse2       Команда _MAGIC_TXD_NAME вітає вашу підтримку!
 Main.About.SpecThx       Особлива подяка:
 
+# Save changes
+Main.SavChange.Warn      Відкритий TXD був змінений. Зберегти зміни?
+Main.SavChange.Save      Зберегти
+Main.SavChange.Ignore    Пропустити
+Main.SavChange.Cancel    Скасувати
+Main.SavChange.Title     Незбережені зміни
+
 # Tools
 Tools.Browse             Вибрати
 Tools.BrwDesc            Вибір папки...
