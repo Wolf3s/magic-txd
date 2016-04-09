@@ -77,11 +77,10 @@ AboutDialog::AboutDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     QHBoxLayout *specialThanksLayout = new QHBoxLayout();
 
-    static const char *specialThanks1 =
-        "Ash Rogers (GUI design help)\n" \
-        "GodFather (translator & friend)\n" \
-        "Vadim (good tester)\n" \
-        "Ss4gogeta0 (tester)";
+	static const char *specialThanks1 =
+		"Ash Rogers (GUI design help)\n" \
+		"GodFather (translator)\n" \
+		"Flame (support)\n";
 
     QLabel *labelSpecialThanks1 = new QLabel( specialThanks1 );
 
@@ -91,8 +90,10 @@ AboutDialog::AboutDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     specialThanksLayout->addWidget( labelSpecialThanks1, 0, Qt::AlignHCenter );
 
-    static const char *specialThanks2 =
-        "Flame (support)\n";
+	static const char *specialThanks2 =
+		"Vadim (tester)\n" \
+		"Ss4gogeta0 (tester)\n" \
+		"M4k3 (tester)";
 
     QLabel *labelSpecialThanks2 = new QLabel( specialThanks2 );
 
