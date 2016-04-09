@@ -6,6 +6,8 @@
 #include "languages.h"
 #include "testmessage.h"
 
+#include "texnameutils.hxx"
+
 #ifdef _DEBUG
 static const bool _lockdownPlatform = false;        // SET THIS TO TRUE FOR RELEASE.
 #else
@@ -505,87 +507,6 @@ QComboBox* TexAddDialog::createPlatformSelectComboBox(MainWindow *mainWnd)
 }
 
 #define LEFTPANELADDDIALOGWIDTH 230
-
-struct texture_name_validator : public QValidator
-{
-    inline texture_name_validator( QObject *parent ) : QValidator( parent )
-    {
-        return;
-    }
-
-private:
-    typedef character_env <wchar_t> wideEnv;
-
-    static inline bool is_char_valid( wideEnv::ucp_t char_code )
-    {
-        return ( char_code >= 0x20 && char_code < 0x7F );
-    }
-
-public:
-    void fixup( QString& input ) const override
-    {
-        // We only accept ANSI characters.
-        std::wstring wideInput = input.toStdWString();
-
-        // Make a new valid string.
-        std::wstring validOut;
-
-        wideEnv::const_iterator iter( wideInput.c_str() );
-
-        while ( !iter.IsEnd() )
-        {
-            wideEnv::ucp_t charCode = iter.ResolveAndIncrement();
-
-            // Make sure we are valid ANSI.
-            if ( !is_char_valid( charCode ) )
-            {
-                charCode = '?';
-            }
-
-            // Encode it into the wide string.
-            wideEnv::encoding_iterator enc_iter( &charCode, 1 );
-
-            wideEnv::enc_result wide_enc;
-            enc_iter.Resolve( wide_enc );
-
-            for ( size_t n = 0; n < wide_enc.numData; n++ )
-            {
-                validOut += wide_enc.data[ n ];
-            }
-        }
-
-        // Return the valid thing.
-        input = QString::fromStdWString( validOut );
-    }
-
-    State validate( QString& str, int& cursor ) const override
-    {
-        // We validate this thing.
-        std::wstring wideStr = str.toStdWString();
-
-        wideEnv::const_iterator iter( wideStr.c_str() );
-        
-        bool needs_fixup = false;
-
-        while ( !iter.IsEnd() )
-        {
-            wideEnv::ucp_t charCode = iter.ResolveAndIncrement();
-
-            if ( !is_char_valid( charCode ) )
-            {
-                needs_fixup = true;
-                break;
-            }
-        }
-
-        if ( needs_fixup )
-        {
-            fixup( str );
-        }
-
-        return Acceptable;
-    }
-};
 
 // We need an environment to handle helper stuff.
 struct texAddDialogEnv
