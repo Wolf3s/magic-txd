@@ -83,6 +83,9 @@ bool genericDecompressDXTNative(
         // Update the raster format.
         pixelData.rasterFormat = dstRasterFormat;
 
+        // Update the color order.
+        pixelData.colorOrder = dstColorOrder;
+
         // Update row alignment.
         pixelData.rowAlignment = dstRowAlignment;
 

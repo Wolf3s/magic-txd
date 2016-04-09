@@ -87,6 +87,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
         this->lastAllExportTarget = this->makeAppPath( "" ).toStdWString();
     }
 
+    this->wasTXDModified = false;
+
     this->showFullImage = false;
     this->drawMipmapLayers = false;
 	this->showBackground = false;
