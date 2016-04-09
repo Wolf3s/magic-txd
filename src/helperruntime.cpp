@@ -19,6 +19,7 @@ struct helper_item
         this->locale_item_name = "";
         this->helperType = eHelperTextType::DIALOG_WITH_TICK;
         this->isAllowedToDisplay = true;
+		this->richText = false;
     }
 
     inline ~helper_item( void )
@@ -35,6 +36,7 @@ struct helper_item
 
     const char *triggerName;
     const char *locale_item_name;
+	bool richText;
 
     eHelperTextType helperType;
 
@@ -170,7 +172,7 @@ struct helperRuntimeEnv : public magicSerializationProvider
 
 static PluginDependantStructRegister <helperRuntimeEnv, mainWindowFactory_t> helperRuntimeEnvRegister;
 
-bool RegisterHelperWidget( MainWindow *mainWnd, const char *triggerName, eHelperTextType diagType, const char *locale_item_name )
+bool RegisterHelperWidget(MainWindow *mainWnd, const char *triggerName, eHelperTextType diagType, const char *locale_item_name, bool richText)
 {
     helperRuntimeEnv *helperEnv = helperRuntimeEnvRegister.GetPluginStruct( mainWnd );
 
@@ -187,6 +189,7 @@ bool RegisterHelperWidget( MainWindow *mainWnd, const char *triggerName, eHelper
             new_item->triggerName = triggerName;
             new_item->locale_item_name = locale_item_name;
             new_item->helperType = diagType;
+			new_item->richText = richText;
             
             LIST_INSERT( helperEnv->helper_items.root, new_item->node );
 
@@ -266,6 +269,15 @@ struct HelperWidgetBase abstract : public QDialog, public magicTextLocalizationI
         this->setWindowTitle( MAGIC_TEXT( "Helper.Title" ) );
 
         this->helpTextLabel->setText( MAGIC_TEXT( helperNode->locale_item_name ) );
+
+		if (helperNode->richText) {
+			this->helpTextLabel->setTextFormat(Qt::TextFormat::RichText);
+			this->helpTextLabel->setOpenExternalLinks(true);
+		}
+		else {
+			this->helpTextLabel->setOpenExternalLinks(false);
+			this->helpTextLabel->setTextFormat(Qt::TextFormat::PlainText);
+		}
     }
 
     void onClickConfirm( bool checked )
