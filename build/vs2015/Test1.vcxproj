@@ -692,6 +692,7 @@
     <ClCompile Include="..\..\src\texadddialog.cpp" />
     <ClCompile Include="..\..\src\texformatextensions.cpp" />
     <ClCompile Include="../../src/mainwindow.cpp" />
+    <ClCompile Include="..\..\src\texnamewindow.cpp" />
     <ClCompile Include="..\..\src\textureviewport.cpp" />
     <ClCompile Include="..\..\src\tools\configtree.cpp" />
     <ClCompile Include="..\..\src\tools\txdbuild.cpp" />
@@ -742,6 +743,7 @@
     <ClInclude Include="..\..\include\mainwindow.h" />
     <ClInclude Include="../../include/texinfoitem.h" />
     <ClInclude Include="../../include/styles.h" />
+    <ClInclude Include="..\..\src\texnameutils.hxx" />
     <ClInclude Include="..\..\src\toolshared.hxx" />
     <ClInclude Include="..\..\src\tools\configtree.h" />
     <ClInclude Include="..\..\src\tools\dirtools.h" />

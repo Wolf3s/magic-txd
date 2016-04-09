@@ -45,6 +45,7 @@
     <ClCompile Include="..\..\src\progresslogedit.cpp" />
     <ClCompile Include="..\..\src\helperruntime.cpp" />
     <ClCompile Include="..\..\src\mainwindow.safety.cpp" />
+    <ClCompile Include="..\..\src\texnamewindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../../include/styles.h">
@@ -195,6 +196,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\tools\imagepipe.hxx">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\texnameutils.hxx">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
