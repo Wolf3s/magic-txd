@@ -17,6 +17,7 @@ QMenuBar::item
 
 QMenuBar::item:selected
 {
+    color: #0063b1;
     background: #eaeaea;
 }
 
@@ -152,32 +153,33 @@ QListView
     border: none;
     outline: 0;
     show-decoration-selected: 0;
-    background-color: #dddddd;
-    alternate-background-color: #dddddd;
+    background-color: #f2f2f2;
+    alternate-background-color: #f2f2f2;
 }
 
 QListView::item:alternate
 {
-    background: #dddddd;
+    background: #f2f2f2;
 }
 
 QListView::item
 {
-    background: #eeeeee;
+    background: #f2f2f2;
 }
 
-QListView::item:selected:!active
+QListView::item:selected
 {
-    background: #cccccc;
+    background: #91b9d8;
 }
 
-QListView::item:selected:active
+QListView::item:selected:hover
 {
-    background: #cccccc;
+    background: #619ccb;
 }
 
 QListView::item:hover
 {
+    background: #dadada;
 }
 
 QListView#logList::item

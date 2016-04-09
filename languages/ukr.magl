@@ -75,30 +75,28 @@ Modify.GenML             Генерувати міп-рівні
 Modify.Scaled            Масштаб
 Modify.Fill              Заповнити
 Modify.Bckgr             Фон
-Modify.Cancel            Відміна
+Modify.Cancel            Скасувати
 
 [Modify.Help.DXTNotice]
-You have selected DXT compression. DXT is a very efficient compression
-type for world textures. Textures stored in DXT use far less space, but
-they degrade the image quality significantly. It is NOT recommended to
-compress GUI textures.
+Ви вибрали DXT-компресію. DXT-компресія забезпечує дуже ефективне стиснення текстур.
+Текстури, стиснені DXT-алгоритмом, займають набагато менше місця, але разом з цим, якість
+таких текстур погіршується. Не рекомендується стискати текстури 2d-інтерфейсу.
 
-DXT1 is good for textures that use alpha for cut-out regions.
-DXT2/3 is good for textures with sharp alpha.
-DXT4/5 is good for textures with smooth alpha.
-If your image has no alpha, just pick DXT1.
+DXT1 рекомендується, якщо на текстурі немає прозорих ділянок, або коли всі прозорі
+ділянки повністю прозорі (альфа дорівнює нулю)
+DXT2/3 рекомендується, коли прозорі ділянки текстури мають чіткі межі.
+DXT4/5 рекомендується, коли прозорі ділянки текстури мають розмиті межі.
 
-Be careful which textures you compress and which type you choose!
+Будьте уважні при виборі формату і компресії текстур!
 [END]
 
 [Modify.Help.PALNotice]
-You have selected palette format. Images are palettized by selecting
-the most important colors and putting them into an array. The actual
-texture surface contains indices into the palette buffer, greatly
-decreasing the texture size.
+Ви вибрали формат палітри. Палітровое зображення використовує обмежений набір кольорів,
+що зберігаються в спеціальній таблиці - палітрі. Кожен тексель текстури представлений у
+вигляді індексу кольору в цій таблиці, що значно зменшує розмір текстури.
 
-Note that palette format is legacy technology and is no longer supported
-by modern hardware.
+Зверніть увагу, що формат палітри є старою технологією і не підтримується новими
+версіями RenderWare.
 [END]
 
 # Render Props
@@ -178,7 +176,7 @@ Main.About.Desc          Про нас
 Main.About.Credits       автори: _AUTHOR_NAME_1 та _AUTHOR_NAME_2
 Main.About.ComUse1       Ця програма НЕ ПОВИННА використовуватися в комерційних цілях без явного письмового дозволу всіх третіх осіб, задіяних у розробці цієї програми. Ознайомтеся з ліцензійними угодами для отримання додаткової інформації.
 Main.About.ComUse2       Команда _MAGIC_TXD_NAME вітає вашу підтримку!
-Main.About.SpecThx       Special thanks to:
+Main.About.SpecThx       Особлива подяка:
 
 # Tools
 Tools.Browse             Вибрати
@@ -210,12 +208,12 @@ Tools.MassBld.DoPal      Палітра
 Tools.MassBld.DescPType  Тип
 
 [Tools.MassBld.Welcome]
-Welcome to the Mass Build tool! This tool creates TXD files out of image
-files inside of a folder hierarchy. You can use INI files inside of those
-folders to specialize the building process. Try building some random folders
-and see the results!
+Ласкаво просимо в інструмент Масової збірки! Цей інструмент створює TXD файли з
+файлів текстур, що знаходяться в папках. Для настроювання процесу збірки можна 
+використовувати INI файли в цих папках. Спробуйте зібрати TXD на основі якої-небудь папки,
+щоб побачити, як це працює!
 
-Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+Вики: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
 [END]
 
 # Mass convert
@@ -236,5 +234,5 @@ New.Cancel               Скасувати
 
 # Helper runtime generics.
 Helper.Confirm           OK
-Helper.Title             Notice
-Helper.NotShowAgain      Do not show again
+Helper.Title             Замітка
+Helper.NotShowAgain      Більше не показувати
