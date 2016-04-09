@@ -128,6 +128,9 @@ extern void InitializeTaskCompletionWindowEnv( void );
 extern void InitializeSerializationStorageEnv( void );
 extern void InitializeMainWindowSerializationBlock( void );
 extern void InitializeMagicLanguages( void );
+extern void InitializeHelperRuntime( void );
+extern void InitializeMainWindowHelpEnv( void );
+extern void InitializeTextureAddDialogEnv( void );
 extern void InitializeExportAllWindowSerialization( void );
 extern void InitializeMassconvToolEnvironment(void);
 extern void InitializeMassExportToolEnvironment( void );
@@ -145,6 +148,9 @@ int main(int argc, char *argv[])
     InitializeSerializationStorageEnv();
     InitializeMainWindowSerializationBlock();
     InitializeMagicLanguages();
+    InitializeHelperRuntime();
+    InitializeMainWindowHelpEnv();
+    InitializeTextureAddDialogEnv();
     InitializeExportAllWindowSerialization();
     InitializeMassconvToolEnvironment();
     InitializeMassExportToolEnvironment();
@@ -242,6 +248,8 @@ int main(int argc, char *argv[])
             {
                 w->setWindowIcon(QIcon(w->makeAppPath("resources\\icons\\stars.png")));
                 w->show();
+
+                w->launchDetails();
 
                 QApplication::processEvents();
 

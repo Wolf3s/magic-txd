@@ -21,7 +21,7 @@ public:
 
     bool lastSearchSuccesfull;
 
-    static QString getStringFormattedWithVars(QString &string);
+    static QString getStringFormattedWithVars(QString&& string);
 
     static QString keyNotDefined(QString key);
 
@@ -71,11 +71,49 @@ public:
 
         bool hasAcquiredLanguage = false;
 
-        if (mainWnd->lastLanguageFileName.isEmpty() || !selectLanguageByFileName(mainWnd->lastLanguageFileName)) // try to select previously saved language
+        // First we try detecting a language by the system locale.
+        if ( !hasAcquiredLanguage )
         {
-            if (!selectLanguageByLanguageName(DEFAULT_LANGUAGE)) // then try to set the language to default
+            QLocale::Language lang = QLocale::system().language();
+
+            switch( lang )
             {
-                hasAcquiredLanguage = selectLanguageByIndex(0); // ok, enough
+            case QLocale::German:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "German" );
+                break;
+            case QLocale::English:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "English" );
+                break;
+            case QLocale::Ukrainian:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "Ukrainian" );
+                break;
+            case QLocale::Russian:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "Russian" );
+                break;
+            case QLocale::Croatian:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "Croatian" );
+                break;
+            case QLocale::Portuguese:
+                hasAcquiredLanguage = selectLanguageByLanguageName( "Portuguese" );
+                break;
+            }
+        }
+
+        if ( !hasAcquiredLanguage )
+        {
+            // Select the default language then.
+            if ( selectLanguageByLanguageName(DEFAULT_LANGUAGE) )
+            {
+                hasAcquiredLanguage = true;
+            }
+        }
+
+        // If anything else failed, we just try selecting the first language that is registered.
+        if ( !hasAcquiredLanguage )
+        {
+            if ( selectLanguageByIndex( 0 ) )
+            {
+                hasAcquiredLanguage = true;
             }
         }
 

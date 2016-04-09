@@ -74,6 +74,7 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
         this->texaddViewportFill = false;
         this->texaddViewportScaled = true;
         this->texaddViewportBackground = false;
+        this->isLaunchedForTheFirstTime = true;
         this->showLogOnWarning = true;
         this->showGameIcon = true;
         this->lastUsedAllExportFormat = "PNG";
@@ -719,6 +720,25 @@ void MainWindow::updateContent( MainWindow *mainWnd )
     RecalculateWindowSize(this, menuLineWidth, MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT);
 }
 
+// We want to have some help tokens in the main window too.
+struct mainWindowHelpEnv
+{
+    inline void Initialize( MainWindow *mainWnd )
+    {
+        RegisterHelperWidget( mainWnd, "mgbld_welcome", eHelperTextType::DIALOG_WITH_TICK, "Tools.MassBld.Welcome" );
+    }
+
+    inline void Shutdown( MainWindow *mainWnd )
+    {
+        UnregisterHelperWidget( mainWnd, "mgbld_welcome" );
+    }
+};
+
+void InitializeMainWindowHelpEnv( void )
+{
+    mainWindowFactory.RegisterDependantStructPlugin <mainWindowHelpEnv> ();
+}
+
 void MainWindow::addTextureFormatExportLinkToMenu( QMenu *theMenu, const char *displayName, const char *defaultExt, const char *formatName )
 {
     TextureExportAction *formatActionExport = new TextureExportAction( defaultExt, displayName, QString( formatName ), this );
@@ -1227,6 +1247,8 @@ void MainWindow::onToogleDarkTheme(bool checked) {
         this->setStyleSheet(styles::get(this->m_appPath, "resources\\dark.shell"));
         this->starsMovie->setFileName(makeAppPath("resources\\dark\\stars.gif"));
         this->starsMovie->start();
+
+        this->UpdateTheme();
     }
     else {
         this->recheckingThemeItem = true;
@@ -1242,6 +1264,8 @@ void MainWindow::onToogleLightTheme(bool checked) {
         this->setStyleSheet(styles::get(this->m_appPath, "resources\\light.shell"));
         this->starsMovie->setFileName(makeAppPath("resources\\light\\stars.gif"));
         this->starsMovie->start();
+
+        this->UpdateTheme();
     }
     else {
         this->recheckingThemeItem = true;
@@ -1929,6 +1953,15 @@ const char* MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
     return NULL;
 }
 
+void MainWindow::launchDetails( void )
+{
+    if ( this->isLaunchedForTheFirstTime )
+    {
+        // We should make ourselves known.
+        this->onAboutUs( false );
+    }
+}
+
 void MainWindow::ChangeTXDPlatform( rw::TexDictionary *txd, QString platform )
 {
     // To change the platform of a TXD we have to set all of it's textures platforms.
@@ -2026,12 +2059,13 @@ void MainWindow::onRequestMassBuild(bool checked)
     MassBuildWindow *massbuild = new MassBuildWindow( this );
 
     massbuild->setVisible( true );
+
+    TriggerHelperWidget( this, "mgbld_welcome", massbuild );
 }
 
 void MainWindow::onRequestOpenWebsite(bool checked)
 {
-    // TODO ;o
-    QDesktopServices::openUrl( QUrl( "http://niceme.me" ) );
+    QDesktopServices::openUrl( QUrl( "http://www.gtamodding.com/wiki/Magic.TXD" ) );
 }
 
 void MainWindow::onAboutUs(bool checked)
@@ -2050,4 +2084,34 @@ void MainWindow::onAboutUs(bool checked)
 
 QString MainWindow::makeAppPath(QString subPath) {
     return m_appPath + "\\" + subPath;
+}
+
+// Theme management.
+void MainWindow::RegisterThemeItem( magicThemeAwareItem *item )
+{
+    // Register the item.
+    this->themeItems.push_back( item );
+
+    // Initialize the theme.
+    item->updateTheme( this );
+}
+
+void MainWindow::UnregisterThemeItem( magicThemeAwareItem *item )
+{
+    // Remove the item, if found.
+    auto findItem = std::find( this->themeItems.begin(), this->themeItems.end(), item );
+
+    if ( findItem != this->themeItems.end() )
+    {
+        this->themeItems.erase( findItem );
+    }
+}
+
+void MainWindow::UpdateTheme( void )
+{
+    // Notify all items.
+    for ( magicThemeAwareItem *item : this->themeItems )
+    {
+        item->updateTheme( this );
+    }
 }

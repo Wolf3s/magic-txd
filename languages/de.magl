@@ -76,6 +76,30 @@ Modify.Fill            Gefüllt
 Modify.Bckgr           Hintergrund
 Modify.Cancel          Abbrechen
 
+[Modify.Help.DXTNotice]
+Du hast DXT Komprimierung ausgewählt. Sie ist besonders gut geeignet,
+um Welttexturen zu speichern. DXT Texturen nehmen nur einen Bruchteil der
+Größe des Originalbildes ein, vermindern jedoch die Bildqualität beträchtlich.
+Auf KEINEN Fall solltest du GUI Bilder hiermit abspeichern.
+
+DXT1 ist gut für Texturen mit ausgeschnittenem Hintergrund.
+DXT2/3 ist gut für Texturen mit scharfer Transparenz.
+DXT4/5 ist gut für Texturen mit weicher Transparenz.
+Bei keiner Transparenz wähle DXT1 aus.
+
+Denke zweimal nach bevor du Texturen komprimierst und welchen Typ du nutzt!
+[END]
+
+[Modify.Help.PALNotice]
+Du hast Farbredduktion ausgewählt. Bilder werden farbreduziert, indem
+die wichtigsten Farben des Bildes in einen Array gepackt werden. Dann
+besteht die eigentliche Bildfläche nur aus Indizes in diesen Array,
+sodass die Textur viel kleiner ausfällt.
+
+Farbreduktion ist eine veraltete Technology die moderne Grafikkarten
+nicht mehr unterstützen.
+[END]
+
 # Render Props
 Main.SetupRP.Desc      Darstellungsoptionen
 Main.SetupRP.Filter    Filterung:
@@ -153,6 +177,7 @@ Main.About.Desc        Über uns
 Main.About.Credits     erstellt von _AUTHOR_NAME_1 und _AUTHOR_NAME_2
 Main.About.ComUse1     Dieses Programm darf NICHT ohne Erlaubnis aller Parteien, die an der Erstellung mitgewirkt haben, kommerziell verwendet werden. Siehe die Lizensdokumente für weitere Informationen (auf Englisch).
 Main.About.ComUse2     Das _MAGIC_TXD_NAME Team freut sich auf deine Zusammenarbeit!
+Main.About.SpecThx     Besonderen Dank an:
 
 # Tools
 Tools.Browse           Stöbern
@@ -183,6 +208,15 @@ Tools.MassBld.DescQual Qualität
 Tools.MassBld.DoPal    Farbreduziert
 Tools.MassBld.DescPType    Typ
 
+[Tools.MassBld.Welcome]
+Willkommen zum Massenerbauer von TXDs! Mit diesem Werkzeug erstellst du
+im Handumdrehen TXD Dateien aus einer Bild-Datei-Hierarchy. Du kannst
+sogar INI Dateien in den Ordnern benutzen, um den Bauprozess speziell
+auf deine Bedürfnisse zuzuschneiden.
+
+Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+[END]
+
 # Mass convert
 Tools.MassCnv.Desc     Massenkonvertierung
 Tools.MassCnv.ClearML  Lösche Unterflächen
@@ -198,3 +232,8 @@ New.Desc               Neue TXD Erstellen
 New.Name               Archivname
 New.Create             Erstelle
 New.Cancel             Abbrechen
+
+# Helper runtime generics.
+Helper.Confirm         OK
+Helper.Title           Nachricht
+Helper.NotShowAgain    Nicht nochmal zeigen

@@ -43,6 +43,7 @@
       <Filter>tools</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\progresslogedit.cpp" />
+    <ClCompile Include="..\..\src\helperruntime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../../include/styles.h">
@@ -187,6 +188,9 @@
       <Filter>tools</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\progresslogedit.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\helperruntime.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

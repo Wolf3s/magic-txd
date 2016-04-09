@@ -650,6 +650,7 @@
     <ClCompile Include="..\..\src\friendlyicons.cpp" />
     <ClCompile Include="..\..\src\guiserialization.cpp" />
     <ClCompile Include="..\..\src\guiserialization.store.cpp" />
+    <ClCompile Include="..\..\src\helperruntime.cpp" />
     <ClCompile Include="..\..\src\languages.common.cpp" />
     <ClCompile Include="..\..\src\languages.cpp" />
     <ClCompile Include="..\..\src\MagicExport.cpp">
@@ -703,6 +704,7 @@
     <ClInclude Include="..\..\include\defs.h" />
     <ClInclude Include="..\..\include\exportallwindow.h" />
     <ClInclude Include="..\..\include\guiserialization.h" />
+    <ClInclude Include="..\..\include\helperruntime.h" />
     <ClInclude Include="..\..\include\languages.h" />
     <ClInclude Include="..\..\include\MagicExport.h" />
     <ClInclude Include="..\..\include\qtutils.h" />

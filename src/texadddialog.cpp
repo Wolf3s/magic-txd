@@ -587,6 +587,27 @@ public:
     }
 };
 
+// We need an environment to handle helper stuff.
+struct texAddDialogEnv
+{
+    inline void Initialize( MainWindow *mainWnd )
+    {
+        RegisterHelperWidget( mainWnd, "dxt_warning", eHelperTextType::DIALOG_WITH_TICK, "Modify.Help.DXTNotice" );
+        RegisterHelperWidget( mainWnd, "pal_warning", eHelperTextType::DIALOG_WITH_TICK, "Modify.Help.PALNotice" );
+    }
+
+    inline void Shutdown( MainWindow *mainWnd )
+    {
+        UnregisterHelperWidget( mainWnd, "pal_warning" );
+        UnregisterHelperWidget( mainWnd, "dxt_warning" );
+    }
+};
+
+void InitializeTextureAddDialogEnv( void )
+{
+    mainWindowFactory.RegisterDependantStructPlugin <texAddDialogEnv> ();
+}
+
 TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create_params, TexAddDialog::operationCallback_t cb) : QDialog(mainWnd), impMeth( this )
 {
     this->mainWnd = mainWnd;
@@ -1005,6 +1026,21 @@ void TexAddDialog::OnPlatformFormatTypeToggle(bool checked)
 {
     if (checked != true)
         return;
+
+    // Depending on the thing we clicked, we want to send some help text.
+    if ( !this->isConstructing )
+    {
+        QObject *clickedOn = sender();
+
+        if ( clickedOn == this->platformCompressionToggle )
+        {
+            TriggerHelperWidget( this->mainWnd, "dxt_warning", this );
+        }
+        else if ( clickedOn == this->platformPaletteToggle )
+        {
+            TriggerHelperWidget( this->mainWnd, "pal_warning", this );
+        }
+    }
 
     // Since we switched the platform format type, we have to adjust the accessability.
     // The accessability change must not swap items around on the GUI. Rather it should

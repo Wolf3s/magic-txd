@@ -1,6 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+// DEBUG DEFINES.
+#ifdef _DEBUG
+#define _DEBUG_HELPER_TEXT
+#endif
+
 #include <qconfig.h>
 
 #include <QMainWindow>
@@ -51,6 +56,14 @@ inline QString ansi_to_qt( const std::string& str )
     return QString::fromLatin1( str.c_str(), str.size() );
 }
 
+// The editor may have items that depend on a certain theme.
+// We must be aware of theme changes!
+struct magicThemeAwareItem abstract
+{
+    // Called when the theme has changed.
+    virtual void updateTheme( MainWindow *mainWnd ) = 0;
+};
+
 #include "texinfoitem.h"
 #include "txdlog.h"
 #include "txdadddialog.h"
@@ -58,6 +71,7 @@ inline QString ansi_to_qt( const std::string& str )
 #include "guiserialization.h"
 #include "aboutdialog.h"
 #include "streamcompress.h"
+#include "helperruntime.h"
 
 #include "MagicExport.h"
 
@@ -121,6 +135,12 @@ public:
 
     const char* GetTXDPlatform(rw::TexDictionary *txd);
 
+    void launchDetails( void );
+
+    // Theme registration API.
+    void RegisterThemeItem( magicThemeAwareItem *item );
+    void UnregisterThemeItem( magicThemeAwareItem *item );
+
 private:
     void DoAddTexture(const TexAddDialog::texAddOperation& params);
 
@@ -138,6 +158,8 @@ private:
 
         this->updateWindowTitle();
     }
+
+    void UpdateTheme( void );
 
 public slots:
     void onCreateNewTXD(bool checked);
@@ -234,6 +256,9 @@ private:
     bool showFullImage;
     bool drawMipmapLayers;
     bool showBackground;
+
+    // Editor theme awareness.
+    std::vector <magicThemeAwareItem*> themeItems;
 
     QMenu *fileMenu;
     QMenu *editMenu;
@@ -358,7 +383,9 @@ public:
     bool texaddViewportFill;
     bool texaddViewportScaled;
     bool texaddViewportBackground;
-    
+
+    bool isLaunchedForTheFirstTime;
+
     // Options.
     bool showLogOnWarning;
     bool showGameIcon;
