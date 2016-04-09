@@ -25,7 +25,7 @@ struct taskCompletionWindowEnv
 
 static PluginDependantStructRegister <taskCompletionWindowEnv, mainWindowFactory_t> taskCompletionWindowEnvRegister;
 
-TaskCompletionWindow::TaskCompletionWindow( MainWindow *mainWnd, rw::thread_t taskHandle, QString title, QString statusMsg ) : QDialog( mainWnd )
+TaskCompletionWindow::TaskCompletionWindow( MainWindow *mainWnd, rw::thread_t taskHandle, QString title ) : QDialog( mainWnd )
 {
     taskCompletionWindowEnv *env = taskCompletionWindowEnvRegister.GetPluginStruct( mainWnd );
 
@@ -40,6 +40,11 @@ TaskCompletionWindow::TaskCompletionWindow( MainWindow *mainWnd, rw::thread_t ta
 
     this->taskThreadHandle = taskHandle;
 
+    // Initialize general properties.
+    this->hasRequestedClosure = false;
+    this->hasCompleted = false;
+    this->closeOnCompletion = true;
+
     // We need a waiter thread that will notify us of the task completion.
     this->waitThreadHandle = rw::MakeThread( rwEngine, waiterThread_runtime, this );
 
@@ -48,13 +53,11 @@ TaskCompletionWindow::TaskCompletionWindow( MainWindow *mainWnd, rw::thread_t ta
     // This dialog should consist of a status message and a cancel button.
     QVBoxLayout *rootLayout = new QVBoxLayout();
 
-    QLabel *statusMessageLabel = new QLabel( statusMsg );
+    QVBoxLayout *logWidgetLayout = new QVBoxLayout();
 
-    statusMessageLabel->setAlignment( Qt::AlignCenter );
-
-    this->statusMessageLabel = statusMessageLabel;
-
-    rootLayout->addWidget( statusMessageLabel );
+    this->logAreaLayout = logWidgetLayout;
+    
+    rootLayout->addLayout( logWidgetLayout );
 
     QHBoxLayout *buttonRow = new QHBoxLayout();
 
@@ -99,4 +102,45 @@ TaskCompletionWindow::~TaskCompletionWindow( void )
 void InitializeTaskCompletionWindowEnv( void )
 {
     taskCompletionWindowEnvRegister.RegisterPlugin( mainWindowFactory );
+}
+
+LabelTaskCompletionWindow::LabelTaskCompletionWindow( MainWindow *mainWnd, rw::thread_t taskHandle, QString title, QString statusMsg ) : TaskCompletionWindow( mainWnd, taskHandle, std::move( title ) )
+{
+    QLabel *statusMessageLabel = new QLabel( statusMsg );
+
+    statusMessageLabel->setAlignment( Qt::AlignCenter );
+
+    this->statusMessageLabel = statusMessageLabel;
+
+    this->logAreaLayout->addWidget( statusMessageLabel );
+}
+
+LabelTaskCompletionWindow::~LabelTaskCompletionWindow( void )
+{
+    return;
+}
+
+void LabelTaskCompletionWindow::OnMessage( QString statusMsg )
+{
+    // Just update the label.
+    this->statusMessageLabel->setText( statusMsg );
+}
+
+LogTaskCompletionWindow::LogTaskCompletionWindow( MainWindow *mainWnd, rw::thread_t taskHandle, QString title, QString statusMsg ) : TaskCompletionWindow( mainWnd, taskHandle, std::move( title ) ), logEditControl( this )
+{
+    QWidget *logWidget = logEditControl.CreateLogWidget();
+
+    logEditControl.directLogMessage( std::move( statusMsg ) );
+
+    this->logAreaLayout->addWidget( logWidget );
+}
+
+LogTaskCompletionWindow::~LogTaskCompletionWindow( void )
+{
+    return;
+}
+
+void LogTaskCompletionWindow::OnMessage( QString statusMsg )
+{
+    logEditControl.directLogMessage( std::move( statusMsg ) );
 }

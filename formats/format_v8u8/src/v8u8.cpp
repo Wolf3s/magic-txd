@@ -11,7 +11,7 @@ MAGICAPI void __MAGICCALL SetInterface( const MagicFormatPluginInterface *intf )
 
 class FormatV8U8 : public MagicFormat
 {
-	D3DFORMAT GetD3DFormat(void) const override
+	D3DFORMAT_SDK GetD3DFormat(void) const override
 	{
 		return D3DFMT_V8U8;
 	}

@@ -116,6 +116,15 @@ public:
 			return (strcmp(value, "true") == 0) || (unsigned int)atoi(value) != 0;
 		}
 
+        template <typename callbackType>
+        inline void ForAllEntries( callbackType& cb ) const
+        {
+            for ( const Setting *cfg : this->settings )
+            {
+                cb( *cfg );
+            }
+        }
+
 		char*		m_name;
 
 	private:
@@ -129,6 +138,19 @@ public:
 	const char*		Get(const char *entry, const char *key);
 	int				GetInt(const char *entry, const char *key);
 	double			GetFloat(const char *entry, const char *key);
+
+    template <typename callbackType>
+    inline void     ForAllEntries( const char *entryName, callbackType& cb )
+    {
+        if ( Entry *section = this->GetEntry( entryName ) )
+        {
+            section->ForAllEntries(
+                [&]( Entry::Setting& cfg )
+            {
+                cb( cfg.key );
+            });
+        }
+    }
 
 private:
 	typedef std::list <Entry*> entryList_t;

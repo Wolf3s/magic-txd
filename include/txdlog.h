@@ -18,8 +18,6 @@
 
 #include "defs.h"
 
-#include <Windows.h>
-
 #include <ctime>
 
 enum eLogMessageType

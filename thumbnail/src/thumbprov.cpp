@@ -81,27 +81,35 @@ IFACEMETHODIMP RenderWareThumbnailProvider::Initialize( IStream *pStream, DWORD 
     if ( this->isInitialized )
         return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
 
-    // We decide to handle the thing over here.
-    // So we want to read the RenderWare object.
-    rw::Stream *rwStream = RwStreamCreateFromWin32( rwEngine, pStream );
-
-    if ( rwStream )
+    try
     {
-        try
+        // We decide to handle the thing over here.
+        // So we want to read the RenderWare object.
+        rw::Stream *rwStream = RwStreamCreateFromWin32( rwEngine, pStream );
+
+        if ( rwStream )
         {
-            this->thumbObj = rwEngine->Deserialize( rwStream );
-        }
-        catch( ... )
-        {
-            // We failed for some reason.
+            try
+            {
+                this->thumbObj = rwEngine->Deserialize( rwStream );
+            }
+            catch( ... )
+            {
+                // We failed for some reason.
+            }
+
+            rwEngine->DeleteStream( rwStream );
         }
 
-        rwEngine->DeleteStream( rwStream );
+        this->isInitialized = true;
+
+        return S_OK;
     }
-
-    this->isInitialized = true;
-
-    return S_OK;
+    catch( ... )
+    {
+        // Shit.
+        return E_FAIL;
+    }
 }
 
 static void adjustToMaxDimm( rw::uint32 width, rw::uint32 height, rw::uint32 maxDimm, rw::uint32& recWidth, rw::uint32& recHeight )

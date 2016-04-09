@@ -12,9 +12,10 @@
 #ifndef _GLOBAL_MEMORY_UTILITIES_
 #define _GLOBAL_MEMORY_UTILITIES_
 
+#include <assert.h>
 #include <list>
 #include "rwlist.hpp"
-#include <CFileSystem.common.h>
+#include "MemoryRaw.h"
 #include <atomic>
 
 template <typename numberType>
@@ -1394,6 +1395,11 @@ struct StaticPluginClassFactory
     inline ~StaticPluginClassFactory( void )
     {
         assert( aliveClasses == 0 );
+    }
+
+    inline unsigned int GetNumberOfAliveClasses( void ) const
+    {
+        return this->aliveClasses;
     }
 
     // Number type used to store the plugin offset.

@@ -1,6 +1,11 @@
+#ifndef _RENDERWARE_D3D8_NATIVETEX_MAIN_INCLUDE_
+#define _RENDERWARE_D3D8_NATIVETEX_MAIN_INCLUDE_
+
 #ifdef RWLIB_INCLUDE_NATIVETEX_D3D8
 
 #include "txdread.d3d.hxx"
+
+#include "txdread.common.hxx"
 
 #define PLATFORM_D3D8   8
 
@@ -341,6 +346,119 @@ struct d3d8NativeTextureTypeProvider : public texNativeTypeProvider
 namespace d3d8
 {
 
+inline void convertCompatibleRasterFormat(
+    bool desireWorkingFormat,
+    eRasterFormat& rasterFormat, eColorOrdering& colorOrder, uint32& depth, ePaletteType& paletteType
+)
+{
+    eRasterFormat srcRasterFormat = rasterFormat;
+    eColorOrdering srcColorOrder = colorOrder;
+    uint32 srcDepth = depth;
+    ePaletteType srcPaletteType = paletteType;
+
+    if ( srcPaletteType != PALETTE_NONE )
+    {
+        if ( srcPaletteType == PALETTE_4BIT || srcPaletteType == PALETTE_8BIT )
+        {
+            // We only support 8bit depth palette.
+            depth = 8;
+        }
+        else if ( srcPaletteType == PALETTE_4BIT_LSB )
+        {
+            depth = 8;
+            
+            // We must reorder the palette.
+            paletteType = PALETTE_4BIT;
+        }
+        else
+        {
+            assert( 0 );
+        }
+
+        // All palettes have RGBA color order.
+        colorOrder = COLOR_RGBA;
+
+        // Also verify raster formats.
+        // Should be fairly similar to XBOX compatibility.
+        bool hasValidPaletteRasterFormat = false;
+
+        if ( srcRasterFormat == RASTER_8888 ||
+             srcRasterFormat == RASTER_888 )
+        {
+            hasValidPaletteRasterFormat = true;
+        }
+
+        // We can allow more complicated types if compatibility of old
+        // implementations is not desired.
+        if ( desireWorkingFormat == false )
+        {
+            if ( srcRasterFormat == RASTER_1555 ||
+                 srcRasterFormat == RASTER_565 ||
+                 srcRasterFormat == RASTER_4444 ||
+                 srcRasterFormat == RASTER_LUM ||
+                 srcRasterFormat == RASTER_8888 ||
+                 srcRasterFormat == RASTER_888 ||
+                 srcRasterFormat == RASTER_555 )
+            {
+                // Allow those more advanced palette raster formats.
+                hasValidPaletteRasterFormat = true;
+            }
+        }
+
+        if ( !hasValidPaletteRasterFormat )
+        {
+            // Anything invalid should be expanded to full color.
+            rasterFormat = RASTER_8888;
+        }
+    }
+    else
+    {
+        if ( srcRasterFormat == RASTER_1555 )
+        {
+            depth = 16;
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_565 )
+        {
+            depth = 16;
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_4444 )
+        {
+            depth = 16;
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_8888 )
+        {
+            depth = 32;
+
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_888 )
+        {
+            depth = 32;
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_555 )
+        {
+            depth = 16;
+            colorOrder = COLOR_BGRA;
+        }
+        else if ( srcRasterFormat == RASTER_LUM )
+        {
+            // We only support 8bit LUM, actually.
+            depth = 8;
+        }
+        else
+        {
+            // Any unknown raster formats need conversion to full quality.
+            rasterFormat = RASTER_8888;
+            depth = 32;
+            colorOrder = COLOR_BGRA;
+        }
+    }
+}
+
 #pragma pack(1)
 struct textureMetaHeaderStructGeneric
 {
@@ -369,3 +487,5 @@ struct textureMetaHeaderStructGeneric
 }
 
 #endif //RWLIB_INCLUDE_NATIVETEX_D3D8
+
+#endif //_RENDERWARE_D3D8_NATIVETEX_MAIN_INCLUDE_

@@ -1,10 +1,12 @@
-#include <cstdio>
+#include "StdInc.h"
 
-#include <StdInc.h>
+#include <cstdio>
 
 #include "streamutil.hxx"
 
 #pragma warning(disable: 4244)
+#pragma warning(disable: 4267)
+#pragma warning(disable: 4390)
 
 using namespace std;
 

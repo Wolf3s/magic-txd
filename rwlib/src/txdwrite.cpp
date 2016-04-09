@@ -1,12 +1,12 @@
+#include "StdInc.h"
+
 #include <cstring>
 #include <assert.h>
 #include <math.h>
 
-#include <StdInc.h>
-
 #include "txdread.common.hxx"
 
-#include "txdread.nativetex.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -81,6 +81,8 @@ uint16 GetTexDictionaryRecommendedDriverID( Interface *engineInterface, const Te
 
                 if ( texRaster )
                 {
+                    scoped_rwlock_reader <rwlock> rasterConsistency( GetRasterLock( texRaster ) );
+
                     // We can only determine the recommended platform if we have native data.
                     void *nativeObj = texRaster->platformData;
 
@@ -179,7 +181,7 @@ void texDictionaryStreamPlugin::Serialize( Interface *intf, BlockProvider& outpu
             txdMetaInfoBlock.setBlockID( CHUNK_STRUCT );
 
             // Write depending on version.
-            if (version.rwLibMinor <= 5)
+            if (version.rwLibMajor <= 2 || version.rwLibMajor == 3 && version.rwLibMinor <= 5)
             {
                 txdMetaInfoBlock.writeUInt32(numTextures);
             }

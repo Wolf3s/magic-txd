@@ -45,17 +45,23 @@ inline void CompatibilityTransformImagingLayer( Interface *engineInterface, cons
     uint32 dstRowAlignment;
     eColorOrdering dstColorOrder;
     ePaletteType dstPaletteType;
-    void *dstPaletteData;
     uint32 dstPaletteSize;
     eCompressionType dstCompressionType;
 
     bool wantsUpdate =
         TransformDestinationRasterFormat(
             engineInterface,
-            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteData, srcPaletteSize, srcCompressionType,
-            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstPaletteData, dstPaletteSize, dstCompressionType,
+            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteSize, srcCompressionType,
+            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstPaletteSize, dstCompressionType,
             pixelCaps, layer.hasAlpha
          );
+
+    void *dstPaletteData = NULL;
+
+    if ( dstPaletteType != PALETTE_NONE )
+    {
+        dstPaletteData = srcPaletteData;
+    }
 
     uint32 srcMipWidth = layer.mipWidth;
     uint32 srcMipHeight = layer.mipHeight;
@@ -317,8 +323,8 @@ bool DeserializeMipmapLayer( Stream *inputStream, rawMipmapLayer& rawLayer )
             // Just give the data to the runtime.
             rawLayer.mipData.width = travData.mipWidth;
             rawLayer.mipData.height = travData.mipHeight;
-            rawLayer.mipData.mipWidth = travData.layerWidth;
-            rawLayer.mipData.mipHeight = travData.layerHeight;
+            rawLayer.mipData.layerWidth = travData.layerWidth;
+            rawLayer.mipData.layerHeight = travData.layerHeight;
             rawLayer.mipData.texels = travData.texelSource;
             rawLayer.mipData.dataSize = travData.dataSize;
 
@@ -353,8 +359,8 @@ bool SerializeMipmapLayer( Stream *outputStream, const char *formatDescriptor, c
     {
         // We put data into the traversal struct and push it to the imaging format manager.
         imagingLayerTraversal travData;
-        travData.layerWidth = rawLayer.mipData.mipWidth;
-        travData.layerHeight = rawLayer.mipData.mipHeight;
+        travData.layerWidth = rawLayer.mipData.layerWidth;
+        travData.layerHeight = rawLayer.mipData.layerHeight;
         travData.mipWidth = rawLayer.mipData.width;
         travData.mipHeight = rawLayer.mipData.height;
         travData.texelSource = rawLayer.mipData.texels;

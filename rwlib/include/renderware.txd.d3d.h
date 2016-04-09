@@ -1,6 +1,6 @@
 // Public Texture Dictionary Direct3D 9 RenderWare extensions.
 // Use those if you need internal access to D3D native textures.
-// Be cautious, as internals do rapidly change between RenderWare versions.
+// Be cautious, as internals do rapidly change between framework versions.
 
 namespace d3dpublic
 {
@@ -15,9 +15,8 @@ inline uint32 GetAPIRevision( void )
 struct d3dNativeTextureInterface abstract
 {
     // Returns the D3DFORMAT field of that native texture.
-    // Since every Direct3D 9 native texture must have a D3DFORMAT field, this will
-    // always return true.
-    virtual void GetD3DFormat( DWORD& d3dFormat ) const = 0;
+    // Every Direct3D 9 native texture must have a D3DFORMAT field.
+    virtual void GetD3DFormat( uint32& d3dFormat ) const = 0;
 };
 
 /*
@@ -40,12 +39,14 @@ struct nativeTextureFormatHandler abstract
     virtual void GetTextureRWFormat( eRasterFormat& rasterFormatOut, unsigned int& depthOut, eColorOrdering& colorOrderOut ) const = 0;
 
     // Converts the D3DFORMAT anonymous data to RW original types and returns it.
+    // WARNING: texMipWidth and texMipHeight are layer dimensions. It is YOUR responsibility to calculate surface dimensions!
     virtual void ConvertToRW(
         const void *texData, unsigned int texMipWidth, unsigned int texMipHeight, size_t dstStride, size_t texDataSize,
         void *texOut    // preallocated memory.
     ) const = 0;
 
     // Converts original RW types into the D3DFORMAT plugin format.
+    // WARNING: calculate the surface dimensions yourself, just like in ConvertToRW!
     virtual void ConvertFromRW(
         unsigned int texMipWidth, unsigned int texMipHeight, size_t srcStride,
         const void *texelSource, eRasterFormat rasterFormat, unsigned int depth, eColorOrdering colorOrder, ePaletteType paletteType, const void *paletteData, unsigned int paletteSize,
@@ -56,8 +57,8 @@ struct nativeTextureFormatHandler abstract
 struct d3dNativeTextureDriverInterface abstract
 {
 	// Registration routines for plugin D3DFORMAT handling.
-	virtual bool RegisterFormatHandler(DWORD format, nativeTextureFormatHandler *handler) = 0;
-	virtual bool UnregisterFormatHandler(DWORD format) = 0;
+	virtual bool RegisterFormatHandler(uint32 format, nativeTextureFormatHandler *handler) = 0;
+	virtual bool UnregisterFormatHandler(uint32 format) = 0;
 };
 
 };

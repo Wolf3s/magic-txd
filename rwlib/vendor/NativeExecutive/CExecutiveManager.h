@@ -30,15 +30,7 @@ class CExecTask;
 namespace ExecutiveManager
 {
     // Function used by the system for performance measurements.
-    AINLINE double GetPerformanceTimer( void )
-    {
-        LONGLONG counterFrequency, currentCount;
-
-        QueryPerformanceFrequency( (LARGE_INTEGER*)&counterFrequency );
-        QueryPerformanceCounter( (LARGE_INTEGER*)&currentCount );
-
-        return (long double)currentCount / (long double)counterFrequency;
-    }
+    double GetPerformanceTimer( void );
 
     typedef StaticPluginClassFactory <CExecThread> threadPluginContainer_t;
 };
@@ -142,7 +134,7 @@ public:
 
     ExecutiveManager::threadPluginContainer_t threadPlugins;
 
-    CRITICAL_SECTION threadPluginsLock;
+    CReadWriteLock *threadPluginsLock;
 
     bool isTerminating;     // if true then no new objects are allowed to spawn anymore.
 

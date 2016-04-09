@@ -461,3 +461,29 @@ QWidget#friendlyIconSeparator
 {
     background: #666178
 }
+
+QLabel#helperTextLabel
+{
+    font-size: 14px
+}
+
+QCheckBox#helperSelecCheckBox
+{
+    font-size: 16px;
+}
+
+QCheckBox#helperSelecCheckBox::indicator
+{
+    width: 16px;
+    height: 16px;
+}
+
+QLabel#labelSpecThxHeader
+{
+    font-size: 18px;
+}
+
+QLabel#labelSpecThx
+{
+    font-size: 14px;
+}

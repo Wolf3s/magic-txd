@@ -21,6 +21,15 @@ struct FileInterface abstract
     virtual void            FlushStream         ( filePtr_t ptr ) = 0;
 };
 
+// Translator interface for basing file activity somewhere.
+struct FileTranslator abstract
+{
+    virtual bool            GetBasedDirectory   ( const wchar_t *streamPath, std::wstring& fullPathOut ) const = 0;
+};
+
+// Ability to set the current directory translator.
+void SetDataRepositoryTranslator( Interface *engineInterface, FileTranslator *translator );
+
 #pragma warning(push)
 #pragma warning(disable:4996)
 

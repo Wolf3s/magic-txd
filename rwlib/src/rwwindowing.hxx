@@ -3,6 +3,9 @@
 
 #include "pluginutil.hxx"
 
+// Definately depend on windows internals here (windowing system).
+#include "native.win32.hxx"
+
 namespace rw
 {
 

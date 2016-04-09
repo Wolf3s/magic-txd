@@ -21,7 +21,7 @@ public:
 
     bool lastSearchSuccesfull;
 
-    static QString getStringFormattedWithVars(QString &string);
+    static QString getStringFormattedWithVars(QString&& string);
 
     static QString keyNotDefined(QString key);
 
@@ -55,6 +55,8 @@ public:
 
     inline MagicLanguages( void )
     {
+        this->isInitialized = false;
+
         this->mainWnd = NULL;
 
         this->currentLanguage = -1;
@@ -67,17 +69,50 @@ public:
         // read languages
         scanForLanguages(mainWnd->makeAppPath("languages"));
 
-        if (mainWnd->lastLanguageFileName.isEmpty() || !selectLanguageByFileName(mainWnd->lastLanguageFileName)) // try to select previously saved language
+        bool hasAcquiredLanguage = false;
+
+        // First we try detecting a language by the system locale.
+        if ( !hasAcquiredLanguage )
         {
-            if (!selectLanguageByLanguageName(DEFAULT_LANGUAGE)) // then try to set the language to default
+            QLocale::Language lang = QLocale::system().language();
+
+            QString langString = QLocale::languageToString( lang );
+
+            hasAcquiredLanguage = selectLanguageByLanguageName( std::move( langString ) );
+        }
+
+        if ( !hasAcquiredLanguage )
+        {
+            // Select the default language then.
+            if ( selectLanguageByLanguageName(DEFAULT_LANGUAGE) )
             {
-                selectLanguageByIndex(0); // ok, enough
+                hasAcquiredLanguage = true;
             }
         }
+
+        // If anything else failed, we just try selecting the first language that is registered.
+        if ( !hasAcquiredLanguage )
+        {
+            if ( selectLanguageByIndex( 0 ) )
+            {
+                hasAcquiredLanguage = true;
+            }
+        }
+
+        if ( !hasAcquiredLanguage )
+        {
+            // If we have not acquired a language, we must initialize using the placeholders.
+            updateLanguageContext();
+        }
+
+        // Allow initialization of language items during registration.
+        this->isInitialized = true;
     }
 
     inline void Shutdown( MainWindow *mainWnd )
     {
+        this->isInitialized = false;
+
         this->mainWnd = NULL;
     }
 
@@ -90,7 +125,9 @@ public:
         mainWnd->lastLanguageFileName = QString::fromStdWString( langfile_str );
 
         // Load the language.
-        selectLanguageByFileName( mainWnd->lastLanguageFileName );
+        bool loadedLanguage = selectLanguageByFileName( mainWnd->lastLanguageFileName );
+
+        // Since loading the configuration is optional, we do not care if we failed to load a language here.
     }
 
     void Save( const MainWindow *mainWnd, rw::BlockProvider& configBlock ) const
@@ -98,13 +135,13 @@ public:
         RwWriteUnicodeString( configBlock, mainWnd->lastLanguageFileName.toStdWString() );
     }
 
+    bool isInitialized;
+
     MainWindow *mainWnd;
 
     QVector<MagicLanguage> languages;
 
     int currentLanguage; // index of current language in languages array, -1 if not defined
-
-    typedef std::list <magicTextLocalizationItem*> localizations_t;
 
     localizations_t culturalItems;
 };

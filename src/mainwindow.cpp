@@ -13,6 +13,11 @@
 #include <QFileDialog>
 #include <QDir>
 #include <QDesktopServices>
+#include <qdrag.h>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDropEvent>
+#include <qmimedata.h>
 
 #include "styles.h"
 #include "rwversiondialog.h"
@@ -28,6 +33,7 @@
 #include "languages.h"
 
 #include "tools/txdgen.h"
+#include "tools/imagepipe.hxx"
 
 #include "qtrwutils.hxx"
 
@@ -74,6 +80,7 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
         this->texaddViewportFill = false;
         this->texaddViewportScaled = true;
         this->texaddViewportBackground = false;
+        this->isLaunchedForTheFirstTime = true;
         this->showLogOnWarning = true;
         this->showGameIcon = true;
         this->lastUsedAllExportFormat = "PNG";
@@ -93,14 +100,15 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
     this->fileSystem = fsHandle;
 
-    RegisterTextLocalizationItem( this );
-
     try
     {
 	    /* --- Window --- */
         updateWindowTitle();
         //setMinimumSize(620, 300);
 	    //resize(800, 600);
+
+        // We do support drag and drop.
+        this->setAcceptDrops( true );
 
         SetupWindowSize(this, MAIN_WIDTH, MAIN_HEIGHT, MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT);
 
@@ -340,10 +348,29 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
 	    exportMenu = menu->addMenu("");
 
-        this->addTextureFormatExportLinkToMenu( exportMenu, "PNG", "PNG", "Portable Network Graphics" );
+        // We should check if formats are available first :)
+        if ( rw::IsImagingFormatAvailable( rwEngine, "PNG" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "PNG", "PNG", "Portable Network Graphics" );
+        }
+
+        // RWTEX should always be available. Otherwise there'd be no purpose in Magic.TXD :p
         this->addTextureFormatExportLinkToMenu( exportMenu, "RWTEX", "RWTEX", "RW Texture Chunk" );
-        this->addTextureFormatExportLinkToMenu( exportMenu, "DDS", "DDS", "Direct Draw Surface" );
-        this->addTextureFormatExportLinkToMenu( exportMenu, "BMP", "BMP", "Raw Bitmap" );
+
+        if ( rw::IsNativeImageFormatAvailable( rwEngine, "DDS" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "DDS", "DDS", "DirectDraw Surface" );
+        }
+
+        if ( rw::IsNativeImageFormatAvailable( rwEngine, "PVR" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "PVR", "PVR", "PowerVR Image" );
+        }
+
+        if ( rw::IsImagingFormatAvailable( rwEngine, "BMP" ) )
+        {
+            this->addTextureFormatExportLinkToMenu( exportMenu, "BMP", "BMP", "Raw Bitmap" );
+        }
 
         // Add remaining formats that rwlib supports.
         {
@@ -371,6 +398,7 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
                 {
                     if ( stricmp( defaultExt, "PNG" ) != 0 &&
                          stricmp( defaultExt, "DDS" ) != 0 &&
+                         stricmp( defaultExt, "PVR" ) != 0 &&
                          stricmp( defaultExt, "BMP" ) != 0 )
                     {
                         this->addTextureFormatExportLinkToMenu( exportMenu, displayName, defaultExt, theFormat.formatName );
@@ -394,32 +422,33 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
             }
 
             // Also add image formats from native texture types.
-            rw::platformTypeNameList_t platformTypes = rw::GetAvailableNativeTextureTypes( this->rwEngine );
+            rw::registered_image_formats_t regNatImgTypes;
 
-            for ( rw::platformTypeNameList_t::const_iterator iter = platformTypes.begin(); iter != platformTypes.end(); iter++ )
+            rw::GetRegisteredNativeImageTypes( engineInterface, regNatImgTypes );
+
+            for ( const rw::registered_image_format& info : regNatImgTypes )
             {
-                const std::string& nativeName = *iter;
+                const char *defaultExt = NULL;
 
-                // Check the driver for a native name.
-                const char *nativeExt = rw::GetNativeTextureImageFormatExtension( this->rwEngine, nativeName.c_str() );
-
-                if ( nativeExt )
+                if ( rw::GetDefaultImagingFormatExtension( info.num_ext, info.ext_array, defaultExt ) )
                 {
                     registered_image_format imgformat;
 
-                    if ( strcmp( nativeExt, "DDS" ) == 0 )
-                    {
-                        imgformat.formatName = "DirectDraw Surface";
-                    }
-                    else
-                    {
-                        imgformat.formatName = nativeExt;   // could improve this.
-                    }
-                    imgformat.defaultExt = nativeExt;
+                    imgformat.formatName = info.formatName;
+                    imgformat.defaultExt = defaultExt;
                     imgformat.isNativeFormat = true;
-                    imgformat.nativeType = nativeName;
 
-                    imgformat.ext_array.push_back( nativeExt );
+                    // Add all extensions to the array.
+                    {
+                        size_t extCount = info.num_ext;
+
+                        for ( size_t n = 0; n < extCount; n++ )
+                        {
+                            const char *extName = info.ext_array[ n ].ext;
+
+                            imgformat.ext_array.push_back( extName );
+                        }
+                    }
 
                     this->reg_img_formats.push_back( std::move( imgformat ) );
                 }
@@ -628,6 +657,8 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
 
         // Initialize the GUI.
         this->UpdateAccessibility();
+
+        RegisterTextLocalizationItem( this );
     }
     catch( ... )
     {
@@ -637,8 +668,19 @@ MainWindow::MainWindow(QString appPath, rw::Interface *engineInterface, CFileSys
     }
 }
 
+template <typename objType>
+inline void SafeDelete( objType *ptr )
+{
+    if ( ptr )
+    {
+        delete ptr;
+    }
+}
+
 MainWindow::~MainWindow()
 {
+    UnregisterTextLocalizationItem( this );
+
     // If we have a loaded TXD, get rid of it.
     if ( this->currentTXD )
     {
@@ -647,15 +689,52 @@ MainWindow::~MainWindow()
         this->currentTXD = NULL;
     }
 
-    delete txdLog;
+    // DELETE ALL SUB DIALOGS THAT DEPEND ON MAINWINDOW HERE.
+
+    SafeDelete( txdLog );
+    SafeDelete( verDlg );
+    SafeDelete( texNameDlg );
+    SafeDelete( renderPropDlg );
+    SafeDelete( resizeDlg );
+    SafeDelete( platformDlg );
+    SafeDelete( aboutDlg );
+    SafeDelete( optionsDlg );
+
+    // Kill any sub windows.
+    {
+        QObjectList children = this->children();
+        
+        for ( QObject *obj : children )
+        {
+            if ( QDialog *subDlg = dynamic_cast <QDialog*> ( obj ) )
+            {
+                // Kills off any remnants that could depend on the main window.
+                delete subDlg;
+            }
+        }
+    }
+
+    // Kill off localization items that are dialogs and not the main window.
+    {
+        localizations_t culturalItems = GetTextLocalizationItems();
+
+        for ( magicTextLocalizationItem *locale_obj : culturalItems )
+        {
+            if ( locale_obj != this )
+            {
+                if ( QDialog *dlg = dynamic_cast <QDialog*> ( locale_obj ) )
+                {
+                    delete dlg;
+                }
+            }
+        }
+    }
 
     // Remove the warning manager again.
     this->rwEngine->SetWarningManager( NULL );
 
     // Shutdown the native format handlers.
     this->shutdownNativeFormats();
-
-    UnregisterTextLocalizationItem( this );
 }
 
 void MainWindow::updateContent( MainWindow *mainWnd )
@@ -696,6 +775,25 @@ void MainWindow::updateContent( MainWindow *mainWnd )
     menuLineWidth += 100;  // buttons size
 
     RecalculateWindowSize(this, menuLineWidth, MAIN_MIN_WIDTH, MAIN_MIN_HEIGHT);
+}
+
+// We want to have some help tokens in the main window too.
+struct mainWindowHelpEnv
+{
+    inline void Initialize( MainWindow *mainWnd )
+    {
+        RegisterHelperWidget( mainWnd, "mgbld_welcome", eHelperTextType::DIALOG_WITH_TICK, "Tools.MassBld.Welcome" );
+    }
+
+    inline void Shutdown( MainWindow *mainWnd )
+    {
+        UnregisterHelperWidget( mainWnd, "mgbld_welcome" );
+    }
+};
+
+void InitializeMainWindowHelpEnv( void )
+{
+    mainWindowFactory.RegisterDependantStructPlugin <mainWindowHelpEnv> ();
 }
 
 void MainWindow::addTextureFormatExportLinkToMenu( QMenu *theMenu, const char *displayName, const char *defaultExt, const char *formatName )
@@ -781,6 +879,241 @@ void MainWindow::UpdateAccessibility( void )
     this->actionSetupTXDVersion->setDisabled( !has_txd );
 
     this->UpdateExportAccessibility();
+}
+
+// Drag and drop stuff.
+void MainWindow::dragEnterEvent( QDragEnterEvent *evt )
+{
+    // Check if we are a TXD or image file, based on the extention.
+    const QMimeData *mimeStuff = evt->mimeData();
+
+    // Basically, we receive a number of files in a drag operation.
+    // We only support a single TXD file in the 
+
+    if ( mimeStuff )
+    {
+        rw::Interface *rwEngine = this->rwEngine;
+
+        QList <QUrl> urls = mimeStuff->urls();
+
+        bool areLocationsLookingGood = false;
+        bool hasValidFile = false;
+        bool hasTXDFile = false;
+
+        for ( QUrl location : urls )
+        {
+            QString qtPath = location.toLocalFile();
+
+            if ( qtPath.isEmpty() == false )
+            {
+                std::wstring widePath = qtPath.toStdWString();
+
+                filePath extention;
+
+                FileSystem::GetFileNameItem( widePath.c_str(), false, NULL, &extention );
+
+                if ( extention.size() != 0 )
+                {
+                    bool recognizedData = false;
+
+                    bool hasNewTXDFile = false;
+
+                    // We do support opening TXD files.
+                    if ( extention.equals( L"TXD", false ) )
+                    {
+                        // If we had a valid file already, we quit.
+                        if ( hasValidFile )
+                        {
+                            return;
+                        }
+
+                        recognizedData = true;
+
+                        hasNewTXDFile = true;
+                    }
+
+                    // Recognize image data if we have a open TXD file.
+                    if ( this->currentTXD )
+                    {
+                        eImportExpectation imp_exp = getActualImageImportExpectation( rwEngine, extention );
+                        
+                        if ( imp_exp != IMPORTE_NONE )
+                        {
+                            recognizedData = true;
+                        }
+                    }
+
+                    // If we support it, then we accept it.
+                    if ( recognizedData )
+                    {
+                        // If we had a TXD file, there is no point.
+                        if ( hasTXDFile )
+                        {
+                            return;
+                        }
+
+                        areLocationsLookingGood = true;
+
+                        hasValidFile = true;
+                    }
+
+                    if ( hasNewTXDFile )
+                    {
+                        hasTXDFile = true;
+                    }
+                }
+            }
+        }
+
+        if ( areLocationsLookingGood )
+        {
+            evt->acceptProposedAction();
+        }
+    }
+}
+
+void MainWindow::dragLeaveEvent( QDragLeaveEvent *evt )
+{
+    // Nothin to do here.
+    return;
+}
+
+void MainWindow::dropEvent( QDropEvent *evt )
+{
+    // Check what kind of data we got.
+    if ( const QMimeData *mimeStuff = evt->mimeData() )
+    {
+        rw::Interface *rwEngine = this->rwEngine;
+
+        QList <QUrl> urls = mimeStuff->urls();
+
+        // We want to display the image config dialog if we add just one image.
+        bool isSingleFile = ( urls.size() == 1 );
+
+        for ( QUrl location : urls )
+        {
+            QString qtPath = location.toLocalFile();
+
+            if ( qtPath.isEmpty() == false )
+            {
+                std::wstring widePath = qtPath.toStdWString();
+
+                bool hasHandledFile = false;
+
+                // We should ignore any RW error.
+                try
+                {
+                    // * TXD file?
+                    {
+                        bool loadedTXD = this->openTxdFile( qtPath, true );
+
+                        if ( loadedTXD )
+                        {
+                            hasHandledFile = true;
+                        }
+                    }
+
+                    if ( !hasHandledFile )
+                    {
+                        // * image file?
+                        if ( rw::TexDictionary *txd = this->currentTXD )
+                        {
+                            filePath extention;
+
+                            filePath nameItem = FileSystem::GetFileNameItem( widePath.c_str(), false, NULL, &extention );
+
+                            if ( isSingleFile )
+                            {
+                                // Should verify if this is even an image file candidate.
+                                eImportExpectation imp_exp = getActualImageImportExpectation( rwEngine, extention );
+
+                                if ( imp_exp != IMPORTE_NONE )
+                                {
+                                    // We want to allow configuration.
+                                    spawnTextureAddDialog( qtPath );
+                                }
+                            }
+                            else
+                            {
+                                rw::streamConstructionFileParamW_t fileParam( widePath.c_str() );
+
+                                rw::Stream *imgStream = rwEngine->CreateStream( rw::RWSTREAMTYPE_FILE_W, rw::RWSTREAMMODE_READONLY, &fileParam );
+
+                                if ( imgStream )
+                                {
+                                    try
+                                    {
+                                        struct mainWindowMakeRasterImageImportMethods : public makeRasterImageImportMethods
+                                        {
+                                            inline mainWindowMakeRasterImageImportMethods( rw::Interface *rwEngine, MainWindow *mainWnd ) : makeRasterImageImportMethods( rwEngine )
+                                            {
+                                                this->mainWnd = mainWnd;
+                                            }
+
+                                            std::string GetNativeTextureName( void ) const override
+                                            {
+                                                return qt_to_ansi( mainWnd->GetCurrentPlatform() );
+                                            }
+
+                                            void OnWarning( std::string&& msg ) const override
+                                            {
+                                                this->mainWnd->txdLog->addLogMessage( ansi_to_qt( msg ), LOGMSG_WARNING );
+                                            }
+
+                                            void OnError( std::string&& msg ) const override
+                                            {
+                                                this->mainWnd->txdLog->showError( ansi_to_qt( msg ) );
+                                            }
+
+                                        private:
+                                            MainWindow *mainWnd;
+                                        };
+
+                                        // Grab the image properties.
+                                        mainWindowMakeRasterImageImportMethods imp_methods( rwEngine, this );
+
+                                        if ( rw::TextureBase *rwtex = RwMakeTextureFromStream( rwEngine, imgStream, extention, imp_methods ) )
+                                        {
+                                            try
+                                            {
+                                                // Set the texture version to the TXD version.
+                                                rwtex->SetEngineVersion( txd->GetEngineVersion() );
+
+                                                // Give the texture an ANSI name.
+                                                // NOTE that we overwrite any original name that the texture chunk might have come with.
+                                                std::string ansiTexName = nameItem.convert_ansi();
+
+                                                DefaultTextureAddAndPrepare( rwtex, ansiTexName.c_str(), "" );
+                                            }
+                                            catch( ... )
+                                            {
+                                                // Well, the texture add has failed, so we kill the thing.
+                                                rwEngine->DeleteRwObject( rwtex );
+
+                                                throw;
+                                            }
+                                        }
+                                    }
+                                    catch( ... )
+                                    {
+                                        rwEngine->DeleteStream( imgStream );
+
+                                        throw;
+                                    }
+
+                                    rwEngine->DeleteStream( imgStream );
+                                }
+                            }
+                        }
+                    }
+                }
+                catch( rw::RwException& error )
+                {
+                    // Ignore it and continue.
+                }
+            }
+        }
+    }
 }
 
 void MainWindow::setCurrentTXD( rw::TexDictionary *txdObj )
@@ -981,8 +1314,14 @@ static CFile* OpenGlobalFile( MainWindow *mainWnd, const filePath& path, const f
     return theFile;
 }
 
-void MainWindow::openTxdFile(QString fileName) {
-    this->txdLog->beforeTxdLoading();
+bool MainWindow::openTxdFile(QString fileName, bool silent)
+{
+    bool success = false;
+
+    if ( !silent )
+    {
+        this->txdLog->beforeTxdLoading();
+    }
 
     if (fileName.length() != 0)
     {
@@ -1000,7 +1339,10 @@ void MainWindow::openTxdFile(QString fileName) {
                 // If the opening succeeded, process things.
                 if (txdFileStream)
                 {
-                    this->txdLog->addLogMessage(QString("loading TXD: ") + fileName);
+                    if ( !silent )
+                    {
+                        this->txdLog->addLogMessage(QString("loading TXD: ") + fileName);
+                    }
 
                     // Parse the input file.
                     rw::RwObject *parsedObject = NULL;
@@ -1011,32 +1353,50 @@ void MainWindow::openTxdFile(QString fileName) {
                     }
                     catch (rw::RwException& except)
                     {
-                        this->txdLog->showError(QString("failed to load the TXD archive: %1").arg(ansi_to_qt(except.message)));
+                        if ( !silent )
+                        {
+                            this->txdLog->showError(QString("failed to load the TXD archive: %1").arg(ansi_to_qt(except.message)));
+                        }
                     }
 
                     if (parsedObject)
                     {
-                        // Try to cast it to a TXD. If it fails we did not get a TXD.
-                        rw::TexDictionary *newTXD = rw::ToTexDictionary(this->rwEngine, parsedObject);
-
-                        if (newTXD)
+                        try
                         {
-                            // Okay, we got a new TXD.
-                            // Set it as our current object in the editor.
-                            this->setCurrentTXD(newTXD);
+                            // Try to cast it to a TXD. If it fails we did not get a TXD.
+                            rw::TexDictionary *newTXD = rw::ToTexDictionary(this->rwEngine, parsedObject);
 
-                            this->setCurrentFilePath(fileName);
+                            if (newTXD)
+                            {
+                                // Okay, we got a new TXD.
+                                // Set it as our current object in the editor.
+                                this->setCurrentTXD(newTXD);
 
-                            this->updateFriendlyIcons();
+                                this->setCurrentFilePath(fileName);
+
+                                this->updateFriendlyIcons();
+
+                                success = true;
+                            }
+                            else
+                            {
+                                const char *objTypeName = this->rwEngine->GetObjectTypeName(parsedObject);
+
+                                if ( !silent )
+                                {
+                                    this->txdLog->addLogMessage(QString("found %1 but expected a texture dictionary").arg(objTypeName), LOGMSG_WARNING);
+                                }
+
+                                // Get rid of the object that is not a TXD.
+                                this->rwEngine->DeleteRwObject(parsedObject);
+                            }
                         }
-                        else
+                        catch( ... )
                         {
-                            const char *objTypeName = this->rwEngine->GetObjectTypeName(parsedObject);
+                            // We failed in some way, so delete the RW object.
+                            this->rwEngine->DeleteRwObject( parsedObject );
 
-                            this->txdLog->addLogMessage(QString("found %1 but expected a texture dictionary").arg(objTypeName), LOGMSG_WARNING);
-
-                            // Get rid of the object that is not a TXD.
-                            this->rwEngine->DeleteRwObject(parsedObject);
+                            throw;
                         }
                     }
                     // if parsedObject is NULL, the RenderWare implementation should have error'ed us already.
@@ -1056,7 +1416,12 @@ void MainWindow::openTxdFile(QString fileName) {
         }
     }
 
-    this->txdLog->afterTxdLoading();
+    if ( !silent )
+    {
+        this->txdLog->afterTxdLoading();
+    }
+
+    return success;
 }
 
 void MainWindow::onOpenFile( bool checked )
@@ -1103,6 +1468,14 @@ void MainWindow::onTextureItemChanged(QListWidgetItem *listItem, QListWidgetItem
     this->UpdateExportAccessibility();
 }
 
+void MainWindow::adjustDimensionsByViewport( void )
+{
+    // If opening a TXD file, the editor window can be too small to view the entire image.
+    // We should carefully increase the editor size so that everything is visible.
+
+    // TODO.
+}
+
 void MainWindow::updateTextureView( void )
 {
     TexInfoWidget *texItem = this->currentSelectedTexture;
@@ -1118,7 +1491,7 @@ void MainWindow::updateTextureView( void )
             {
 			    // Get a bitmap to the raster.
 			    // This is a 2D color component surface.
-			    rw::Bitmap rasterBitmap( 32, rw::RASTER_8888, rw::COLOR_BGRA );
+			    rw::Bitmap rasterBitmap( this->rwEngine, 32, rw::RASTER_8888, rw::COLOR_BGRA );
 
                 if ( this->drawMipmapLayers && rasterData->getMipmapCount() > 1 )
                 {
@@ -1206,6 +1579,8 @@ void MainWindow::onToogleDarkTheme(bool checked) {
         this->setStyleSheet(styles::get(this->m_appPath, "resources\\dark.shell"));
         this->starsMovie->setFileName(makeAppPath("resources\\dark\\stars.gif"));
         this->starsMovie->start();
+
+        this->UpdateTheme();
     }
     else {
         this->recheckingThemeItem = true;
@@ -1221,6 +1596,8 @@ void MainWindow::onToogleLightTheme(bool checked) {
         this->setStyleSheet(styles::get(this->m_appPath, "resources\\light.shell"));
         this->starsMovie->setFileName(makeAppPath("resources\\light\\stars.gif"));
         this->starsMovie->start();
+
+        this->UpdateTheme();
     }
     else {
         this->recheckingThemeItem = true;
@@ -1362,6 +1739,24 @@ static void serializeRaster( rw::Stream *outputStream, rw::Raster *texRaster, co
     texRaster->writeImage( outputStream, method );
 }
 
+void MainWindow::DefaultTextureAddAndPrepare( rw::TextureBase *newTexture, const char *name, const char *maskName )
+{
+    // We need to set default texture rendering properties.
+    newTexture->SetFilterMode( rw::RWFILTER_LINEAR );
+    newTexture->SetUAddressing( rw::RWTEXADDRESS_WRAP );
+    newTexture->SetVAddressing( rw::RWTEXADDRESS_WRAP );
+
+    // Give it a name.
+    newTexture->SetName( name );
+    newTexture->SetMaskName( maskName );
+
+    // Now put it into the TXD.
+    newTexture->AddToDictionary( currentTXD );
+
+    // Update the texture list.
+    this->updateTextureList(true);
+}
+
 void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
 {
     TexAddDialog::texAddOperation::eAdditionType add_type = params.add_type;
@@ -1391,20 +1786,11 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
 
                 if ( newTexture )
                 {
-                    // We need to set default texture rendering properties.
-                    newTexture->SetFilterMode( rw::RWFILTER_LINEAR );
-                    newTexture->SetUAddressing( rw::RWTEXADDRESS_WRAP );
-                    newTexture->SetVAddressing( rw::RWTEXADDRESS_WRAP );
-
-                    // Give it a name.
-                    newTexture->SetName( params.add_raster.texName.c_str() );
-                    newTexture->SetMaskName( params.add_raster.maskName.c_str() );
-
-                    // Now put it into the TXD.
-                    newTexture->AddToDictionary( currentTXD );
-
-                    // Update the texture list.
-                    this->updateTextureList(true);
+                    DefaultTextureAddAndPrepare(
+                        newTexture,
+                        params.add_raster.texName.c_str(),
+                        params.add_raster.maskName.c_str()
+                    );
                 }
                 else
                 {
@@ -1539,6 +1925,25 @@ QString MainWindow::requestValidImagePath( void )
     return imagePath;
 }
 
+void MainWindow::spawnTextureAddDialog( QString fileName )
+{
+    auto cb_lambda = [=] ( const TexAddDialog::texAddOperation& params )
+    {
+        this->DoAddTexture( params );
+    };
+
+    TexAddDialog::dialogCreateParams params;
+    params.actionName = "Modify.Add";
+    params.actionDesc = "Modify.Desc.Add";
+    params.type = TexAddDialog::CREATE_IMGPATH;
+    params.img_path.imgPath = fileName;
+
+    TexAddDialog *texAddTask = new TexAddDialog( this, params, std::move( cb_lambda ) );
+
+    //texAddTask->move( 200, 250 );
+    texAddTask->setVisible( true );
+}
+
 void MainWindow::onAddTexture( bool checked )
 {
     // Allow importing of a texture.
@@ -1550,21 +1955,7 @@ void MainWindow::onAddTexture( bool checked )
 
         if ( fileName.length() != 0 )
         {
-            auto cb_lambda = [=] ( const TexAddDialog::texAddOperation& params )
-            {
-                this->DoAddTexture( params );
-            };
-
-            TexAddDialog::dialogCreateParams params;
-            params.actionName = "Modify.Add";
-            params.actionDesc = "Modify.Desc.Add";
-            params.type = TexAddDialog::CREATE_IMGPATH;
-            params.img_path.imgPath = fileName;
-
-            TexAddDialog *texAddTask = new TexAddDialog( this, params, std::move( cb_lambda ) );
-
-            //texAddTask->move( 200, 250 );
-            texAddTask->setVisible( true );
+            spawnTextureAddDialog( fileName );
         }
     }
 }
@@ -1908,6 +2299,15 @@ const char* MainWindow::GetTXDPlatform(rw::TexDictionary *txd)
     return NULL;
 }
 
+void MainWindow::launchDetails( void )
+{
+    if ( this->isLaunchedForTheFirstTime )
+    {
+        // We should make ourselves known.
+        this->onAboutUs( false );
+    }
+}
+
 void MainWindow::ChangeTXDPlatform( rw::TexDictionary *txd, QString platform )
 {
     // To change the platform of a TXD we have to set all of it's textures platforms.
@@ -2005,12 +2405,13 @@ void MainWindow::onRequestMassBuild(bool checked)
     MassBuildWindow *massbuild = new MassBuildWindow( this );
 
     massbuild->setVisible( true );
+
+    TriggerHelperWidget( this, "mgbld_welcome", massbuild );
 }
 
 void MainWindow::onRequestOpenWebsite(bool checked)
 {
-    // TODO ;o
-    QDesktopServices::openUrl( QUrl( "http://niceme.me" ) );
+    QDesktopServices::openUrl( QUrl( "http://www.gtamodding.com/wiki/Magic.TXD" ) );
 }
 
 void MainWindow::onAboutUs(bool checked)
@@ -2029,4 +2430,34 @@ void MainWindow::onAboutUs(bool checked)
 
 QString MainWindow::makeAppPath(QString subPath) {
     return m_appPath + "\\" + subPath;
+}
+
+// Theme management.
+void MainWindow::RegisterThemeItem( magicThemeAwareItem *item )
+{
+    // Register the item.
+    this->themeItems.push_back( item );
+
+    // Initialize the theme.
+    item->updateTheme( this );
+}
+
+void MainWindow::UnregisterThemeItem( magicThemeAwareItem *item )
+{
+    // Remove the item, if found.
+    auto findItem = std::find( this->themeItems.begin(), this->themeItems.end(), item );
+
+    if ( findItem != this->themeItems.end() )
+    {
+        this->themeItems.erase( findItem );
+    }
+}
+
+void MainWindow::UpdateTheme( void )
+{
+    // Notify all items.
+    for ( magicThemeAwareItem *item : this->themeItems )
+    {
+        item->updateTheme( this );
+    }
 }

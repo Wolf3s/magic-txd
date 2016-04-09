@@ -4,6 +4,8 @@
 #include <QTimer>
 #include "resource.h"
 
+#include <Windows.h>
+
 #include <QImageWriter>
 
 #include <QtPlugin>
@@ -126,6 +128,9 @@ extern void InitializeTaskCompletionWindowEnv( void );
 extern void InitializeSerializationStorageEnv( void );
 extern void InitializeMainWindowSerializationBlock( void );
 extern void InitializeMagicLanguages( void );
+extern void InitializeHelperRuntime( void );
+extern void InitializeMainWindowHelpEnv( void );
+extern void InitializeTextureAddDialogEnv( void );
 extern void InitializeExportAllWindowSerialization( void );
 extern void InitializeMassconvToolEnvironment(void);
 extern void InitializeMassExportToolEnvironment( void );
@@ -143,6 +148,9 @@ int main(int argc, char *argv[])
     InitializeSerializationStorageEnv();
     InitializeMainWindowSerializationBlock();
     InitializeMagicLanguages();
+    InitializeHelperRuntime();
+    InitializeMainWindowHelpEnv();
+    InitializeTextureAddDialogEnv();
     InitializeExportAllWindowSerialization();
     InitializeMassconvToolEnvironment();
     InitializeMassExportToolEnvironment();
@@ -241,18 +249,59 @@ int main(int argc, char *argv[])
                 w->setWindowIcon(QIcon(w->makeAppPath("resources\\icons\\stars.png")));
                 w->show();
 
+                w->launchDetails();
+
                 QApplication::processEvents();
 
                 QStringList appargs = a.arguments();
+
+#ifdef _DEBUG
+                w->openTxdFile( "C:\\Users\\quire\\Desktop\\txd_collab\\output\\effectsPC.txd" );
+                w->adjustDimensionsByViewport();
+#endif
 
                 if (appargs.size() >= 2) {
                     QString txdFileToBeOpened = appargs.at(1);
                     if (!txdFileToBeOpened.isEmpty()) {
                         w->openTxdFile(txdFileToBeOpened);
+
+                        w->adjustDimensionsByViewport();
                     }
                 }
 
-                iRet = a.exec();
+                // Try to catch some known C++ exceptions and display things for them.
+                try
+                {
+                    iRet = a.exec();
+                }
+                catch( rw::RwException& except )
+                {
+                    std::string errMsg = "uncaught RenderWare exception: " + except.message;
+
+                    MessageBoxA(
+                        NULL,
+                        errMsg.c_str(),
+                        "Uncaught C++ Exception",
+                        MB_OK
+                    );
+
+                    // Continue excecution.
+                    iRet = -1;
+                }
+                catch( std::exception& except )
+                {
+                    std::string errMsg = std::string( "uncaught C++ STL exception: " ) + except.what();
+
+                    MessageBoxA(
+                        NULL,
+                        errMsg.c_str(),
+                        "Uncaught C++ Exception",
+                        MB_OK
+                    );
+
+                    // Continue execution.
+                    iRet = -2;
+                }
             }
             catch( ... )
             {

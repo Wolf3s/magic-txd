@@ -4,6 +4,17 @@
 namespace rw
 {
 
+AINLINE eByteAddressingMode getByteAddressingFromPaletteType( ePaletteType palType )
+{
+    if ( palType == PALETTE_4BIT_LSB )
+    {
+        return eByteAddressingMode::LEAST_SIGNIFICANT;
+    }
+
+    // Most default thing.
+    return eByteAddressingMode::MOST_SIGNIFICANT;
+}
+
 AINLINE bool getpaletteindex(
     const void *texelSource, ePaletteType paletteType, uint32 maxpalette, uint32 itemDepth, uint32 colorIndex,
     uint8& paletteIndexOut
@@ -102,14 +113,89 @@ AINLINE void setpaletteindex(
     }
 }
 
+// Generic palette item copy routine.
+// This is not a routine without problems; if we ever decide to support bigger palette indice than 8bit,
+// we have to update this.
+AINLINE void copyPaletteItemGeneric(
+    const void *srcTexels, void *dstTexels,
+    uint32 srcIndex, uint32 srcDepth, ePaletteType srcPaletteType,
+    uint32 dstIndex, uint32 dstDepth, ePaletteType dstPaletteType,
+    uint32 paletteSize
+)
+{
+    uint8 palIndex;
+
+    // Fetch the index
+    {
+        bool gotPaletteIndex = getpaletteindex(srcTexels, srcPaletteType, paletteSize, srcDepth, srcIndex, palIndex);
+
+        if ( !gotPaletteIndex )
+        {
+            palIndex = 0;
+        }
+    }
+
+    // Put the index.
+    {
+        setpaletteindex(dstTexels, dstIndex, dstDepth, dstPaletteType, palIndex);
+    }
+}
+
 AINLINE uint8 scalecolor(uint8 color, uint32 curMax, uint32 newMax)
 {
     return (uint8)( (double)color / (double)curMax * (double)newMax );
 }
 
+template <typename numberType, typename maxNumType>
+AINLINE numberType putscalecolor( numberType color, const maxNumType desiredMax )
+{
+    return (numberType)( (double)color / (double)std::numeric_limits <numberType>().max() * (double)desiredMax );
+}
+
+template <typename numberType, typename srcNumberType, typename maxNumberType>
+AINLINE void destscalecolor( srcNumberType color, const maxNumberType curMax, numberType& outVal )
+{
+    static_assert( std::is_integral <srcNumberType>::value == true, "the source number type must be of integral type" );
+    static_assert( std::is_integral <numberType>::value == true, "the destination number type must be of integral type" );
+
+    outVal = (numberType)( (double)color / (double)curMax * (double)std::numeric_limits <numberType>().max() );
+}
+
+template <typename numberType, typename srcNumberType>
+AINLINE void destscalecolorf( srcNumberType color, numberType& outVal )
+{
+    outVal = (numberType)( (double)color * (double)std::numeric_limits <numberType>().max() );
+}
+
 AINLINE uint8 rgb2lum( uint8 red, uint8 green, uint8 blue )
 {
     return ( (uint32)red + (uint32)green + (uint32)blue ) / 3;
+}
+
+AINLINE void colorItem2RGBA( const abstractColorItem& colorItem, uint8& r, uint8& g, uint8& b, uint8& a )
+{
+    eColorModel model = colorItem.model;
+
+    if ( model == COLORMODEL_RGBA )
+    {
+        r = colorItem.rgbaColor.r;
+        g = colorItem.rgbaColor.g;
+        b = colorItem.rgbaColor.b;
+        a = colorItem.rgbaColor.a;
+    }
+    else if ( model == COLORMODEL_LUMINANCE )
+    {
+        uint8 lum = colorItem.luminance.lum;
+
+        r = lum;
+        g = lum;
+        b = lum;
+        a = colorItem.luminance.alpha;
+    }
+    else
+    {
+        throw RwException( "invalid color model in colorItem2RGBA" );
+    }
 }
 
 inline eColorModel getColorModelFromRasterFormat( eRasterFormat rasterFormat )
@@ -144,10 +230,9 @@ inline eColorModel getColorModelFromRasterFormat( eRasterFormat rasterFormat )
     return usedColorModel;
 }
 
-template <typename texel_t>
 struct colorModelDispatcher
 {
-    // TODO: make every color request through this struct.
+    // TODO: make every framework-color request through this struct.
 
     eRasterFormat rasterFormat;
     eColorOrdering colorOrder;
@@ -432,6 +517,20 @@ private:
                 blue = pregreen;
                 alpha = prered;
             }
+            else if ( colorOrder == COLOR_ARGB )
+            {
+                red = prealpha;
+                green = prered;
+                blue = pregreen;
+                alpha = preblue;
+            }
+            else if ( colorOrder == COLOR_BARG )
+            {
+                red = preblue;
+                green = prealpha;
+                blue = prered;
+                alpha = pregreen;
+            }
             else
             {
                 assert( 0 );
@@ -442,7 +541,7 @@ private:
     }
 
 public:
-    AINLINE bool getRGBA( texel_t *texelSource, unsigned int index, uint8& red, uint8& green, uint8& blue, uint8& alpha ) const
+    AINLINE bool getRGBA( const void *texelSource, unsigned int index, uint8& red, uint8& green, uint8& blue, uint8& alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -514,6 +613,20 @@ private:
             putgreen = blue;
             putblue = green;
             putalpha = red;
+        }
+        else if ( colorOrder == COLOR_ARGB )
+        {
+            putred = alpha;
+            putgreen = red;
+            putblue = green;
+            putalpha = blue;
+        }
+        else if ( colorOrder == COLOR_BARG )
+        {
+            putred = blue;
+            putgreen = alpha;
+            putblue = red;
+            putalpha = green;
         }
         else
         {
@@ -680,7 +793,7 @@ private:
     }
 
 public:
-    AINLINE bool setRGBA( texel_t *texelSource, unsigned int index, uint8 red, uint8 green, uint8 blue, uint8 alpha ) const
+    AINLINE bool setRGBA( void *texelSource, unsigned int index, uint8 red, uint8 green, uint8 blue, uint8 alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -721,7 +834,7 @@ public:
         return success;
     }
 
-    AINLINE bool setLuminance( texel_t *texelSource, unsigned int index, uint8 lum, uint8 alpha ) const
+    AINLINE bool setLuminance( void *texelSource, unsigned int index, uint8 lum, uint8 alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -804,7 +917,7 @@ public:
         return success;
     }
 
-    AINLINE bool getLuminance( texel_t *texelSource, unsigned int index, uint8& lum, uint8& alpha ) const
+    AINLINE bool getLuminance( const void *texelSource, unsigned int index, uint8& lum, uint8& alpha ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -913,7 +1026,7 @@ public:
         return success;
     }
 
-    AINLINE void setColor( texel_t *texelSource, unsigned int index, const abstractColorItem& colorItem ) const
+    AINLINE void setColor( void *texelSource, unsigned int index, const abstractColorItem& colorItem ) const
     {
         eColorModel model = colorItem.model;
 
@@ -933,7 +1046,7 @@ public:
         }
     }
 
-    AINLINE void getColor( texel_t *texelSource, unsigned int index, abstractColorItem& colorItem ) const
+    AINLINE void getColor( const void *texelSource, unsigned int index, abstractColorItem& colorItem ) const
     {
         eColorModel model = this->usedColorModel;
 
@@ -969,10 +1082,17 @@ public:
         }
     }
 
-    AINLINE void clearColor( texel_t *texelSource, unsigned int index )
+    AINLINE void clearColor( void *texelSource, unsigned int index )
     {
         // TODO.
         this->setLuminance( texelSource, index, 0, 0 );
+    }
+
+    AINLINE void setClearedColor( abstractColorItem& item ) const
+    {
+        eColorModel model = this->usedColorModel;
+
+        item.setClearedColor( model );
     }
 };
 
@@ -1000,6 +1120,70 @@ inline void copyTexelDataEx(
 
             // Just put the color inside.
             putDispatch.setColor( dstRow, col + dstOffX, colorItem );
+        }
+    }
+}
+
+template <typename srcColorDispatcher, typename dstColorDispatcher>
+inline void copyTexelDataBounded(
+    const void *srcTexels, void *dstTexels,
+    srcColorDispatcher& fetchDispatch, dstColorDispatcher& putDispatch,
+    uint32 srcWidth, uint32 srcHeight,
+    uint32 dstWidth, uint32 dstHeight,
+    uint32 srcOffX, uint32 srcOffY,
+    uint32 dstOffX, uint32 dstOffY,
+    uint32 srcRowSize, uint32 dstRowSize
+)
+{
+    // If we are not a palette, then we have to process colors.
+    for ( uint32 row = 0; row < srcHeight; row++ )
+    {
+        const uint32 src_pos_y = ( row + srcOffY );
+        const uint32 dst_pos_y = ( row + dstOffY );
+
+        void *dstRow = NULL;
+
+        if ( dst_pos_y < dstHeight )
+        {
+            dstRow = getTexelDataRow( dstTexels, dstRowSize, dst_pos_y );
+
+            const void *srcRow = NULL;
+
+            if ( src_pos_y < srcHeight )
+            {
+                srcRow = getConstTexelDataRow( srcTexels, srcRowSize, src_pos_y );
+            }
+
+            for ( uint32 col = 0; col < srcWidth; col++ )
+            {
+                const uint32 src_pos_x = ( col + srcOffX );
+                const uint32 dst_pos_x = ( col + dstOffX );
+
+                // Only proceed if we can actually write.
+                if ( dst_pos_x < dstWidth )
+                {
+                    abstractColorItem colorItem;
+            
+                    // Attempt to get the source color.
+                    bool gotColor = false;
+
+                    if ( srcRow && src_pos_x < srcWidth )
+                    {
+                        fetchDispatch.getColor( srcRow, src_pos_x, colorItem );
+
+                        gotColor = true;
+                    }
+
+                    // If we failed to get a color, we will just write a cleared one.
+                    if ( !gotColor )
+                    {
+                        putDispatch.setClearedColor( colorItem );
+                    }
+
+                    // Just put the color inside.
+                    putDispatch.setColor( dstRow, dst_pos_x, colorItem );
+                }
+            }
         }
     }
 }
@@ -1035,8 +1219,8 @@ AINLINE void moveTexels(
         assert( dstPaletteType == PALETTE_NONE );
 
         // Move color items.
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcItemDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstItemDepth, NULL, 0, PALETTE_NONE );
 
         uint32 srcRowSize = getRasterDataRowSize( mipWidth, srcItemDepth, srcRowAlignment );
         uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstItemDepth, dstRowAlignment );
@@ -1062,7 +1246,7 @@ inline uint8 packcolor( double color )
     return (uint8)( color * 255.0 );
 }
 
-inline bool doesRasterFormatNeedConversion(
+inline bool doRawMipmapBuffersNeedConversion(
     eRasterFormat srcRasterFormat, uint32 srcDepth, eColorOrdering srcColorOrder, ePaletteType srcPaletteType,
     eRasterFormat dstRasterFormat, uint32 dstDepth, eColorOrdering dstColorOrder, ePaletteType dstPaletteType
 )
@@ -1072,7 +1256,27 @@ inline bool doesRasterFormatNeedConversion(
     // to directly acquire texels instead of passing them into a conversion
     // routine.
 
-    if ( srcRasterFormat != dstRasterFormat || srcDepth != dstDepth || srcColorOrder != dstColorOrder || srcPaletteType != dstPaletteType )
+    // If it is a palette format, it could need conversion.
+    if ( srcPaletteType != dstPaletteType )
+    {
+        return true;
+    }
+    else if ( srcPaletteType != PALETTE_NONE )
+    {
+        // This is a check for the palette texel buffer, whether that buffer needs a conversion.
+        // The depth we get here is the actual depth of the palette indices.
+        if ( srcDepth != dstDepth )
+        {
+            return true;
+        }
+
+        // We can early out because we are not a raw color format.
+        return false;
+    }
+
+    // This is reached if we are a raw color format.
+    // Check for color format change.
+    if ( srcRasterFormat != dstRasterFormat || srcDepth != dstDepth || srcColorOrder != dstColorOrder )
     {
         return true;
     }
@@ -1083,18 +1287,158 @@ inline bool doesRasterFormatNeedConversion(
     return false;
 }
 
-inline bool doesPixelDataNeedConversion(
-    const pixelDataTraversal& pixelData,
+inline bool doesRawMipmapBufferNeedFullConversion(
+    uint32 surfWidth,
     eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType,
     eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType
+)
+{
+    // We first check if this mipmap needs color conversion in general.
+    // This is basically if the structure of the samples has changed.
+    bool needsSampleConv =
+        doRawMipmapBuffersNeedConversion(
+            srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
+            dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
+        );
+
+    if ( needsSampleConv )
+    {
+        return true;
+    }
+
+    // Otherwise the buffer could have expanded in some way.
+    // This needs conversion aswell.
+    bool needsValidityConv =
+        shouldAllocateNewRasterBuffer(
+            surfWidth,
+            srcDepth, srcRowAlignment,
+            dstDepth, dstRowAlignment
+        );
+
+    if ( needsValidityConv )
+    {
+        return true;
+    }
+
+    // We are good to go.
+    return false;
+}
+
+inline bool haveToAllocateNewPaletteBuffer(
+    uint32 srcPalRasterDepth, uint32 srcPaletteSize,
+    uint32 dstPalRasterDepth, uint32 dstPaletteSize
+)
+{
+    if ( srcPalRasterDepth != dstPalRasterDepth ||
+         srcPaletteSize != dstPaletteSize )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+inline bool doPaletteBuffersNeedConversion(
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder
+)
+{
+    // The palette color format is really simple.
+    // Every palette raster format has only one depth.
+    // So we can simple check for raster format change.
+    if ( srcRasterFormat != dstRasterFormat || srcColorOrder != dstColorOrder )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+inline bool doPaletteBuffersNeedFullConversion(
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPaletteSize,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPaletteSize
+)
+{
+    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
+    uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
+
+    if ( haveToAllocateNewPaletteBuffer( srcPalRasterDepth, srcPaletteSize, dstPalRasterDepth, dstPaletteSize ) )
+    {
+        return true;
+    }
+
+    if ( doPaletteBuffersNeedConversion( srcRasterFormat, srcColorOrder, dstRasterFormat, dstColorOrder ) )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataNeedAddressabilityAdjustment(
+    const mipmapListType& mipmaps,
+    uint32 srcDepth, uint32 srcRowAlignment,
+    uint32 dstDepth, uint32 dstRowAlignment
+)
+{
+    // A change in item depth is critical.
+    if ( srcDepth != dstDepth )
+        return true;
+
+    // Check if any mipmap has conflicting addressing.
+    size_t numberOfMipmaps = mipmaps.size();
+
+    for ( size_t n = 0; n < numberOfMipmaps; n++ )
+    {
+        const auto& mipLayer = mipmaps[ n ];
+
+        bool doesRequireNewTexelBuffer =
+            shouldAllocateNewRasterBuffer(
+                mipLayer.layerWidth,
+                srcDepth, srcRowAlignment,
+                dstDepth, dstRowAlignment
+            );
+
+        if ( doesRequireNewTexelBuffer )
+        {
+            // If we require a new texel buffer, we kinda have to convert stuff.
+            // The conversion routine is an all-in-one fix, that should not be called too often.
+            return true;
+        }
+    }
+
+    // No conflict.
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataNeedConversion(
+    const mipmapListType& mipmaps,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, eCompressionType srcCompressionType,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType, eCompressionType dstCompressionType
 )
 {
     // This function is supposed to decide whether the information stored in pixelData, which is
     // reflected by the source format, requires expensive conversion to reach the destination format.
     // pixelData is expected to be raw uncompressed texture data.
-    
+ 
+    // We kinda have to convert if the compression type changed.
+    if ( srcCompressionType != dstCompressionType )
+    {
+        return true;
+    }
+    else if ( srcCompressionType != RWCOMPRESS_NONE )
+    {
+        // If we are already compressed, the other properties do not matter anymore.
+        return false;
+    }
+
+    // This is a little different to what we do in the ConvertPixelData routine due to a different premise.
+    // Here we ask if all mipmap layers need reallocation instead of a per-layer basis.
+
     // If the raster format has changed, there is no way around conversion.
-    if ( doesRasterFormatNeedConversion(
+    if ( doRawMipmapBuffersNeedConversion(
              srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
              dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
          ) )
@@ -1104,30 +1448,64 @@ inline bool doesPixelDataNeedConversion(
 
     // Then there is the possibility that the buffer has expanded, for any mipmap inside of pixelData.
     // A conversion will properly fix that.
+    if ( doesPixelDataNeedAddressabilityAdjustment(
+             mipmaps,
+             srcDepth, srcRowAlignment,
+             dstDepth, dstRowAlignment
+        ) )
     {
-        size_t numberOfMipmaps = pixelData.mipmaps.size();
-
-        for ( size_t n = 0; n < numberOfMipmaps; n++ )
-        {
-            const pixelDataTraversal::mipmapResource& mipLayer = pixelData.mipmaps[ n ];
-
-            bool doesRequireNewTexelBuffer =
-                shouldAllocateNewRasterBuffer(
-                    mipLayer.mipWidth,
-                    srcDepth, srcRowAlignment,
-                    dstDepth, dstRowAlignment
-                );
-
-            if ( doesRequireNewTexelBuffer )
-            {
-                // If we require a new texel buffer, we kinda have to convert stuff.
-                // The conversion routine is an all-in-one fix, that should not be called too often.
-                return true;
-            }
-        }
+        return true;
     }
 
     // We prefer if there is no conversion required.
+    return false;
+}
+
+template <typename mipmapListType>
+inline bool doesPixelDataOrPaletteDataNeedConversion(
+    const mipmapListType& mipmaps,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, uint32 srcPaletteSize, eCompressionType srcCompressionType,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType, uint32 dstPaletteSize, eCompressionType dstCompressionType
+)
+{
+    // We first check if the color buffer stuff needs converting.
+    bool colorBufConv =
+        doesPixelDataNeedConversion(
+            mipmaps,
+            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcCompressionType,
+            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType, dstCompressionType
+        );
+
+    if ( colorBufConv )
+    {
+        return true;
+    }
+
+    // Is this a palette buffer to palette buffer transformation?
+    if ( srcPaletteType != PALETTE_NONE && dstPaletteType != PALETTE_NONE )
+    {
+        // Our palette buffer could need converting aswell!
+        bool palBufConv =
+            doPaletteBuffersNeedFullConversion(
+                srcRasterFormat, srcColorOrder, srcPaletteSize,
+                dstRasterFormat, dstColorOrder, dstPaletteSize
+            );
+
+        if ( palBufConv )
+        {
+            return true;
+        }
+    }
+    // Or are we supposed to palettize something or remove its palette?
+    else if ( srcPaletteType != PALETTE_NONE || dstPaletteType != PALETTE_NONE )
+    {
+        // We kinda need conversion here.
+        // This is because we either remove the palette or palettize something.
+        return true;
+    }
+
+    // We dont need to do anything.
+    // This is a huge performance boost :)
     return false;
 }
 

@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 
@@ -318,7 +318,7 @@ bool NativeTexturePS2::generatePS2GPUData(
     uint32 finalTexBasePointer = 0;
     uint32 finalClutBasePointer = 0;
 
-    if (gameVersion.rwLibMinor <= 3)
+    if (gameVersion.rwLibMinor <= 2)
     {
         // We actually preallocate the textures on the game engine GS memory.
         uint32 totalMemOffset = this->recommendedBufferBasePointer;
@@ -750,7 +750,7 @@ void ps2NativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, Pl
 
     if ( mipmapCount == 0 )
     {
-        throw RwException( "empty texture" );
+        throw RwException( "attempt to write PS2 native texture which has no mipmap layerss" );
     }
 
     // Make sure all textures are in the required encoding format.

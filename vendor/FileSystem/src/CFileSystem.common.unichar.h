@@ -42,6 +42,7 @@ template <>
 struct character_env <char>
 {
     typedef char ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef unsigned char u_ucp_t;
 
 private:
     // ANSI strings are very simple and fast. Each byte represents one unique character.
@@ -95,6 +96,8 @@ public:
     typedef ansi_iterator <char> iterator;
     typedef ansi_iterator <const char> const_iterator;
 
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint8_t>::max();
+
     struct enc_result
     {
         char data[1];
@@ -142,6 +145,7 @@ template <typename wideCharType>
 struct utf16_character_env
 {
     typedef char32_t ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef ucp_t u_ucp_t;
 
 private:
     struct code_point_hi_surrogate
@@ -301,6 +305,8 @@ public:
     typedef utf16_iterator <wideCharType> iterator;
     typedef utf16_iterator <const wideCharType> const_iterator;
 
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint32_t>::max();
+
     struct enc_result
     {
         wideCharType data[2];
@@ -386,6 +392,7 @@ template <>
 struct character_env <char32_t>
 {
     typedef char32_t ucp_t; // UNICODE CODE POINT, can represent all characters.
+    typedef ucp_t u_ucp_t;
 
 private:
     // We represent UTF-32 strings here. They are the fastest Unicode strings available.
@@ -438,6 +445,8 @@ private:
 public:
     typedef utf32_iterator <char32_t> iterator;
     typedef utf32_iterator <const char32_t> const_iterator;
+
+    static constexpr size_t ucp_max = std::numeric_limits <std::uint32_t>::max();
 
     struct enc_result
     {

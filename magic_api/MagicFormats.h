@@ -1,11 +1,13 @@
-#include <d3d9.h>
-
 #ifndef MAGIC_CORE
 
 #define MAGICAPI extern "C" __declspec(dllexport)
 #define __MAGICCALL __cdecl
 
 #endif //MAGIC_CORE
+
+#include <stdint.h>
+
+typedef uint32_t D3DFORMAT_SDK;
 
 inline unsigned int MagicFormatAPIVersion( void )
 {
@@ -53,7 +55,7 @@ Revision 1 ABI.
 */
 struct MagicFormat abstract
 {
-	virtual D3DFORMAT GetD3DFormat(void) const = 0;
+	virtual D3DFORMAT_SDK GetD3DFormat(void) const = 0;
 
 	virtual const char* GetFormatName(void) const = 0;
 

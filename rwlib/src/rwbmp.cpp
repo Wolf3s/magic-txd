@@ -1,5 +1,5 @@
 // Simple bitmap software rendering library for image processing from RenderWare textures.
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include "pixelformat.hxx"
 
@@ -8,8 +8,197 @@
 namespace rw
 {
 
+Bitmap::Bitmap( Interface *engineInterface )
+{
+    this->engineInterface = engineInterface;
+
+    this->width = 0;
+    this->height = 0;
+    this->depth = 32;
+    this->rowAlignment = 4; // good measure.
+    this->rowSize = 0;
+    this->rasterFormat = RASTER_8888;
+    this->texels = NULL;
+    this->dataSize = 0;
+
+    this->colorOrder = COLOR_RGBA;
+
+    this->bgRed = 0;
+    this->bgGreen = 0;
+    this->bgBlue = 0;
+    this->bgAlpha = 1.0;
+}
+
+Bitmap::Bitmap( Interface *engineInterface, uint32 depth, eRasterFormat theFormat, eColorOrdering colorOrder )
+{
+    this->engineInterface = engineInterface;
+
+    this->width = 0;
+    this->height = 0;
+    this->depth = depth;
+    this->rowAlignment = 4;
+    this->rowSize = 0;
+    this->rasterFormat = theFormat;
+    this->texels = NULL;
+    this->dataSize = 0;
+
+    this->colorOrder = colorOrder;
+
+    this->bgRed = 0;
+    this->bgGreen = 0;
+    this->bgBlue = 0;
+    this->bgAlpha = 1.0;
+}
+
+void Bitmap::assignFrom( const Bitmap& right )
+{
+    Interface *engineInterface = right.engineInterface;
+
+    this->engineInterface = engineInterface;
+
+    this->width = right.width;
+    this->height = right.height;
+    this->depth = right.depth;
+    this->rowAlignment = right.rowAlignment;
+    this->rowSize = right.rowSize;
+    this->rasterFormat = right.rasterFormat;
+
+    // Copy texels.
+    void *origTexels = right.texels;
+    void *newTexels = NULL;
+
+    if ( origTexels )
+    {
+        newTexels = engineInterface->PixelAllocate( right.dataSize );
+
+        if ( !newTexels )
+        {
+            throw RwException( "failed to allocate texel buffer for Bitmap cloning" );
+        }
+
+        memcpy( newTexels, origTexels, right.dataSize );
+    }
+
+    this->texels = newTexels;
+    this->dataSize = right.dataSize;
+
+    this->colorOrder = right.colorOrder;
+
+    this->bgRed = right.bgRed;
+    this->bgGreen = right.bgGreen;
+    this->bgBlue = right.bgBlue;
+    this->bgAlpha = right.bgAlpha;
+}
+
+void Bitmap::moveFrom( Bitmap&& right )
+{
+    this->width = right.width;
+    this->height = right.height;
+    this->depth = right.depth;
+    this->rowAlignment = right.rowAlignment;
+    this->rowSize = right.rowSize;
+    this->rasterFormat = right.rasterFormat;
+
+    // Move over texels.
+    this->texels = right.texels;
+    this->dataSize = right.dataSize;
+
+    this->colorOrder = right.colorOrder;
+        
+    this->bgRed = right.bgRed;
+    this->bgGreen = right.bgGreen;
+    this->bgBlue = right.bgBlue;
+    this->bgAlpha = right.bgAlpha;
+
+    // Default the moved from object.
+    right.texels = NULL;
+}
+
+void Bitmap::clearTexelData( void )
+{
+    // If we have texel data, deallocate it.
+    if ( void *ourTexels = this->texels )
+    {
+        Interface *engineInterface = this->engineInterface;
+
+        engineInterface->PixelFree( ourTexels );
+
+        this->texels = NULL;
+    }
+}
+
+void Bitmap::setImageData( void *theTexels, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 depth, uint32 rowAlignment, uint32 width, uint32 height, uint32 dataSize, bool assignData )
+{
+    this->width = width;
+    this->height = height;
+    this->depth = depth;
+    this->rowAlignment = rowAlignment;
+    this->rowSize = getRasterDataRowSize( width, depth, rowAlignment );
+    this->rasterFormat = theFormat;
+
+    Interface *engineInterface = this->engineInterface;
+
+    // Deallocate texels if we already have some.
+    if ( void *origTexels = this->texels )
+    {
+        engineInterface->PixelFree( origTexels );
+
+        this->texels = NULL;
+    }
+
+    if ( assignData == false )
+    {
+        // Copy the texels.
+        if ( dataSize != 0 )
+        {
+            void *newTexels = engineInterface->PixelAllocate( dataSize );
+
+            if ( !newTexels )
+            {
+                throw RwException( "failed to allocate texels in Bitmap texel buffer acquisition" );
+            }
+
+            memcpy( newTexels, theTexels, dataSize );
+
+            this->texels = newTexels;
+        }
+    }
+    else
+    {
+        // Just give us the data.
+        this->texels = theTexels;
+    }
+    this->dataSize = dataSize;
+
+    this->colorOrder = colorOrder;
+}
+
+void* Bitmap::copyPixelData( void ) const
+{
+    void *newPixels = NULL;
+    void *ourPixels = this->texels;
+
+    if ( ourPixels )
+    {
+        Interface *engineInterface = this->engineInterface;
+
+        newPixels = engineInterface->PixelAllocate( this->dataSize );
+
+        if ( !newPixels )
+        {
+            throw RwException( "failed to allocate texel copy buffer in Bitmap" );
+        }
+
+        memcpy( newPixels, ourPixels, this->dataSize );
+    }
+
+    return newPixels;
+}
+
 void Bitmap::setSize( uint32 width, uint32 height )
 {
+    Interface *engineInterface = this->engineInterface;
+
     uint32 oldWidth = this->width;
     uint32 oldHeight = this->height;
 
@@ -21,7 +210,7 @@ void Bitmap::setSize( uint32 width, uint32 height )
 
     if ( dataSize != 0 )
     {
-        newTexels = new uint8[ dataSize ];
+        newTexels = engineInterface->PixelAllocate( dataSize );
 
         eRasterFormat rasterFormat = this->rasterFormat;
         eColorOrdering colorOrder = this->colorOrder;
@@ -33,8 +222,8 @@ void Bitmap::setSize( uint32 width, uint32 height )
         const uint8 srcBgBlue = packcolor( this->bgBlue );
         const uint8 srcBgAlpha = packcolor( this->bgAlpha );
 
-        colorModelDispatcher <const void> fetchDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher putDispatch( rasterFormat, colorOrder, rasterDepth, NULL, 0, PALETTE_NONE );
 
         // Do an image copy.
         uint32 srcRowSize = this->rowSize;
@@ -74,7 +263,7 @@ void Bitmap::setSize( uint32 width, uint32 height )
     // Delete old data.
     if ( oldTexels )
     {
-        delete [] oldTexels;
+        engineInterface->PixelFree( oldTexels );
     }
 
     // Set new data.
@@ -165,7 +354,7 @@ AINLINE void fetchpackedcolor(
     const void *texels, uint32 x, uint32 y, eRasterFormat theFormat, eColorOrdering colorOrder, uint32 itemDepth, uint32 rowSize, double& redOut, double& greenOut, double& blueOut, double& alphaOut
 )
 {
-    colorModelDispatcher <const void> fetchDispatch( theFormat, colorOrder, itemDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher fetchDispatch( theFormat, colorOrder, itemDepth, NULL, 0, PALETTE_NONE );
 
     const void *srcRow = getConstTexelDataRow( texels, rowSize, y );
 
@@ -240,7 +429,7 @@ bool Bitmap::browsecolor(uint32 x, uint32 y, uint8& redOut, uint8& greenOut, uin
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         hasColor = fetchDispatch.getRGBA(
             srcRow, x,
@@ -259,7 +448,7 @@ bool Bitmap::browselum(uint32 x, uint32 y, uint8& lum, uint8& a) const
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         hasColor = fetchDispatch.getLuminance(
             srcRow, x,
@@ -278,7 +467,7 @@ bool Bitmap::browsecolorex(uint32 x, uint32 y, abstractColorItem& colorItem) con
     {
         const void *srcRow = getConstTexelDataRow( this->texels, this->rowSize, y );
 
-        colorModelDispatcher <const void> fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
         fetchDispatch.getColor(
             srcRow, x,
@@ -309,7 +498,7 @@ void Bitmap::draw(
     uint32 theirHeight = colorSource.getHeight();
 
     // Determine the output codec for pixel set.
-    colorModelDispatcher <void> putDispatch( ourFormat, ourOrder, ourDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher putDispatch( ourFormat, ourOrder, ourDepth, NULL, 0, PALETTE_NONE );
 
     // Calculate drawing parameters.
     double floatOffX = (double)offX;

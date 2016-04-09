@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_XBOX
 
@@ -51,6 +51,13 @@ void xboxNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, P
     // Cast the texture to our native type.
     NativeTextureXBOX *platformTex = (NativeTextureXBOX*)nativeTex;
 
+    size_t mipmapCount = platformTex->mipmaps.size();
+
+    if ( mipmapCount == 0 )
+    {
+        throw RwException( "attempt to write XBOX native texture which has no mipmap layers" );
+    }
+
     // Debug some essentials.
     ePaletteType paletteType = platformTex->paletteType;
 
@@ -80,9 +87,8 @@ void xboxNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, P
             texImageDataBlock.writeUInt32( NATIVE_TEXTURE_XBOX );
 
             // Write the header.
-            size_t mipmapCount = platformTex->mipmaps.size();
             {
-                textureMetaHeaderStructXbox metaInfo;
+                xbox::textureMetaHeaderStruct metaInfo;
 
                 // Write addressing information.
                 texFormatInfo infoOut;

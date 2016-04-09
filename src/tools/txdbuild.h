@@ -2,7 +2,7 @@
 
 #include "shared.h"
 
-struct TxdBuildModule abstract : public MessageReceiver
+struct TxdBuildModule abstract : public MessageReceiver, public rw::WarningManagerInterface
 {
     inline TxdBuildModule( rw::Interface *rwEngine )
     {
@@ -18,10 +18,18 @@ struct TxdBuildModule abstract : public MessageReceiver
         rwkind::eTargetGame targetGame = rwkind::GAME_GTASA;
 
         bool generateMipmaps = false;
-        int curMipMaxLevel = 0;
+        int curMipMaxLevel = 32;
+
+        bool doCompress = false;
+        float compressionQuality = 1.0f;
+        bool doPalettize = false;
+        rw::ePaletteType paletteType = rw::PALETTE_NONE;
     };
 
     bool RunApplication( const run_config& cfg );
+
+protected:
+    void OnWarning( std::string&& msg ) override;
 
 private:
     rw::Interface *rwEngine;

@@ -1,5 +1,7 @@
 ﻿MAGL|1|Russian|Русский|RUS|Magic.TXD Team
 
+Translated by DK22Pac and Flame
+
 # language
 Lang.Lang                Язык:
 Lang.Authors             от _PARAM_1
@@ -76,6 +78,30 @@ Modify.Scaled            Масштаб
 Modify.Fill              Заполнить
 Modify.Bckgr             Фон
 Modify.Cancel            Отмена
+
+[Modify.Help.DXTNotice]
+You have selected DXT compression. DXT is a very efficient compression
+type for world textures. Textures stored in DXT use far less space, but
+they degrade the image quality significantly. It is NOT recommended to
+compress GUI textures.
+
+DXT1 is good for textures that use alpha for cut-out regions.
+DXT2/3 is good for textures with sharp alpha.
+DXT4/5 is good for textures with smooth alpha.
+If your image has no alpha, just pick DXT1.
+
+Be careful which textures you compress and which type you choose!
+[END]
+
+[Modify.Help.PALNotice]
+You have selected palette format. Images are palettized by selecting
+the most important colors and putting them into an array. The actual
+texture surface contains indices into the palette buffer, greatly
+decreasing the texture size.
+
+Note that palette format is legacy technology and is no longer supported
+by modern hardware.
+[END]
 
 # Render Props
 Main.SetupRP.Desc        Настройки рендеринга
@@ -154,6 +180,7 @@ Main.About.Desc          О нас
 Main.About.Credits       создатели: _AUTHOR_NAME_1 и _AUTHOR_NAME_2
 Main.About.ComUse1       Эта программа НЕ ДОЛЖНА использоваться в коммерческих целях без явного письменного разрешения всех третьих лиц, задействованных в разработке этой программы. Ознакомьтесь с лицензионными соглашениями для получения дополнительной информации.
 Main.About.ComUse2       Команда _MAGIC_TXD_NAME приветствует вашу поддержку!
+Main.About.SpecThx       Special thanks to:
 
 # Tools
 Tools.Browse             Выбрать
@@ -178,6 +205,20 @@ Tools.MassExp.Cancel     Отмена
 Tools.MassBld.Desc       Массовая сборка
 Tools.MassBld.Build      Собрать
 Tools.MassBld.Cancel     Отмена
+Tools.MassBld.CloseOnCmplt  Закрыть по завершении
+Tools.MassBld.Cmprs      Сжатие
+Tools.MassBld.DescQual   Качество
+Tools.MassBld.DoPal      Палитра
+Tools.MassBld.DescPType  Тип
+
+[Tools.MassBld.Welcome]
+Welcome to the Mass Build tool! This tool creates TXD files out of image
+files inside of a folder hierarchy. You can use INI files inside of those
+folders to specialize the building process. Try building some random folders
+and see the results!
+
+Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+[END]
 
 # Mass convert
 Tools.MassCnv.Desc       Массовый конверт
@@ -194,3 +235,8 @@ New.Desc                 Создание нового TXD-архива
 New.Name                 Имя
 New.Create               Создать
 New.Cancel               Отмена
+
+# Helper runtime generics.
+Helper.Confirm           OK
+Helper.Title             Notice
+Helper.NotShowAgain      Do not show again

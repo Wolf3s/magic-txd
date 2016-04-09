@@ -6,6 +6,8 @@
 
 #include "texformathelper.hxx"
 
+#include <Windows.h>
+
 #ifndef _DEBUG
 #if defined(_M_AMD64)
 #define MAGF_FORMAT_DIR     L"formats_x64"
@@ -218,7 +220,7 @@ void MainWindow::shutdownNativeFormats( void )
             }
 
             // Unload the library.
-            FreeLibrary( ext.loadedLibrary );
+            FreeLibrary( (HMODULE)ext.loadedLibrary );
         }
 
         // Clear the list of resident formats.

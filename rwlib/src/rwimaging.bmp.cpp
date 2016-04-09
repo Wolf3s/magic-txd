@@ -14,6 +14,11 @@ namespace rw
 #ifdef RWLIB_INCLUDE_BMP_IMAGING
 // .bmp file imaging extension.
 
+typedef uint8 BYTE;
+typedef uint16 WORD;
+typedef uint32 DWORD;
+typedef int32 LONG;
+
 #pragma pack(push,1)
 struct bmpFileHeader
 {
@@ -197,7 +202,7 @@ struct bmpImagingEnv : public imagingFormatExtension
         }
         else if ( infoHeader.biBitCount == 4 || infoHeader.biBitCount == 8 )
         {
-            rasterFormat = RASTER_8888;
+            rasterFormat = RASTER_888;
             depth = 32;
 
             if ( infoHeader.biBitCount == 4 )
@@ -268,7 +273,8 @@ struct bmpImagingEnv : public imagingFormatExtension
 
             if ( paletteSize == 0 )
             {
-                throw RwException( "malformed .bmp; invalid palette item count" );
+                // In this case we assume the maximum color count.
+                paletteSize = getPaletteItemCount( paletteType );
             }
 
             uint32 paletteDataSize = getPaletteDataSize( paletteSize, depth );
@@ -443,7 +449,7 @@ struct bmpImagingEnv : public imagingFormatExtension
                 dstPaletteType = PALETTE_8BIT;
             }
 
-            dstRasterFormat = RASTER_8888;
+            dstRasterFormat = RASTER_888;
             dstDepth = 32;
 
             colorUseCount = dstPaletteSize;
@@ -503,22 +509,21 @@ struct bmpImagingEnv : public imagingFormatExtension
 
             if ( dstPaletteType != PALETTE_NONE )
             {
+                assert( paletteType != PALETTE_NONE );
+
                 palDataSize = getPaletteDataSize( dstPaletteSize, dstDepth );
 
-                if ( rasterFormat != dstRasterFormat || colorOrder != dstColorOrder ||
-                     dstPaletteType != paletteType || dstPaletteSize != paletteSize )
-                {
-                    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
+                uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
 
-                    dstPaletteData = engineInterface->PixelAllocate( palDataSize );
-
-                    ConvertPaletteData(
-                        paletteData, dstPaletteData,
-                        paletteSize, dstPaletteSize,
-                        rasterFormat, colorOrder, srcPalRasterDepth,
-                        dstRasterFormat, dstColorOrder, dstDepth
-                    );
-                }
+                TransformPaletteDataEx(
+                    engineInterface,
+                    paletteData,
+                    paletteSize, dstPaletteSize,
+                    rasterFormat, colorOrder, srcPalRasterDepth,
+                    dstRasterFormat, dstColorOrder, dstDepth,
+                    false,
+                    dstPaletteData
+                );
             }
 
             // Calculate the file size.

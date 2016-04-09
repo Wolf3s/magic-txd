@@ -115,6 +115,9 @@ struct mainWindowSerializationEnv : public magicSerializationProvider
 
             logGeomBlock.LeaveContext();
         }
+
+        // If we had valid configuration, we are not for the first time.
+        mainwnd->isLaunchedForTheFirstTime = false;
     }
 
     void Save( const MainWindow *mainwnd, rw::BlockProvider& mtxdConfig ) const override

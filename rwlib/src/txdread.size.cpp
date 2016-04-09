@@ -2,7 +2,7 @@
 
 #include "txdread.size.hxx"
 
-#include "txdread.rasterplg.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -83,6 +83,9 @@ bool UnregisterResizeFiltering( EngineInterface *engineInterface, rasterResizeFi
 void Raster::resize(uint32 newWidth, uint32 newHeight, const char *downsampleMode, const char *upscaleMode)
 {
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
+
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
 
     PlatformTexture *platformTex = this->platformData;
 
@@ -206,8 +209,8 @@ void Raster::resize(uint32 newWidth, uint32 newHeight, const char *downsampleMod
             uint32 origMipWidth = dstMipLayer.width;
             uint32 origMipHeight = dstMipLayer.height;
             
-            uint32 origMipLayerWidth = dstMipLayer.mipWidth;
-            uint32 origMipLayerHeight = dstMipLayer.mipHeight;
+            uint32 origMipLayerWidth = dstMipLayer.layerWidth;
+            uint32 origMipLayerHeight = dstMipLayer.layerHeight;
 
             void *origTexels = dstMipLayer.texels;
             uint32 origDataSize = dstMipLayer.dataSize;
@@ -311,8 +314,8 @@ void Raster::resize(uint32 newWidth, uint32 newHeight, const char *downsampleMod
 
                     dstMipLayer.width = encodedWidth;
                     dstMipLayer.height = encodedHeight;
-                    dstMipLayer.mipWidth = targetLayerWidth;
-                    dstMipLayer.mipHeight = targetLayerHeight;
+                    dstMipLayer.layerWidth = targetLayerWidth;
+                    dstMipLayer.layerHeight = targetLayerHeight;
                     dstMipLayer.texels = encodedTexels;
                     dstMipLayer.dataSize = encodedDataSize;
 

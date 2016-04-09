@@ -8,6 +8,9 @@
 
 #include "rwcommon.hxx"
 
+// Temporarily we depend on the windows internals.
+#include "native.win32.hxx"
+
 // Define this to enable thread-safety for captured states of RwStateManager.
 //#define RENDERWARE_STATEMAN_THREADING_SUPPORT
 

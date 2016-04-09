@@ -8,6 +8,8 @@
 
 #include "txdread.ps2shared.hxx"
 
+#include "txdread.common.hxx"
+
 #define PSP_FOURCC  0x00505350      // 'PSP\0'
 
 namespace rw
@@ -86,6 +88,28 @@ static inline bool isPSPSwizzlingRequired( uint32 baseWidth, uint32 baseHeight, 
     else if ( depth == 8 )
     {
         if ( baseWidth < 16 )
+        {
+            return false;
+        }
+    }
+    else if ( depth == 32 )
+    {
+        if ( baseWidth < 8 || baseHeight < 8 )
+        {
+            return false;
+        }
+    }
+
+    // The PSP native texture uses a very narrow swizzling convention.
+    // It is the first native texture I encountered that uses per-level swizzling flags.
+    if ( baseWidth > baseHeight * 2 )
+    {
+        return false;
+    }
+
+    if ( baseWidth < 256 && baseHeight < 256 )
+    {
+        if ( baseHeight > baseWidth )
         {
             return false;
         }
@@ -211,6 +235,8 @@ struct NativeTexturePSP
                 dstLayer.height = srcLayer.height;
                 dstLayer.texels = newbuf;
                 dstLayer.dataSize = dataSize;
+
+                dstLayer.isSwizzled = srcLayer.isSwizzled;
             }
 
             ePaletteType srcPaletteType;
@@ -285,6 +311,8 @@ struct NativeTexturePSP
             this->height = 0;
             this->texels = NULL;
             this->dataSize = 0;
+
+            this->isSwizzled = false;
         }
 
         inline GETexture( const GETexture& right )
@@ -298,6 +326,8 @@ struct NativeTexturePSP
             this->height = right.height;
             this->texels = right.texels;
             this->dataSize = right.dataSize;
+
+            this->isSwizzled = right.isSwizzled;
 
             right.texels = NULL;
         }
@@ -314,6 +344,7 @@ struct NativeTexturePSP
                 engineInterface->PixelFree( texels );
 
                 this->texels = NULL;
+                this->dataSize = 0;
             }
         }
 
@@ -321,12 +352,12 @@ struct NativeTexturePSP
         uint32 height;
         void *texels;
         uint32 dataSize;
+
+        bool isSwizzled;
     };
 
     // Data members.
     uint32 depth;       // this field determines the raster format.
-
-    bool isSwizzled;
 
     eFormatEncodingType colorBufferFormat;
 

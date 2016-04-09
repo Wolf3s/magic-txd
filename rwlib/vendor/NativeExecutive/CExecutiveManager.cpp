@@ -305,4 +305,14 @@ void CExecutiveManager::DoPulse( void )
     LIST_FOREACH_END
 }
 
+double ExecutiveManager::GetPerformanceTimer( void )
+{
+    LONGLONG counterFrequency, currentCount;
+
+    QueryPerformanceFrequency( (LARGE_INTEGER*)&counterFrequency );
+    QueryPerformanceCounter( (LARGE_INTEGER*)&currentCount );
+
+    return (long double)currentCount / (long double)counterFrequency;
+}
+
 END_NATIVE_EXECUTIVE

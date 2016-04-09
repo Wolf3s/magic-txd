@@ -1,11 +1,12 @@
 #include <cstring>
 
-#include <StdInc.h>
+#include "StdInc.h"
 using namespace std;
 
 #include "streamutil.hxx"
 
 #pragma warning(disable: 4244)
+#pragma warning(disable: 4267)
 
 namespace rw {
 

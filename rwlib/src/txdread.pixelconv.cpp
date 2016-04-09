@@ -11,96 +11,7 @@
 namespace rw
 {
 
-inline bool decompressTexelsUsingDXT(
-    Interface *engineInterface, uint32 dxtType, eDXTCompressionMethod dxtMethod,
-    uint32 texWidth, uint32 texHeight, uint32 texRowAlignment,
-    uint32 texLayerWidth, uint32 texLayerHeight,
-    const void *srcTexels, eRasterFormat rawRasterFormat, eColorOrdering rawColorOrder, uint32 rawDepth,
-    void*& dstTexelsOut, uint32& dstTexelsDataSizeOut
-)
-{
-	uint32 x = 0, y = 0;
-
-    // Allocate the new texel array.
-	uint32 rowSize = getRasterDataRowSize( texLayerWidth, rawDepth, texRowAlignment );
-
-    uint32 dataSize = getRasterDataSizeByRowSize( rowSize, texHeight );
-
-	void *newtexels = engineInterface->PixelAllocate( dataSize );
-
-    // Get the compressed block count.
-    uint32 compressedBlockCount = ( texWidth * texHeight ) / 16;
-
-    bool successfullyDecompressed = true;
-
-    colorModelDispatcher <void> putDispatch( rawRasterFormat, rawColorOrder, rawDepth, NULL, 0, PALETTE_NONE );
-
-	for (uint32 n = 0; n < compressedBlockCount; n++)
-    {
-        PixelFormat::pixeldata32bit colors[4][4];
-
-        bool couldDecompressBlock = decompressDXTBlock(dxtMethod, srcTexels, n, dxtType, colors);
-
-        if (couldDecompressBlock == false)
-        {
-            // If even one block fails to decompress, abort.
-            successfullyDecompressed = false;
-            break;
-        }
-
-        // Write the colors.
-        for (uint32 y_block = 0; y_block < 4; y_block++)
-        {
-            for (uint32 x_block = 0; x_block < 4; x_block++)
-            {
-                uint32 target_x = ( x + x_block );
-                uint32 target_y = ( y + y_block );
-
-                if ( target_x < texLayerWidth && target_y < texLayerHeight )
-                {
-                    const PixelFormat::pixeldata32bit& srcColor = colors[ y_block ][ x_block ];
-
-                    uint8 red       = srcColor.red;
-                    uint8 green     = srcColor.green;
-                    uint8 blue      = srcColor.blue;
-                    uint8 alpha     = srcColor.alpha;
-
-                    // Get the target row.
-                    void *theRow = getTexelDataRow( newtexels, rowSize, target_y );
-
-                    putDispatch.setRGBA(theRow, target_x, red, green, blue, alpha);
-                }
-            }
-        }
-
-		x += 4;
-
-		if (x >= texWidth)
-        {
-			y += 4;
-			x = 0;
-		}
-
-        if (y >= texHeight)
-        {
-            break;
-        }
-	}
-
-    if ( !successfullyDecompressed )
-    {
-        // Delete the new texel array again.
-        engineInterface->PixelFree( newtexels );
-    }
-    else
-    {
-        // Give the data to the runtime.
-        dstTexelsOut = newtexels;
-        dstTexelsDataSizeOut = dataSize;
-    }
-
-    return successfullyDecompressed;
-}
+typedef rw::uint32 max_depth_item_type;
 
 bool genericDecompressDXTNative(
     Interface *engineInterface, pixelDataTraversal& pixelData, uint32 dxtType,
@@ -124,11 +35,9 @@ bool genericDecompressDXTNative(
 
         void *texelData = mipLayer.texels;
 
-		uint32 x = 0, y = 0;
-
         // Allocate the new texel array.
-        uint32 texLayerWidth = mipLayer.mipWidth;
-        uint32 texLayerHeight = mipLayer.mipHeight;
+        uint32 texLayerWidth = mipLayer.layerWidth;
+        uint32 texLayerHeight = mipLayer.layerHeight;
 
 		void *newtexels;
 		uint32 dataSize;
@@ -138,7 +47,7 @@ bool genericDecompressDXTNative(
         uint32 texHeight = mipLayer.height;
 
         bool successfullyDecompressed =
-            decompressTexelsUsingDXT(
+            decompressTexelsUsingDXT <endian::little_endian> (
                 engineInterface, dxtType, dxtMethod,
                 texWidth, texHeight, dstRowAlignment,
                 texLayerWidth, texLayerHeight,
@@ -224,7 +133,7 @@ void genericCompressDXTNative( Interface *engineInterface, pixelDataTraversal& p
         // Create the new DXT array.
         uint32 realMipWidth, realMipHeight;
 
-        compressTexelsUsingDXT(
+        compressTexelsUsingDXT <endian::little_endian> (
             engineInterface,
             dxtType, texelSource, mipWidth, mipHeight, rowAlignment,
             rasterFormat, paletteData, paletteType, maxpalette, colorOrder, itemDepth,
@@ -334,6 +243,35 @@ void genericCompressDXTNative( Interface *engineInterface, pixelDataTraversal& p
     pixelData.compressionType = targetCompressionType;
 }
 
+AINLINE void _copyPaletteDepth_internal(
+    const void *srcTexels, void *dstTexels,
+    uint32 srcTexelOffX, uint32 srcTexelOffY,
+    uint32 dstTexelOffX, uint32 dstTexelOffY,
+    uint32 texWidth, uint32 texHeight,
+    uint32 texProcessWidth, uint32 texProcessHeight,
+    ePaletteType srcPaletteType, ePaletteType dstPaletteType,
+    uint32 paletteSize,
+    uint32 srcDepth, uint32 dstDepth,
+    uint32 srcRowSize, uint32 dstRowSize
+)
+{
+    for ( uint32 row = 0; row < texProcessHeight; row++ )
+    {
+        const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, row + srcTexelOffY );
+        void *dstRow = getTexelDataRow( dstTexels, dstRowSize, row + dstTexelOffY );
+
+        for ( uint32 col = 0; col < texProcessWidth; col++ )
+        {
+            copyPaletteItemGeneric(
+                srcRow, dstRow,
+                col + srcTexelOffX, srcDepth, srcPaletteType,
+                col + dstTexelOffX, dstDepth, dstPaletteType,
+                paletteSize
+            );
+        }
+    }
+}
+
 void ConvertPaletteDepthEx(
     const void *srcTexels, void *dstTexels,
     uint32 srcTexelOffX, uint32 srcTexelOffY,
@@ -350,35 +288,17 @@ void ConvertPaletteDepthEx(
     uint32 srcRowSize = getRasterDataRowSize( texWidth, srcDepth, srcRowAlignment );
     uint32 dstRowSize = getRasterDataRowSize( texWidth, dstDepth, dstRowAlignment );
 
-    for ( uint32 row = 0; row < texProcessHeight; row++ )
-    {
-        const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, row + srcTexelOffY );
-        void *dstRow = getTexelDataRow( dstTexels, dstRowSize, row + dstTexelOffY );
-
-        for ( uint32 col = 0; col < texProcessWidth; col++ )
-        {
-            uint8 palIndex;
-
-            // Fetch the index
-            {
-                uint32 realSrcPalIndex = ( col + srcTexelOffX );
-
-                bool gotPaletteIndex = getpaletteindex(srcRow, srcPaletteType, paletteSize, srcDepth, realSrcPalIndex, palIndex);
-
-                if ( !gotPaletteIndex )
-                {
-                    palIndex = 0;
-                }
-            }
-
-            // Put the index.
-            {
-                uint32 realDstPalIndex = ( col + dstTexelOffX );
-
-                setpaletteindex(dstRow, realDstPalIndex, dstDepth, dstPaletteType, palIndex);
-            }
-        }
-    }
+    _copyPaletteDepth_internal(
+        srcTexels, dstTexels,
+        srcTexelOffX, srcTexelOffY,
+        dstTexelOffX, dstTexelOffY,
+        texWidth, texHeight,
+        texProcessWidth, texProcessHeight,
+        srcPaletteType, dstPaletteType,
+        paletteSize,
+        srcDepth, dstDepth,
+        srcRowSize, dstRowSize
+    );
 }
 
 void ConvertPaletteDepth(
@@ -425,66 +345,79 @@ inline void copyTexelData(
     );
 }
 
-void ConvertMipmapLayer(
+// Very optimized routine that does not always allocate a new destination texel buffer because it
+// would not be necessary.
+void TransformMipmapLayer(
     Interface *engineInterface,
-    const pixelDataTraversal::mipmapResource& mipLayer,
+    uint32 surfWidth, uint32 surfHeight, uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
     eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, const void *srcPaletteData, uint32 srcPaletteSize,
     eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType,
-    bool forceAllocation,
+    bool hasSurfaceRowFormatChanged,
     void*& dstTexelsOut, uint32& dstDataSizeOut
 )
 {
-    // Grab the source parameters.
-    void *srcTexels = mipLayer.texels;
-
-    uint32 srcTexelsDataSize = mipLayer.dataSize;
-
-    uint32 srcWidth = mipLayer.width;               // the dimensions will stay the same.
-    uint32 srcHeight = mipLayer.height;
-
     // Check whether we need to reallocate the texels.
     void *dstTexels = srcTexels;
 
-    uint32 dstTexelsDataSize = srcTexelsDataSize;
+    uint32 dstTexelsDataSize = srcDataSize;
 
-    if ( forceAllocation || shouldAllocateNewRasterBuffer( srcWidth, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment ) )
+    if ( hasConflictingAddressing(
+             surfWidth,
+             srcDepth, srcRowAlignment, srcPaletteType,
+             dstDepth, dstRowAlignment, dstPaletteType
+         )
+        )
     {
-        uint32 rowSize = getRasterDataRowSize( srcWidth, dstDepth, dstRowAlignment );
+        uint32 rowSize = getRasterDataRowSize( surfWidth, dstDepth, dstRowAlignment );
 
-        dstTexelsDataSize = getRasterDataSizeByRowSize( rowSize, srcHeight );
+        dstTexelsDataSize = getRasterDataSizeByRowSize( rowSize, surfHeight );
 
         dstTexels = engineInterface->PixelAllocate( dstTexelsDataSize );
     }
 
-    if ( dstPaletteType != PALETTE_NONE )
+    // Kappa.
+    if ( hasSurfaceRowFormatChanged || srcTexels != dstTexels )
     {
-        // Make sure we came from a palette.
-        assert( srcPaletteType != PALETTE_NONE );
-
-        // We only have work to do if the depth changed or the pointers to the arrays changed.
-        if ( srcDepth != dstDepth || srcTexels != dstTexels || srcPaletteType != dstPaletteType )
+        try
         {
-            ConvertPaletteDepth(
-                srcTexels, dstTexels,
-                srcWidth, srcHeight,
-                srcPaletteType, dstPaletteType, srcPaletteSize,
-                srcDepth, dstDepth,
-                srcRowAlignment, dstRowAlignment
-            );
-        }
-    }
-    else
-    {
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-        colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+            if ( dstPaletteType != PALETTE_NONE )
+            {
+                // Make sure we came from a palette.
+                assert( srcPaletteType != PALETTE_NONE );
 
-        copyTexelData(
-            srcTexels, dstTexels,
-            fetchDispatch, putDispatch,
-            srcWidth, srcHeight,
-            srcDepth, dstDepth,
-            srcRowAlignment, dstRowAlignment
-        );
+                // We only have work to do if the depth changed or there is an addressing mode conflict.
+                if ( srcTexels != dstTexels )
+                {
+                    ConvertPaletteDepth(
+                        srcTexels, dstTexels,
+                        surfWidth, surfHeight,
+                        srcPaletteType, dstPaletteType, srcPaletteSize,
+                        srcDepth, dstDepth,
+                        srcRowAlignment, dstRowAlignment
+                    );
+                }
+            }
+            else
+            {
+                // We always have to do work, but very often we are optimized.
+                colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+                colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+
+                copyTexelData(
+                    srcTexels, dstTexels,
+                    fetchDispatch, putDispatch,
+                    surfWidth, surfHeight,
+                    srcDepth, dstDepth,
+                    srcRowAlignment, dstRowAlignment
+                );
+            }
+        }
+        catch( ... )
+        {
+            engineInterface->PixelFree( dstTexels );
+
+            throw;
+        }
     }
     
     // Give data to the runtime.
@@ -525,7 +458,7 @@ bool ConvertMipmapLayerNative(
             void *decompressedTexels;
             uint32 decompressedSize;
 
-            bool success = decompressTexelsUsingDXT(
+            bool success = decompressTexelsUsingDXT <endian::little_endian> (
                 engineInterface, srcDXTType, dxtMethod,
                 mipWidth, mipHeight, dstRowAlignment,
                 layerWidth, layerHeight,
@@ -568,18 +501,32 @@ bool ConvertMipmapLayerNative(
 
             newtexels = engineInterface->PixelAllocate( dstDataSize );
 
-            colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+            if ( !newtexels )
+            {
+                throw RwException( "failed to allocate texel destination buffer in texel conversion" );
+            }
 
-            // Do the conversion.
-            copyTexelDataEx(
-                srcTexels, newtexels,
-                fetchDispatch, putDispatch,
-                mipWidth, mipHeight,
-                0, 0,
-                0, 0,
-                srcRowSize, dstRowSize
-            );
+            try
+            {
+                colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+                colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+
+                // Do the conversion.
+                copyTexelDataEx(
+                    srcTexels, newtexels,
+                    fetchDispatch, putDispatch,
+                    mipWidth, mipHeight,
+                    0, 0,
+                    0, 0,
+                    srcRowSize, dstRowSize
+                );
+            }
+            catch( ... )
+            {
+                engineInterface->PixelFree( newtexels );
+
+                throw;
+            }
         }
         else if ( srcPaletteType != PALETTE_NONE )
         {
@@ -594,14 +541,28 @@ bool ConvertMipmapLayerNative(
 
                     newtexels = engineInterface->PixelAllocate( dstDataSize );
 
-                    // Convert the depth.
-                    ConvertPaletteDepth(
-                        srcTexels, newtexels,
-                        mipWidth, mipHeight,
-                        srcPaletteType, dstPaletteType, srcPaletteSize,
-                        srcDepth, dstDepth,
-                        srcRowAlignment, dstRowAlignment
-                    );
+                    if ( !newtexels )
+                    {
+                        throw RwException( "failed to allocate palette texel buffer in texel conversion" );
+                    }
+
+                    try
+                    {
+                        // Convert the depth.
+                        ConvertPaletteDepth(
+                            srcTexels, newtexels,
+                            mipWidth, mipHeight,
+                            srcPaletteType, dstPaletteType, srcPaletteSize,
+                            srcDepth, dstDepth,
+                            srcRowAlignment, dstRowAlignment
+                        );
+                    }
+                    catch( ... )
+                    {
+                        engineInterface->PixelFree( newtexels );
+
+                        throw;
+                    }
                 }
                 else
                 {
@@ -610,6 +571,7 @@ bool ConvertMipmapLayerNative(
                     newtexels = engineInterface->PixelAllocate( dstDataSize );
 
                     // We just copy.
+                    // At least that aint throwing exceptions.
                     memcpy( newtexels, srcTexels, dstDataSize );
                 }
             }
@@ -678,13 +640,26 @@ bool ConvertMipmapLayerNative(
 
             uint32 newWidth, newHeight;
 
-            compressTexelsUsingDXT(
-                engineInterface,
-                dstDXTType, srcTexels, mipWidth, mipHeight, srcRowAlignment,
-                srcRasterFormat, srcPaletteData, srcPaletteType, srcPaletteSize, srcColorOrder, srcDepth,
-                dstTexels, dstDataSize,
-                newWidth, newHeight
-            );
+            try
+            {
+                compressTexelsUsingDXT <endian::little_endian> (
+                    engineInterface,
+                    dstDXTType, srcTexels, mipWidth, mipHeight, srcRowAlignment,
+                    srcRasterFormat, srcPaletteData, srcPaletteType, srcPaletteSize, srcColorOrder, srcDepth,
+                    dstTexels, dstDataSize,
+                    newWidth, newHeight
+                );
+            }
+            catch( ... )
+            {
+                // Must free temporary texels on error.
+                if ( isMipLayerTexels == false )
+                {
+                    engineInterface->PixelFree( srcTexels );
+                }
+
+                throw;
+            }
 
             // Delete old texels (if necessary).
             if ( isMipLayerTexels == false )
@@ -739,8 +714,8 @@ bool ConvertMipmapLayerEx(
     uint32 mipWidth = mipLayer.width;
     uint32 mipHeight = mipLayer.height;
 
-    uint32 layerWidth = mipLayer.mipWidth;
-    uint32 layerHeight = mipLayer.mipHeight;
+    uint32 layerWidth = mipLayer.layerWidth;
+    uint32 layerHeight = mipLayer.layerHeight;
 
     void *srcTexels = mipLayer.texels;
     uint32 srcDataSize = mipLayer.dataSize;
@@ -755,6 +730,141 @@ bool ConvertMipmapLayerEx(
             dstPlaneWidthOut, dstPlaneHeightOut,
             dstTexelsOut, dstDataSizeOut
         );
+}
+
+void CopyTransformRawMipmapLayer(
+    Interface *engineInterface,
+    uint32 surfWidth, uint32 surfHeight, uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
+    eRasterFormat srcRasterFormat, uint32 srcDepth, uint32 srcRowAlignment, eColorOrdering srcColorOrder, ePaletteType srcPaletteType, const void *srcPaletteData, uint32 srcPaletteSize,
+    eRasterFormat dstRasterFormat, uint32 dstDepth, uint32 dstRowAlignment, eColorOrdering dstColorOrder, ePaletteType dstPaletteType,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+)
+{
+    // Gotta be able to iterate through the source buffer.
+    uint32 srcRowSize = getRasterDataRowSize( surfWidth, srcDepth, srcRowAlignment );
+
+    // Allocate a new copy of the destination buffer.
+    uint32 dstRowSize = getRasterDataRowSize( surfWidth, dstDepth, dstRowAlignment );
+
+    uint32 dstTexelsDataSize = getRasterDataSizeByRowSize( dstRowSize, surfHeight );
+
+    void *dstTexels = engineInterface->PixelAllocate( dstTexelsDataSize );
+
+    if ( !dstTexels )
+    {
+        throw RwException( "failed to allocate destination surface for mipmap copy transformation" );
+    }
+
+    try
+    {
+        if ( dstPaletteType != PALETTE_NONE )
+        {
+            // Make sure we came from a palette.
+            assert( srcPaletteType != PALETTE_NONE );
+
+            // Convert stuff.
+            _copyPaletteDepth_internal(
+                srcTexels, dstTexels,
+                0, 0,
+                0, 0,
+                surfWidth, surfHeight,
+                surfWidth, surfHeight,
+                srcPaletteType, dstPaletteType, srcPaletteSize,
+                srcDepth, dstDepth,
+                srcRowSize, dstRowSize
+            );
+        }
+        else
+        {
+            colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+            colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+
+            copyTexelDataEx(
+                srcTexels, dstTexels,
+                fetchDispatch, putDispatch,
+                surfWidth, surfHeight,
+                0, 0,
+                0, 0,
+                srcRowSize, dstRowSize
+            );
+        }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( dstTexels );
+
+        throw;
+    }
+    
+    // Give data to the runtime.
+    dstTexelsOut = dstTexels;
+    dstDataSizeOut = dstTexelsDataSize;
+}
+
+// Function to simply readjust mipmap depth and row alignment.
+void DepthCopyTransformMipmapLayer(
+    Interface *engineInterface,
+    uint32 layerWidth, uint32 layerHeight, void *srcTexels, uint32 srcDataSize,
+    uint32 srcDepth, uint32 srcRowAlignment, eByteAddressingMode srcByteAddr,
+    uint32 dstDepth, uint32 dstRowAlignment, eByteAddressingMode dstByteAddr,
+    void*& dstTexelsOut, uint32& dstDataSizeOut
+)
+{
+    // Allocate a new destination buffer.
+    uint32 dstRowSize = getRasterDataRowSize( layerWidth, dstDepth, dstRowAlignment );
+
+    uint32 dstDataSize = getRasterDataSizeByRowSize( dstRowSize, layerHeight );
+
+    void *dstTexels = engineInterface->PixelAllocate( dstDataSize );
+
+    if ( !dstTexels )
+    {
+        throw RwException( "failed to allocate destination texel buffer for mipmap depth-alignment transformation" );
+    }
+    
+    try
+    {
+        bool isRowStructureSame = ( srcDepth == dstDepth && srcByteAddr == dstByteAddr );
+
+        uint32 srcRowSize = getRasterDataRowSize( layerWidth, srcDepth, srcRowAlignment );
+
+        for ( uint32 row = 0; row < layerHeight; row++ )
+        {
+            const void *srcRow = getConstTexelDataRow( srcTexels, srcRowSize, row );
+            void *dstRow = getTexelDataRow( dstTexels, dstRowSize, row );
+
+            // We either align depth items or we just copy over the rows.
+            // TODO: maybe add some cleanly clear at places where stuff doesnt matter.
+            if ( isRowStructureSame )
+            {
+                size_t actualMoveAmount = std::min( srcRowSize, dstRowSize );
+
+                memcpy( dstRow, srcRow, actualMoveAmount );
+            }
+            else
+            {
+                max_depth_item_type item;
+
+                for ( uint32 col = 0; col < layerWidth; col++ )
+                {
+                    // Just move over depth items.
+                    getDataByDepth( srcRow, srcDepth, col, srcByteAddr, item );
+
+                    setDataByDepth( dstRow, dstDepth, col, dstByteAddr, item );
+                }
+            }
+        }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( dstTexels );
+
+        throw;
+    }
+
+    // Return stuff.
+    dstTexelsOut = dstTexels;
+    dstDataSizeOut = dstDataSize;
 }
 
 bool DecideBestDXTCompressionFormat(
@@ -840,8 +950,8 @@ void ConvertPaletteData(
     // Process valid colors.
     uint32 canProcessCount = std::min( srcPaletteSize, dstPaletteSize );
 
-    colorModelDispatcher <const void> fetchDispatcher( srcRasterFormat, srcColorOrder, srcPalRasterDepth, NULL, 0, PALETTE_NONE );
-    colorModelDispatcher <void> putDispatcher( dstRasterFormat, dstColorOrder, dstPalRasterDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher fetchDispatcher( srcRasterFormat, srcColorOrder, srcPalRasterDepth, NULL, 0, PALETTE_NONE );
+    colorModelDispatcher putDispatcher( dstRasterFormat, dstColorOrder, dstPalRasterDepth, NULL, 0, PALETTE_NONE );
 
     for ( uint32 n = 0; n < canProcessCount; n++ )
     {
@@ -857,6 +967,157 @@ void ConvertPaletteData(
     {
         putDispatcher.clearColor( dstPaletteTexels, n );
     }
+}
+
+AINLINE void TransformPaletteData_native(
+    Interface *engineInterface,
+    void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPalRasterDepth,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPalRasterDepth,
+    bool canTransformIntoSource,
+    void*& dstPalDataOut,
+    bool& hasColorTransformedOut
+)
+{
+    bool needsNewPalBuf = haveToAllocateNewPaletteBuffer( srcPalRasterDepth, srcPaletteSize, dstPalRasterDepth, dstPaletteSize );
+    bool requiresConversion = doPaletteBuffersNeedConversion( srcRasterFormat, srcColorOrder, dstRasterFormat, dstColorOrder );
+
+    void *dstPaletteData = srcPaletteData;
+
+    if ( needsNewPalBuf || requiresConversion && !canTransformIntoSource )
+    {
+        // Need a new buffer.
+        uint32 dstPalDataSize = getPaletteDataSize( dstPaletteSize, dstPalRasterDepth );
+
+        dstPaletteData = engineInterface->PixelAllocate( dstPalDataSize );
+
+        if ( !dstPaletteData )
+        {
+            throw RwException( "failed to allocate palette destination buffer" );
+        }
+    }
+
+    if ( dstPaletteData != srcPaletteData || requiresConversion )
+    {
+        assert( dstPaletteData != srcPaletteData || canTransformIntoSource );
+
+        try
+        {
+            ConvertPaletteData(
+                srcPaletteData, dstPaletteData,
+                srcPaletteSize, dstPaletteSize,
+                srcRasterFormat, srcColorOrder, srcPalRasterDepth,
+                dstRasterFormat, dstColorOrder, dstPalRasterDepth
+            );
+        }
+        catch( ... )
+        {
+            // Clean up on error, because we aint needing the buffer anymore.
+            if ( dstPaletteData != srcPaletteData )
+            {
+                engineInterface->PixelFree( dstPaletteData );
+            }
+
+            throw;
+        }
+    }
+
+    // Return stuff.
+    dstPalDataOut = dstPaletteData;
+    hasColorTransformedOut = requiresConversion;
+}
+
+void TransformPaletteDataEx(
+    Interface *engineInterface,
+    void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder, uint32 srcPalRasterDepth,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder, uint32 dstPalRasterDepth,
+    bool canTransformIntoSource,
+    void*& dstPalDataOut
+)
+{
+    bool colorConv; // unused.
+
+    TransformPaletteData_native(
+        engineInterface,
+        srcPaletteData,
+        srcPaletteSize, dstPaletteSize,
+        srcRasterFormat, srcColorOrder, srcPalRasterDepth,
+        dstRasterFormat, dstColorOrder, dstPalRasterDepth,
+        canTransformIntoSource,
+        dstPalDataOut,
+        colorConv
+    );
+}
+
+void TransformPaletteData(
+    Interface *engineInterface,
+    void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder,
+    bool canTransformIntoSource,
+    void*& dstPalDataOut
+)
+{
+    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
+    uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
+
+    TransformPaletteDataEx(
+        engineInterface,
+        srcPaletteData,
+        srcPaletteSize, dstPaletteSize,
+        srcRasterFormat, srcColorOrder, srcPalRasterDepth,
+        dstRasterFormat, dstColorOrder, dstPalRasterDepth,
+        canTransformIntoSource,
+        dstPalDataOut
+    );
+}
+
+void CopyConvertPaletteData(
+    Interface *engineInterface,
+    const void *srcPaletteData,
+    uint32 srcPaletteSize, uint32 dstPaletteSize,
+    eRasterFormat srcRasterFormat, eColorOrdering srcColorOrder,
+    eRasterFormat dstRasterFormat, eColorOrdering dstColorOrder,
+    void*& dstPaletteDataOut
+)
+{
+    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
+    uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
+
+    // We always need a new buffer.
+    // This function is mainly used in logic which either takes all mipmap layers or clones them.
+    uint32 dstPalDataSize = getPaletteDataSize( dstPaletteSize, dstPalRasterDepth );
+
+    void *dstPaletteData = engineInterface->PixelAllocate( dstPalDataSize );
+
+    if ( !dstPaletteData )
+    {
+        throw RwException( "failed to allocate palette destination buffer" );
+    }
+
+    try
+    {
+        ConvertPaletteData(
+            srcPaletteData, dstPaletteData,
+            srcPaletteSize, dstPaletteSize,
+            srcRasterFormat, srcColorOrder, srcPalRasterDepth,
+            dstRasterFormat, dstColorOrder, dstPalRasterDepth
+        );
+    }
+    catch( ... )
+    {
+        // Clean up on error, because we aint needing the buffer anymore.
+        engineInterface->PixelFree( dstPaletteData );
+
+        throw;
+    }
+
+    // Return stuff.
+    dstPaletteDataOut = dstPaletteData;
 }
 
 inline bool isPaletteTypeBigger( ePaletteType left, ePaletteType right )
@@ -987,28 +1248,17 @@ bool ConvertPixelData( Interface *engineInterface, pixelDataTraversal& pixelsToC
             uint32 dstRowAlignment = pixFormat.rowAlignment;
 
             // Check whether we even have to update the texels.
+            // That is if any of the properties that do anything have changed.
             if ( srcRasterFormat != dstRasterFormat || srcPaletteType != dstPaletteType || srcColorOrder != dstColorOrder || srcDepth != dstDepth || srcRowAlignment != dstRowAlignment )
             {
+                bool didTransformColorData = false;
+
                 // Grab palette parameters.
                 void *srcPaletteTexels = pixelsToConvert.paletteData;
                 uint32 srcPaletteSize = pixelsToConvert.paletteSize;
 
-                uint32 srcPalRasterDepth;
-
-                if ( srcPaletteType != PALETTE_NONE )
-                {
-                    srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
-                }
-
                 void *dstPaletteTexels = srcPaletteTexels;
                 uint32 dstPaletteSize = srcPaletteSize;
-
-                uint32 dstPalRasterDepth;
-
-                if ( dstPaletteType != PALETTE_NONE )
-                {
-                    dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
-                }
 
                 // Check whether we have to update the palette texels.
                 if ( dstPaletteType != PALETTE_NONE )
@@ -1018,12 +1268,25 @@ bool ConvertPixelData( Interface *engineInterface, pixelDataTraversal& pixelsToC
 
                     dstPaletteSize = getPaletteItemCount( dstPaletteType );
 
-                    // If the palette increased in size, allocate a new array for it.
-                    if ( srcPaletteSize != dstPaletteSize || srcPalRasterDepth != dstPalRasterDepth )
-                    {
-                        uint32 dstPalDataSize = getPaletteDataSize( dstPaletteSize, dstPalRasterDepth );
+                    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
+                    uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
 
-                        dstPaletteTexels = engineInterface->PixelAllocate( dstPalDataSize );
+                    bool didColorConvert;
+
+                    TransformPaletteData_native(
+                        engineInterface,
+                        srcPaletteTexels,
+                        srcPaletteSize, dstPaletteSize,
+                        srcRasterFormat, srcColorOrder, srcPalRasterDepth,
+                        dstRasterFormat, dstColorOrder, dstPalRasterDepth,
+                        true,
+                        dstPaletteTexels,
+                        didColorConvert
+                    );
+
+                    if ( didColorConvert )
+                    {
+                        didTransformColorData = true;
                     }
                 }
                 else
@@ -1032,58 +1295,83 @@ bool ConvertPixelData( Interface *engineInterface, pixelDataTraversal& pixelsToC
                     dstPaletteSize = 0;
                 }
 
-                // If we have a palette, process it.
-                if ( srcPaletteType != PALETTE_NONE && dstPaletteType != PALETTE_NONE )
+                try
                 {
-                    ConvertPaletteData(
-                        srcPaletteTexels, dstPaletteTexels,
-                        srcPaletteSize, dstPaletteSize,
-                        srcRasterFormat, srcColorOrder, srcPalRasterDepth,
-                        dstRasterFormat, dstColorOrder, dstPalRasterDepth
-                    );
+                    // Process the mipmaps if they actually change.
+                    // This is just one of the required properties, not a shortcut.
+                    bool hasSurfaceBufferFormatChanged =
+                        doRawMipmapBuffersNeedConversion(
+                            srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
+                            dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
+                        );
+
+                    // Process mipmaps.
+                    size_t mipmapCount = pixelsToConvert.mipmaps.size();
+
+                    // Determine the depth of the items.
+                    for ( size_t n = 0; n < mipmapCount; n++ )
+                    {
+                        pixelDataTraversal::mipmapResource& mipLayer = pixelsToConvert.mipmaps[ n ];
+
+                        // Get source parameters.
+                        uint32 surfWidth = mipLayer.width;
+                        uint32 surfHeight = mipLayer.height;
+
+                        uint32 layerWidth = mipLayer.layerWidth;
+                        uint32 layerHeight = mipLayer.layerHeight;
+
+                        void *srcTexels = mipLayer.texels;
+                        uint32 srcDataSize = mipLayer.dataSize;
+
+                        // Convert this mipmap.
+                        // This routine is optimized to only return a new texel buffer if absolutely required.
+                        void *dstTexels;
+                        uint32 dstTexelsDataSize;
+
+                        TransformMipmapLayer(
+                            engineInterface,
+                            surfWidth, surfHeight, layerWidth, layerHeight, srcTexels, srcDataSize,
+                            srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteTexels, srcPaletteSize,
+                            dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType,
+                            hasSurfaceBufferFormatChanged,
+                            dstTexels, dstTexelsDataSize
+                        );
+
+                        // Update mipmap properties.
+                        if ( dstTexels != srcTexels )
+                        {
+                            // Delete old texels.
+                            // We always have texels allocated.
+                            engineInterface->PixelFree( srcTexels );
+
+                            // Replace stuff.
+                            mipLayer.texels = dstTexels;
+                        }
+
+                        if ( dstTexelsDataSize != srcDataSize )
+                        {
+                            // Update the data size.
+                            mipLayer.dataSize = dstTexelsDataSize;
+                        }
+                    }
+
+                    if ( hasSurfaceBufferFormatChanged )
+                    {
+                        didTransformColorData = true;
+                    }
                 }
-
-                // Process mipmaps.
-                size_t mipmapCount = pixelsToConvert.mipmaps.size();
-
-                // Determine the depth of the items.
-                for ( size_t n = 0; n < mipmapCount; n++ )
+                catch( ... )
                 {
-                    pixelDataTraversal::mipmapResource& mipLayer = pixelsToConvert.mipmaps[ n ];
-
-                    void *dstTexels;
-                    uint32 dstTexelsDataSize;
-
-                    // Convert this mipmap.
-                    ConvertMipmapLayer(
-                        engineInterface,
-                        mipLayer,
-                        srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteTexels, srcPaletteSize,
-                        dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType,
-                        false,
-                        dstTexels, dstTexelsDataSize
-                    );
-
-                    // Update mipmap properties.
-                    void *srcTexels = mipLayer.texels;
-
-                    if ( dstTexels != srcTexels )
+                    // Clean up after any palette transformation on error.
+                    if ( dstPaletteTexels != NULL )
                     {
-                        // Delete old texels.
-                        // We always have texels allocated.
-                        engineInterface->PixelFree( srcTexels );
-
-                        // Replace stuff.
-                        mipLayer.texels = dstTexels;
+                        if ( dstPaletteTexels != srcPaletteTexels )
+                        {
+                            engineInterface->PixelFree( dstPaletteTexels );
+                        }
                     }
 
-                    uint32 srcTexelsDataSize = mipLayer.dataSize;
-
-                    if ( dstTexelsDataSize != srcTexelsDataSize )
-                    {
-                        // Update the data size.
-                        mipLayer.dataSize = dstTexelsDataSize;
-                    }
+                    throw;
                 }
 
                 // Update the palette if necessary.
@@ -1104,11 +1392,14 @@ bool ConvertPixelData( Interface *engineInterface, pixelDataTraversal& pixelsToC
                     pixelsToConvert.paletteSize = dstPaletteSize;
                 }
 
-                // Update the D3DFORMAT field.
+                // Update meta properties, because format has changed.
                 hasUpdated = true;
 
-                // We definately should recalculate alpha.
-                shouldRecalculateAlpha = true;
+                if ( didTransformColorData )
+                {
+                    // We definately should recalculate alpha.
+                    shouldRecalculateAlpha = true;
+                }
             }
 
             // Update texture properties that changed.
@@ -1167,7 +1458,7 @@ bool BrowseTexelRGBA(
     uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut
 )
 {
-    return colorModelDispatcher <const void> ( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType ).getRGBA( texelSource, texelIndex, redOut, greenOut, blueOut, alphaOut );
+    return colorModelDispatcher ( rasterFormat, colorOrder, depth, paletteData, paletteSize, paletteType ).getRGBA( texelSource, texelIndex, redOut, greenOut, blueOut, alphaOut );
 }
 
 bool BrowseTexelLuminance(
@@ -1176,7 +1467,7 @@ bool BrowseTexelLuminance(
     uint8& lumOut, uint8& alphaOut
 )
 {
-    return colorModelDispatcher <const void> ( rasterFormat, COLOR_RGBA, depth, paletteData, paletteSize, paletteType ).getLuminance( texelSource, texelIndex, lumOut, alphaOut );
+    return colorModelDispatcher ( rasterFormat, COLOR_RGBA, depth, paletteData, paletteSize, paletteType ).getLuminance( texelSource, texelIndex, lumOut, alphaOut );
 }
 
 eColorModel GetRasterFormatColorModel( eRasterFormat rasterFormat )
@@ -1190,7 +1481,7 @@ bool PutTexelRGBA(
     uint8 red, uint8 green, uint8 blue, uint8 alpha
 )
 {
-    return colorModelDispatcher <void> ( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE ).setRGBA( texelSource, texelIndex, red, green, blue, alpha );
+    return colorModelDispatcher ( rasterFormat, colorOrder, depth, NULL, 0, PALETTE_NONE ).setRGBA( texelSource, texelIndex, red, green, blue, alpha );
 }
 
 bool PutTexelLuminance(
@@ -1199,7 +1490,7 @@ bool PutTexelLuminance(
     uint8 lum, uint8 alpha
 )
 {
-    return colorModelDispatcher <void> ( rasterFormat, COLOR_RGBA, depth, NULL, 0, PALETTE_NONE ).setLuminance( texelSource, texelIndex, lum, alpha );
+    return colorModelDispatcher ( rasterFormat, COLOR_RGBA, depth, NULL, 0, PALETTE_NONE ).setLuminance( texelSource, texelIndex, lum, alpha );
 }
 
 void pixelDataTraversal::FreeMipmap( Interface *engineInterface, mipmapResource& mipData )
@@ -1247,70 +1538,84 @@ void pixelDataTraversal::CloneFrom( Interface *engineInterface, const pixelDataT
     // Clone parameters.
     eRasterFormat rasterFormat = right.rasterFormat;
 
-    this->isNewlyAllocated = true;  // since we clone
+    this->isNewlyAllocated = true;  // since we clone.
     this->rasterFormat = rasterFormat;
     this->depth = right.depth;
     this->rowAlignment = right.rowAlignment;
     this->colorOrder = right.colorOrder;
 
     // Clone palette.
-    this->paletteType = right.paletteType;
-    
-    void *srcPaletteData = right.paletteData;
-    void *dstPaletteData = NULL;
-
-    uint32 dstPaletteSize = 0;
-
-    if ( srcPaletteData )
     {
-        uint32 srcPaletteSize = right.paletteSize;  
+        this->paletteType = right.paletteType;
+    
+        void *srcPaletteData = right.paletteData;
+        void *dstPaletteData = NULL;
+
+        uint32 dstPaletteSize = 0;
+
+        if ( srcPaletteData )
+        {
+            uint32 srcPaletteSize = right.paletteSize;  
         
-        // Copy the palette texels.
-        uint32 palRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
+            // Copy the palette texels.
+            uint32 palRasterDepth = Bitmap::getRasterFormatDepth( rasterFormat );
 
-        uint32 palDataSize = getPaletteDataSize( srcPaletteSize, palRasterDepth );
+            uint32 palDataSize = getPaletteDataSize( srcPaletteSize, palRasterDepth );
 
-        dstPaletteData = engineInterface->PixelAllocate( palDataSize );
+            dstPaletteData = engineInterface->PixelAllocate( palDataSize );
 
-        memcpy( dstPaletteData, srcPaletteData, palDataSize );
+            if ( !dstPaletteData )
+            {
+                throw RwException( "failed to allocate palette buffer in pixel container cloning routine" );
+            }
 
-        dstPaletteSize = srcPaletteSize;
+            memcpy( dstPaletteData, srcPaletteData, palDataSize );
+
+            dstPaletteSize = srcPaletteSize;
+        }
+
+        this->paletteData = dstPaletteData;
+        this->paletteSize = dstPaletteSize;
     }
 
-    this->paletteData = dstPaletteData;
-    this->paletteSize = dstPaletteSize;
-
     // Clone mipmaps.
-    size_t mipmapCount = right.mipmaps.size();
-
-    this->mipmaps.resize( mipmapCount );
-
-    for ( size_t n = 0; n < mipmapCount; n++ )
     {
-        const mipmapResource& srcLayer = right.mipmaps[ n ];
+        size_t mipmapCount = right.mipmaps.size();
 
-        mipmapResource newLayer;
+        this->mipmaps.resize( mipmapCount );
 
-        newLayer.width = srcLayer.width;
-        newLayer.height = srcLayer.height;
+        for ( size_t n = 0; n < mipmapCount; n++ )
+        {
+            const mipmapResource& srcLayer = right.mipmaps[ n ];
 
-        newLayer.mipWidth = srcLayer.mipWidth;
-        newLayer.mipHeight = srcLayer.mipHeight;
+            mipmapResource newLayer;
 
-        // Copy the mipmap layer texels.
-        uint32 mipDataSize = srcLayer.dataSize;
+            newLayer.width = srcLayer.width;
+            newLayer.height = srcLayer.height;
 
-        const void *srcTexels = srcLayer.texels;
+            newLayer.layerWidth = srcLayer.layerWidth;
+            newLayer.layerHeight = srcLayer.layerHeight;
 
-        void *newtexels = engineInterface->PixelAllocate( mipDataSize );
+            // Copy the mipmap layer texels.
+            uint32 mipDataSize = srcLayer.dataSize;
 
-        memcpy( newtexels, srcTexels, mipDataSize );
+            const void *srcTexels = srcLayer.texels;
 
-        newLayer.texels = newtexels;
-        newLayer.dataSize = mipDataSize;
+            void *newtexels = engineInterface->PixelAllocate( mipDataSize );
 
-        // Store this layer.
-        this->mipmaps[ n ] = newLayer;
+            if ( !newtexels )
+            {
+                throw RwException( "failed to allocate texel destination buffer in pixel data cloning routine" );
+            }
+
+            memcpy( newtexels, srcTexels, mipDataSize );
+
+            newLayer.texels = newtexels;
+            newLayer.dataSize = mipDataSize;
+
+            // Store this layer.
+            this->mipmaps[ n ] = newLayer;
+        }
     }
 
     // Clone non-trivial parameters.

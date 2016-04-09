@@ -1,10 +1,5 @@
 #ifndef _RENDERWARE_H_
 #define _RENDERWARE_H_
-#ifdef _WIN32
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 #include <iostream>
 #include <vector>
@@ -20,7 +15,7 @@
 #include <math.h>
 
 // Include some special vendor libraries.
-#include <CFileSystem.common.h>
+#include <sdk/MemoryRaw.h>
 #include <sdk/rwlist.hpp>
 #include <sdk/Endian.h>
 
@@ -55,6 +50,13 @@ public:
         return delete [] memPtr;
     }
 };
+
+// Sort-of make it hard to extend from native RW types outside of the core.
+#ifndef RWCORE
+#define RWSDK_FINALIZER final
+#else
+#define RWSDK_FINALIZER
+#endif
 
 // Common types used in this library.
 // These are defined against MSVC++ 32bit.
@@ -146,28 +148,19 @@ enum CHUNK_TYPE
     CHUNK_FRAME            = 0x253F2FE
 };
 
-// Raster format flags for RenderWare 3.
-enum
-{
-	RASTER_AUTOMIPMAP = 0x1000,
-	RASTER_PAL8 = 0x2000,
-	RASTER_PAL4 = 0x4000,
-	RASTER_MIPMAP = 0x8000
-};
-
 #pragma warning(push)
 #pragma warning(disable: 4996)
 
 // Decoded RenderWare version management struct.
 struct LibraryVersion
 {
-    inline LibraryVersion( void )
+    inline LibraryVersion( uint8 libMajor = 3, uint8 libMinor = 0, uint8 revMajor = 0, uint8 revMinor = 0 )
     {
         this->buildNumber = 0xFFFF;
-        this->rwLibMajor = 3;
-        this->rwLibMinor = 0;
-        this->rwRevMajor = 0;
-        this->rwRevMinor = 0;
+        this->rwLibMajor = libMajor;
+        this->rwLibMinor = libMinor;
+        this->rwRevMajor = revMajor;
+        this->rwRevMinor = revMinor;
     }
 
     uint16 buildNumber;
@@ -196,6 +189,42 @@ struct LibraryVersion
         return !( *this == right );
     }
 
+    inline bool isNewerThan( const LibraryVersion& right, bool allowEqual = true ) const
+    {
+        // Check *.-.-.-
+        if ( this->rwLibMajor > right.rwLibMajor )
+            return true;
+
+        if ( this->rwLibMajor == right.rwLibMajor )
+        {
+            // Check -.*.-.-
+            if ( this->rwLibMinor > right.rwLibMinor )
+                return true;
+
+            if ( this->rwLibMinor == right.rwLibMinor )
+            {
+                // Check -.-.*.-
+                if ( this->rwRevMajor > right.rwRevMajor )
+                    return true;
+
+                if ( this->rwRevMajor == right.rwRevMajor )
+                {
+                    // Check -.-.-.*
+                    if ( this->rwRevMinor > right.rwRevMinor )
+                        return true;
+
+                    if ( this->rwRevMinor == right.rwRevMinor )
+                    {
+                        if ( allowEqual )
+                            return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     void set(unsigned char LibMajor, unsigned char LibMinor, unsigned char RevMajor, unsigned char RevMinor, unsigned short buildNumber = 0xFFFF)
     {
         this->buildNumber = buildNumber;
@@ -205,7 +234,7 @@ struct LibraryVersion
         this->rwRevMinor = RevMinor;
     }
 
-    std::string toString(void) const
+    std::string toString( bool includeBuild = true ) const
     {
         std::string returnVer;
 
@@ -233,14 +262,17 @@ struct LibraryVersion
 
         returnVer += numBuf;
 
-        // If we have a valid build number, append it.
-        if ( this->buildNumber != 0xFFFF )
+        if ( includeBuild )
         {
-            _snprintf( numBuf, sizeof( numBuf ) - 1, "%u", this->buildNumber );
+            // If we have a valid build number, append it.
+            if ( this->buildNumber != 0xFFFF )
+            {
+                _snprintf( numBuf, sizeof( numBuf ) - 1, "%u", this->buildNumber );
 
-            returnVer += " (build: ";
-            returnVer += numBuf;
-            returnVer += ")";
+                returnVer += " (build: ";
+                returnVer += numBuf;
+                returnVer += ")";
+            }
         }
 
         return returnVer;
@@ -293,11 +325,20 @@ namespace KnownVersions
         SA,
         MANHUNT_PC,
         MANHUNT_PS2,
-        BULLY
+        BULLY,
+        LCS_PSP,
+        SHEROES_GC
     };
 
     LibraryVersion  getGameVersion( eGameVersion gameVer );
 };
+
+// If this macro is inside RW types, you must not attempt to construct them from outside of RenderWare code.
+#define RW_NOT_DIRECTLY_CONSTRUCTIBLE \
+    void* operator new( size_t memSize, void *place ) { return place; } \
+    void operator delete( void *ptr, void *place ) { return; } \
+    void* operator new( size_t ) = delete; \
+    void operator delete( void* ) { assert( 0 ); }
 
 // Main RenderWare abstraction type.
 struct RwObject abstract
@@ -340,10 +381,13 @@ struct RwObject abstract
         return this->objVersion;
     }
 
+    // Override this function from a special RW object to be notified of version changes.
     virtual void OnVersionChange( const LibraryVersion& oldVer, const LibraryVersion& newVer )
     {
         return;
     }
+
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
 
 protected:
     LibraryVersion objVersion;
@@ -426,7 +470,6 @@ struct RwException
     std::string message;
 };
 
-#include "rwendian.h"
 #include "renderware.math.h"
 #include "renderware.stream.h"
 #include "renderware.blockapi.h"
@@ -541,7 +584,9 @@ public:
     void                SetIgnoreSecureWarnings ( bool doIgnore );
     bool                GetIgnoreSecureWarnings ( void ) const;
 
+    // Warning system.
     void                PushWarning             ( std::string&& message );
+    void                PushObjWarningVerb      ( const RwObject *theObj, const std::string& verbMsg );
 
     bool                SetPaletteRuntime       ( ePaletteRuntimeType palRunType );
     ePaletteRuntimeType GetPaletteRuntime       ( void ) const;
@@ -574,11 +619,6 @@ void        DeleteEngine( Interface *theEngine );
 // Configuration interface.
 void AssignThreadedRuntimeConfig( Interface *engineInterface );
 void ReleaseThreadedRuntimeConfig( Interface *engineInterface );
-
-// Framework entry points.
-#ifdef WIN32
-BOOL WINAPI frameworkEntryPoint_win32( HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow );
-#endif
 
 }
 

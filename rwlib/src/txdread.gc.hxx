@@ -9,6 +9,8 @@
 
 #include "pixelformat.hxx"
 
+#include "txdread.common.hxx"
+
 namespace rw
 {
 
@@ -23,21 +25,22 @@ inline uint32 getGCRasterDataRowSize( uint32 planeWidth, uint32 depth )
     return getRasterDataRowSize( planeWidth, depth, getGCTextureDataRowAlignment() );
 }
 
-inline uint32 getGCPaletteSize( ePaletteType paletteType )
+enum eGCRasterFormat
 {
-    uint32 paletteSize = 0;
+    GCRASTER_DEFAULT,
+    GCRASTER_565 = 2,
+    GCRASTER_RGB5A3,
+    GCRASTER_8888 = 5,
+    GCRASTER_888 = 6
+};
 
-    if ( paletteType == PALETTE_4BIT )
-    {
-        paletteSize = 16;
-    }
-    else if ( paletteType == PALETTE_8BIT )
-    {
-        paletteSize = 256;
-    }
-
-    return paletteSize;
-}
+// Used from version 3.3.0.2
+enum eGCPaletteFormat
+{
+    GCPALFMT_DEFAULT,
+    GCPALFMT_RGB5A3,
+    GCPALFMT_RGB565
+};
 
 enum eGCNativeTextureFormat : unsigned char
 {
@@ -53,6 +56,105 @@ enum eGCNativeTextureFormat : unsigned char
     GVRFMT_CMP = 0xE
 };
 
+inline bool getGCInternalFormatFromRasterFormat( eGCRasterFormat rasterFormat, eGCNativeTextureFormat& internalFormatOut )
+{
+    if ( rasterFormat == GCRASTER_565 )
+    {
+        internalFormatOut = GVRFMT_RGB565;
+        return true;
+    }
+    else if ( rasterFormat == GCRASTER_RGB5A3 )
+    {
+        internalFormatOut = GVRFMT_RGB5A3;
+        return true;
+    }
+    else if ( rasterFormat == GCRASTER_8888 ||
+              rasterFormat == GCRASTER_888 )
+    {
+        internalFormatOut = GVRFMT_RGBA8888;
+        return true;
+    }
+
+    return false;
+}
+
+inline eGCRasterFormat getGCRasterFormatFromInternalFormat( eGCNativeTextureFormat internalFormat )
+{
+    if ( internalFormat == GVRFMT_RGB565 )
+    {
+        return GCRASTER_565;
+    }
+    else if ( internalFormat == GVRFMT_RGB5A3 )
+    {
+        return GCRASTER_RGB5A3;
+    }
+    else if ( internalFormat == GVRFMT_RGBA8888 )
+    {
+        return GCRASTER_8888;
+    }
+
+    return GCRASTER_DEFAULT;
+};
+
+inline uint32 getGCPaletteSize( eGCNativeTextureFormat internalFormat )
+{
+    uint32 paletteSize = 0;
+
+    if ( internalFormat == GVRFMT_PAL_4BIT )
+    {
+        paletteSize = 16;
+    }
+    else if ( internalFormat == GVRFMT_PAL_8BIT )
+    {
+        paletteSize = 256;
+    }
+
+    return paletteSize;
+}
+
+inline ePaletteType getPaletteTypeFromGCNativeFormat( eGCNativeTextureFormat internalFormat )
+{
+    if ( internalFormat == GVRFMT_PAL_4BIT )
+    {
+        return PALETTE_4BIT_LSB;
+    }
+    else if ( internalFormat == GVRFMT_PAL_8BIT )
+    {
+        return PALETTE_8BIT;
+    }
+
+    return PALETTE_NONE;
+}
+
+inline bool isGVRNativeFormatSwizzled( eGCNativeTextureFormat internalFormat )
+{
+    if ( internalFormat == GVRFMT_LUM_8BIT ||
+         internalFormat == GVRFMT_CMP )
+    {
+        return false;
+    }
+
+    return true;
+}
+
+inline bool isGVRNativeFormatRawSample( eGCNativeTextureFormat internalFormat )
+{
+    if ( internalFormat == GVRFMT_LUM_4BIT ||
+         internalFormat == GVRFMT_LUM_8BIT ||
+         internalFormat == GVRFMT_LUM_4BIT_ALPHA ||
+         internalFormat == GVRFMT_LUM_8BIT_ALPHA ||
+         internalFormat == GVRFMT_RGB565 ||
+         internalFormat == GVRFMT_RGB5A3 ||
+         internalFormat == GVRFMT_RGBA8888 ||
+         internalFormat == GVRFMT_PAL_4BIT ||
+         internalFormat == GVRFMT_PAL_8BIT )
+    {
+        return true;
+    }
+
+    return false;
+}
+
 enum eGCPixelFormat : char
 {
     GVRPIX_NO_PALETTE = -1,
@@ -61,99 +163,77 @@ enum eGCPixelFormat : char
     GVRPIX_RGB5A3
 };
 
-inline bool getGCNativeTextureRasterFormat(
-    eGCNativeTextureFormat format, eGCPixelFormat paletteFormat,
-    eRasterFormat& rasterFormatOut, uint32& depthOut, eColorOrdering& colorOrderOut,
-    ePaletteType& paletteTypeOut
+inline eGCPaletteFormat getGCPaletteFormatFromPalettePixelFormat( eGCPixelFormat palettePixelFormat )
+{
+    if ( palettePixelFormat == GVRPIX_RGB565 )
+    {
+        return GCPALFMT_RGB565;
+    }
+    else if ( palettePixelFormat == GVRPIX_RGB5A3 )
+    {
+        return GCPALFMT_RGB5A3;
+    }
+
+    return GCPALFMT_DEFAULT;
+}
+
+// Used by kinda all versions.
+inline void gcReadCommonRasterFormatFlags(
+    const rwGenericRasterFormatFlags& rasterFormatFlags,
+    ePaletteType& paletteTypeOut, bool& hasMipmapsOut, bool& autoMipmapsOut
 )
 {
-    bool hasFormat = true;
-
-    ePaletteType paletteType = PALETTE_NONE;
-
-    if ( format == GVRFMT_LUM_4BIT )
+    // We care about the palette type.
+    rwSerializedPaletteType serPalType = (rwSerializedPaletteType)rasterFormatFlags.data.palType;
     {
-        rasterFormatOut = RASTER_LUM;
-        depthOut = 4;
-        colorOrderOut = COLOR_RGBA;
-    }
-    else if ( format == GVRFMT_LUM_8BIT )
-    {
-        rasterFormatOut = RASTER_LUM;
-        depthOut = 8;
-        colorOrderOut = COLOR_RGBA;
-    }
-    else if ( format == GVRFMT_LUM_4BIT_ALPHA )
-    {
-        rasterFormatOut = RASTER_LUM_ALPHA;
-        depthOut = 8;
-        colorOrderOut = COLOR_RGBA;
-    }
-    else if ( format == GVRFMT_LUM_8BIT_ALPHA )
-    {
-        rasterFormatOut = RASTER_LUM_ALPHA;
-        depthOut = 16;
-        colorOrderOut = COLOR_RGBA;
-    }
-    else if ( format == GVRFMT_RGB565 )
-    {
-        rasterFormatOut = RASTER_565;
-        depthOut = 16;
-        colorOrderOut = COLOR_RGBA;
-    }
-    else if ( format == GVRFMT_RGB5A3 )
-    {
-        // This format will never have a RW representation, because it is too specific to GC hardware.
-        hasFormat = false;
-    }
-    else if ( format == GVRFMT_PAL_4BIT ||
-              format == GVRFMT_PAL_8BIT )
-    {
-        bool hasPaletteFormat = false;
-
-        if ( paletteFormat == GVRPIX_LUM_ALPHA )
+        if ( serPalType == RWSER_PALETTE_NONE )
         {
-            rasterFormatOut = RASTER_LUM_ALPHA;
-            colorOrderOut = COLOR_RGBA;
-
-            hasPaletteFormat = true;
+            paletteTypeOut = PALETTE_NONE;
         }
-        else if ( paletteFormat == GVRPIX_RGB565 )
+        else if ( serPalType == RWSER_PALETTE_PAL4 )
         {
-            rasterFormatOut = RASTER_565;
-            colorOrderOut = COLOR_RGBA;
-
-            hasPaletteFormat = true;
+            paletteTypeOut = PALETTE_4BIT_LSB;
         }
-
-        if ( hasPaletteFormat )
+        else if ( serPalType == RWSER_PALETTE_PAL8 )
         {
-            if ( format == GVRFMT_PAL_4BIT )
-            {
-                paletteType = PALETTE_4BIT;
-                depthOut = 4;
-            }
-            else if ( format == GVRFMT_PAL_8BIT )
-            {
-                paletteType = PALETTE_8BIT;
-                depthOut = 8;
-            }
+            paletteTypeOut = PALETTE_8BIT;
         }
-
-        hasFormat = hasPaletteFormat;
+        else
+        {
+            throw RwException( "invalid palette mapping in GC native texture deserialization" );
+        }
     }
-    else
+
+    // Generic properties.
+    hasMipmapsOut = rasterFormatFlags.data.hasMipmaps;
+    autoMipmapsOut = rasterFormatFlags.data.autoMipmaps;
+}
+
+inline bool getGVRNativeFormatFromPaletteFormat(
+    eGCPixelFormat palettePixelFormat,
+    eColorOrdering& colorOrderOut, eGCNativeTextureFormat& internalFormatOut
+)
+{
+    if ( palettePixelFormat == GVRPIX_LUM_ALPHA )
     {
-        // Should never happen.
-        hasFormat = false;
+        internalFormatOut = GVRFMT_LUM_8BIT_ALPHA;
+        colorOrderOut = COLOR_RGBA; // doesnt matter.
+        return true;
     }
-
-    if ( hasFormat )
+    else if ( palettePixelFormat == GVRPIX_RGB565 )
     {
-        paletteTypeOut = paletteType;
+        internalFormatOut = GVRFMT_RGB565;
+        colorOrderOut = COLOR_BGRA;
+        return true;
+    }
+    else if ( palettePixelFormat == GVRPIX_RGB5A3 )
+    {
+        internalFormatOut = GVRFMT_RGB5A3;
+        colorOrderOut = COLOR_RGBA;
+        return true;
     }
 
-    return hasFormat;
+    return false;
 }
 
 inline uint32 getGCInternalFormatDepth( eGCNativeTextureFormat format )
@@ -172,7 +252,8 @@ inline uint32 getGCInternalFormatDepth( eGCNativeTextureFormat format )
         depth = 8;
     }
     else if ( format == GVRFMT_RGB565 ||
-              format == GVRFMT_RGB5A3 )
+              format == GVRFMT_RGB5A3 ||
+              format == GVRFMT_LUM_8BIT_ALPHA )
     {
         depth = 16;
     }
@@ -180,8 +261,136 @@ inline uint32 getGCInternalFormatDepth( eGCNativeTextureFormat format )
     {
         depth = 32;
     }
+    else if ( format == GVRFMT_CMP )
+    {
+        depth = 4;
+    }
 
     return depth;
+}
+
+// Returns the recommended raster format for the configuration.
+inline bool getRecommendedGCNativeTextureRasterFormat(
+    eGCNativeTextureFormat format, eGCPixelFormat paletteFormat,
+    eRasterFormat& rasterFormatOut, uint32& depthOut, eColorOrdering& colorOrderOut,
+    ePaletteType& paletteTypeOut,
+    eCompressionType& compressionTypeOut
+)
+{
+    bool hasFormat = true;
+
+    if ( format == GVRFMT_PAL_4BIT ||
+         format == GVRFMT_PAL_8BIT )
+    {
+        bool hasPaletteFormat = false;
+
+        if ( paletteFormat == GVRPIX_LUM_ALPHA )
+        {
+            rasterFormatOut = RASTER_LUM_ALPHA;
+            colorOrderOut = COLOR_RGBA;
+
+            hasPaletteFormat = true;
+        }
+        else if ( paletteFormat == GVRPIX_RGB565 )
+        {
+            rasterFormatOut = RASTER_565;
+            colorOrderOut = COLOR_RGBA;
+
+            hasPaletteFormat = true;
+        }
+        else if ( paletteFormat == GVRPIX_RGB5A3 )
+        {
+            // No direct equivalent.
+            rasterFormatOut = RASTER_8888;
+            colorOrderOut = COLOR_RGBA;
+
+            hasPaletteFormat = true;
+        }
+
+        if ( hasPaletteFormat )
+        {
+            // We must make sure that the palette description we return
+            // completely matches the description of the native format!
+            paletteTypeOut = getPaletteTypeFromGCNativeFormat( format );
+            depthOut = getGCInternalFormatDepth( format );
+        }
+
+        hasFormat = hasPaletteFormat;
+
+        // Palette textures are never "compressed".
+        compressionTypeOut = RWCOMPRESS_NONE;
+    }
+    else
+    {
+        eCompressionType compressionType = RWCOMPRESS_NONE;
+
+        if ( format == GVRFMT_LUM_4BIT )
+        {
+            rasterFormatOut = RASTER_LUM;
+            depthOut = 4;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_LUM_8BIT )
+        {
+            rasterFormatOut = RASTER_LUM;
+            depthOut = 8;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_LUM_4BIT_ALPHA )
+        {
+            rasterFormatOut = RASTER_LUM_ALPHA;
+            depthOut = 8;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_LUM_8BIT_ALPHA )
+        {
+            rasterFormatOut = RASTER_LUM_ALPHA;
+            depthOut = 16;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_RGB565 )
+        {
+            rasterFormatOut = RASTER_565;
+            depthOut = 16;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_RGB5A3 )
+        {
+            // Since we do not search for direct equivalent, we return the thing
+            // that can represent it in best quality.
+            rasterFormatOut = RASTER_8888;
+            depthOut = 32;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_RGBA8888 )
+        {
+            rasterFormatOut = RASTER_8888;
+            depthOut = 32;
+            colorOrderOut = COLOR_RGBA;
+        }
+        else if ( format == GVRFMT_CMP )
+        {
+            // We have to natively convert DXT blocks.
+            rasterFormatOut = RASTER_DEFAULT;
+            depthOut = 8;
+            colorOrderOut = COLOR_RGBA;
+
+            compressionType = RWCOMPRESS_DXT1;
+        }
+        else
+        {
+            // Should never happen.
+            hasFormat = false;
+        }
+        
+        if ( hasFormat )
+        {
+            paletteTypeOut = PALETTE_NONE;
+            compressionTypeOut = compressionType;
+        }
+    }
+
+    return hasFormat;
 }
 
 inline uint32 getGVRPixelFormatDepth( eGCPixelFormat format )
@@ -204,12 +413,83 @@ inline uint32 getGVRPixelFormatDepth( eGCPixelFormat format )
     return depth;
 }
 
+// Parameters that are required to swizzle/unswizzle the texel data.
+inline bool getGVRNativeFormatClusterDimensions(
+    uint32 formatDepth,
+    uint32& clusterWidthOut, uint32& clusterHeightOut,
+    uint32& clusterCountOut
+)
+{
+    if ( formatDepth == 4 )
+    {
+        clusterWidthOut = 8;
+        clusterHeightOut = 8;
+
+        clusterCountOut = 1;
+        return true;
+    }
+    else if ( formatDepth == 8 )
+    {
+        clusterWidthOut = 8;
+        clusterHeightOut = 4;
+
+        clusterCountOut = 1;
+        return true;
+    }
+    else if ( formatDepth == 16 )
+    {
+        clusterWidthOut = 4;
+        clusterHeightOut = 4;
+
+        clusterCountOut = 1;
+        return true;
+    }
+    else if ( formatDepth == 32 )
+    {
+        clusterWidthOut = 4;
+        clusterHeightOut = 4;
+
+        // If we are a RGBA8888 texture, we have two tiles per 4x4 region.
+        clusterCountOut = 2;
+        return true;
+    }
+
+    return false;
+}
+
+// Shared pixel formats.
+struct pixelRGB5A3_t
+{
+    union
+    {
+        struct
+        {
+            uint16 pad : 15;
+            uint16 hasNoAlpha : 1;
+        };
+        struct
+        {
+            uint16 b : 5;
+            uint16 g : 5;
+            uint16 r : 5;
+        } no_alpha;
+        struct
+        {
+            uint16 b : 4;
+            uint16 g : 4;
+            uint16 r : 4;
+            uint16 a : 3;
+        } with_alpha;
+    };
+};
+
 struct gcColorDispatch
 {
 private:
     eGCNativeTextureFormat internalFormat;
     eGCPixelFormat palettePixelFormat;
     uint32 itemDepth;
+    eColorOrdering colorOrder;
     ePaletteType paletteType;
     const void *paletteData;
     uint32 maxpalette;
@@ -219,12 +499,14 @@ private:
 public:
     AINLINE gcColorDispatch(
         eGCNativeTextureFormat internalFormat, eGCPixelFormat palettePixelFormat,
+        eColorOrdering colorOrder,
         uint32 itemDepth, ePaletteType paletteType, const void *paletteData, uint32 maxpalette
     )
     {
         this->internalFormat = internalFormat;
         this->palettePixelFormat = palettePixelFormat;
         this->itemDepth = itemDepth;
+        this->colorOrder = colorOrder;
         this->paletteType = paletteType;
         this->paletteData = paletteData;
         this->maxpalette = maxpalette;
@@ -266,9 +548,15 @@ public:
         }
     }
 
+    inline eGCNativeTextureFormat getNativeFormat( void ) const
+    {
+        return this->internalFormat;
+    }
+
 private:
     AINLINE static bool gcbrowsetexelrgba(
         const void *texelSource, uint32 colorIndex, eGCNativeTextureFormat internalFormat, eGCPixelFormat palettePixelFormat,
+        eColorOrdering colorOrder,
         uint32 itemDepth, ePaletteType paletteType, const void *paletteData, uint32 maxpalette,
         uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut
     )
@@ -350,34 +638,9 @@ private:
         }
         else if ( realInternalFormat == GVRFMT_RGB5A3 )
         {
-            struct pixel_t
-            {
-                union
-                {
-                    struct
-                    {
-                        uint16 pad : 15;
-                        uint16 hasAlpha : 1;
-                    };
-                    struct
-                    {
-                        uint16 b : 5;
-                        uint16 g : 5;
-                        uint16 r : 5;
-                    } no_alpha;
-                    struct
-                    {
-                        uint16 b : 4;
-                        uint16 g : 4;
-                        uint16 r : 4;
-                        uint16 a : 3;
-                    } with_alpha;
-                };
-            };
+            pixelRGB5A3_t srcData = *( (const endian::big_endian <pixelRGB5A3_t>*)realTexelSource + realColorIndex );
 
-            pixel_t srcData = *( (const endian::little_endian <pixel_t>*)realTexelSource + realColorIndex );
-
-            if ( !srcData.hasAlpha )
+            if ( !srcData.hasNoAlpha )
             {
                 prered = scalecolor( srcData.with_alpha.r, 15, 255 );
                 pregreen = scalecolor( srcData.with_alpha.g, 15, 255 );
@@ -416,17 +679,127 @@ private:
 
         if ( hasColor )
         {
-            redOut = prered;
-            greenOut = pregreen;
-            blueOut = preblue;
-            alphaOut = prealpha;
+            // Deal with color order.
+            if ( colorOrder == COLOR_RGBA )
+            {
+                redOut = prered;
+                greenOut = pregreen;
+                blueOut = preblue;
+                alphaOut = prealpha;
+            }
+            else if ( colorOrder == COLOR_BGRA )
+            {
+                redOut = preblue;
+                greenOut = pregreen;
+                blueOut = prered;
+                alphaOut = prealpha;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         return hasColor;
     }
 
+    AINLINE static bool gcputtexelrgba(
+        void *dstTexels, uint32 colorIndex, eGCNativeTextureFormat internalFormat,
+        eColorOrdering colorOrder,
+        uint8 red, uint8 green, uint8 blue, uint8 alpha
+    )
+    {
+        bool didSet = false;
+
+        uint8 actualRed, actualGreen, actualBlue, actualAlpha;
+
+        if ( colorOrder == COLOR_RGBA )
+        {
+            actualRed = red;
+            actualGreen = green;
+            actualBlue = blue;
+            actualAlpha = alpha;
+        }
+        else if ( colorOrder == COLOR_BGRA )
+        {
+            actualRed = blue;
+            actualGreen = green;
+            actualBlue = red;
+            actualAlpha = alpha;
+        }
+        else
+        {
+            return false;
+        }
+        
+        // Put things in native Gamecube format.
+        if ( internalFormat == GVRFMT_RGB565 )
+        {
+            struct pixel_t
+            {
+                uint16 r : 5;
+                uint16 g : 6;
+                uint16 b : 5;
+            };
+
+            pixel_t dstPixel;
+            dstPixel.r = scalecolor( actualRed, 255, 31 );
+            dstPixel.g = scalecolor( actualGreen, 255, 63 );
+            dstPixel.b = scalecolor( actualBlue, 255, 31 );
+
+            *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstPixel;
+
+            didSet = true;
+        }
+        else if ( internalFormat == GVRFMT_RGB5A3 )
+        {
+            pixelRGB5A3_t dstPixel;
+
+            bool hasNoAlpha = ( alpha == 255 );
+
+            if ( hasNoAlpha )
+            {
+                dstPixel.no_alpha.r = scalecolor( actualRed, 255, 31 );
+                dstPixel.no_alpha.g = scalecolor( actualGreen, 255, 31 );
+                dstPixel.no_alpha.b = scalecolor( actualBlue, 255, 31 );
+            }
+            else
+            {
+                dstPixel.with_alpha.a = scalecolor( actualAlpha, 255, 7 );
+                dstPixel.with_alpha.r = scalecolor( actualRed, 255, 15 );
+                dstPixel.with_alpha.g = scalecolor( actualGreen, 255, 15 );
+                dstPixel.with_alpha.b = scalecolor( actualBlue, 255, 15 );
+            }
+
+            dstPixel.hasNoAlpha = hasNoAlpha;
+
+            *( (endian::big_endian <pixelRGB5A3_t>*)dstTexels + colorIndex ) = dstPixel;
+
+            didSet = true;
+        }
+        else if ( internalFormat == GVRFMT_RGBA8888 )
+        {
+            struct pixel_t
+            {
+                unsigned char r, g, b, a;
+            };
+
+            pixel_t dstPixel;
+            dstPixel.r = actualRed;
+            dstPixel.g = actualGreen;
+            dstPixel.b = actualBlue;
+            dstPixel.a = actualAlpha;
+
+            *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstPixel;
+
+            didSet = true;
+        }
+
+        return didSet;
+    }
+
 public:
-    bool getRGBA( const void *texelSource, uint32 colorIndex, uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut ) const
+    AINLINE bool getRGBA( const void *texelSource, uint32 colorIndex, uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut ) const
     {
         eColorModel ourModel = this->usedColorModel;
 
@@ -437,6 +810,7 @@ public:
             hasColor =
                 gcbrowsetexelrgba(
                     texelSource, colorIndex, this->internalFormat, this->palettePixelFormat,
+                    this->colorOrder,
                     this->itemDepth, this->paletteType, this->paletteData, this->maxpalette,
                     redOut, greenOut, blueOut, alphaOut
                 );
@@ -457,6 +831,30 @@ public:
         }
 
         return hasColor;
+    }
+
+    AINLINE bool setRGBA( void *dstTexels, uint32 colorIndex, uint8 red, uint8 green, uint8 blue, uint8 alpha )
+    {
+        eColorModel ourModel = this->usedColorModel;
+
+        bool setColor = false;
+
+        if ( ourModel == COLORMODEL_RGBA )
+        {
+            setColor = gcputtexelrgba(
+                dstTexels, colorIndex, this->internalFormat,
+                this->colorOrder,
+                red, green, blue, alpha
+            );
+        }
+        else if ( ourModel == COLORMODEL_LUMINANCE )
+        {
+            uint8 lum = rgb2lum( red, green, blue );
+
+            this->setLuminance( dstTexels, colorIndex, lum, alpha );
+        }
+
+        return setColor;
     }
 
 private:
@@ -572,7 +970,7 @@ private:
                 uint8 alpha;
             };
 
-            pixel_t srcData = *( (const endian::little_endian <pixel_t>*)realTexelSource + realColorIndex );
+            pixel_t srcData = *( (const endian::big_endian <pixel_t>*)realTexelSource + realColorIndex );
 
             prelum = srcData.lum;
             prealpha = srcData.alpha;
@@ -589,8 +987,75 @@ private:
         return hasColor;
     }
 
+    AINLINE static bool gcputtexellum(
+        void *dstTexels, uint32 colorIndex, eGCNativeTextureFormat internalFormat,
+        uint8 lum, uint8 alpha
+    )
+    {
+        bool couldSet = false;
+
+        if ( internalFormat == GVRFMT_LUM_4BIT )
+        {
+            PixelFormat::palette4bit *dstLum = (PixelFormat::palette4bit*)dstTexels;
+
+            uint8 scaledLUM = scalecolor( lum, 255, 15 );
+
+            dstLum->setvalue( colorIndex, scaledLUM );
+
+            couldSet = true;
+        }
+        else if ( internalFormat == GVRFMT_LUM_8BIT )
+        {
+            struct pixel_t
+            {
+                unsigned char lum;
+            };
+
+            pixel_t dstPixel;
+            dstPixel.lum = lum;
+
+            *( (pixel_t*)dstTexels + colorIndex ) = dstPixel;
+
+            couldSet = true;
+        }
+        else if ( internalFormat == GVRFMT_LUM_4BIT_ALPHA )
+        {
+            struct pixel_t
+            {
+                uint8 lum : 4;
+                uint8 alpha : 4;
+            };
+
+            pixel_t dstTexel;
+            dstTexel.lum = scalecolor( lum, 255, 15 );
+            dstTexel.alpha = scalecolor( alpha, 255, 15 );
+
+            *( (pixel_t*)dstTexels + colorIndex ) = dstTexel;
+
+            couldSet = true;
+        }
+        else if ( internalFormat == GVRFMT_LUM_8BIT_ALPHA )
+        {
+            struct pixel_t
+            {
+                uint8 lum;
+                uint8 alpha;
+            };
+
+            pixel_t dstTexel;
+            dstTexel.lum = lum;
+            dstTexel.alpha = alpha;
+
+            *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstTexel;
+
+            couldSet = true;
+        }
+
+        return couldSet;
+    }
+
 public:
-    bool getLuminance( const void *texelSource, uint32 colorIndex, uint8& lumOut, uint8& alphaOut ) const
+    AINLINE bool getLuminance( const void *texelSource, uint32 colorIndex, uint8& lumOut, uint8& alphaOut ) const
     {
         eColorModel ourModel = this->usedColorModel;
 
@@ -621,7 +1086,28 @@ public:
         return hasColor;
     }
 
-    void getColor( const void *texelSource, uint32 colorIndex, abstractColorItem& colorOut ) const
+    AINLINE bool setLuminance( void *dstTexels, uint32 colorIndex, uint8 lum, uint8 alpha )
+    {
+        eColorModel ourModel = this->usedColorModel;
+
+        bool couldSet = false;
+
+        if ( ourModel == COLORMODEL_LUMINANCE )
+        {
+            couldSet = gcputtexellum(
+                dstTexels, colorIndex, this->internalFormat,
+                lum, alpha
+            );
+        }
+        else if ( ourModel == COLORMODEL_RGBA )
+        {
+            couldSet = this->setRGBA( dstTexels, colorIndex, lum, lum, lum, alpha );
+        }
+
+        return couldSet;
+    }
+
+    AINLINE void getColor( const void *texelSource, uint32 colorIndex, abstractColorItem& colorOut ) const
     {
         eColorModel colorModel = this->usedColorModel;
 
@@ -664,6 +1150,34 @@ public:
             throw RwException( "unknown color model in Gamecube abstract color fetch" );
         }
     }
+
+    AINLINE void setColor( void *dstTexels, uint32 colorIndex, const abstractColorItem& colorItem )
+    {
+        eColorModel ourModel = colorItem.model;
+
+        if ( ourModel == COLORMODEL_RGBA )
+        {
+            this->setRGBA(
+                dstTexels, colorIndex,
+                colorItem.rgbaColor.r,
+                colorItem.rgbaColor.g,
+                colorItem.rgbaColor.b,
+                colorItem.rgbaColor.a
+            );
+        }
+        else if ( ourModel == COLORMODEL_LUMINANCE )
+        {
+            this->setLuminance(
+                dstTexels, colorIndex,
+                colorItem.luminance.lum,
+                colorItem.luminance.alpha
+            );
+        }
+        else
+        {
+            throw RwException( "unknown color model in GC color model dispatcher" );
+        }
+    }
 };
 
 struct NativeTextureGC
@@ -678,7 +1192,6 @@ struct NativeTextureGC
         this->texVersion = engineInterface->GetVersion();
         this->palette = NULL;
         this->paletteSize = 0;
-        this->paletteType = PALETTE_NONE;
         this->internalFormat = GVRFMT_RGBA8888;
         this->palettePixelFormat = GVRPIX_NO_PALETTE;
         this->autoMipmaps = false;
@@ -701,7 +1214,7 @@ struct NativeTextureGC
         {
 	        if (right.palette)
             {
-                uint32 palRasterDepth = getGVRPixelFormatDepth(this->palettePixelFormat);
+                uint32 palRasterDepth = getGVRPixelFormatDepth(right.palettePixelFormat);
 
                 size_t wholeDataSize = getPaletteDataSize( right.paletteSize, palRasterDepth );
 
@@ -715,7 +1228,6 @@ struct NativeTextureGC
 	        }
 
             this->paletteSize = right.paletteSize;
-            this->paletteType = right.paletteType;
             this->palettePixelFormat = right.palettePixelFormat;
         }
 
@@ -752,14 +1264,14 @@ struct NativeTextureGC
         this->clearTexelData();
     }
 
-    static inline void getSizeRules( eGCNativeTextureFormat fmt, nativeTextureSizeRules& rulesOut )
-    {
-        bool isDXT = ( fmt == GVRFMT_CMP );
+    void UpdateStructure( void );
 
+    static inline void getSizeRules( bool isDXTCompressed, nativeTextureSizeRules& rulesOut )
+    {
         rulesOut.powerOfTwo = true;
         rulesOut.squared = false;
-        rulesOut.multipleOf = ( isDXT == true );
-        rulesOut.multipleOfValue = ( isDXT ? 4 : 0 );
+        rulesOut.multipleOf = ( isDXTCompressed == true );
+        rulesOut.multipleOfValue = ( isDXTCompressed ? 4 : 0 );
         rulesOut.maximum = true;
         rulesOut.maxVal = 1024;
     }
@@ -771,8 +1283,6 @@ public:
 
 	void *palette;
 	uint32 paletteSize;
-
-    ePaletteType paletteType;
 
     eGCNativeTextureFormat internalFormat;
     eGCPixelFormat palettePixelFormat;
@@ -833,9 +1343,9 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
         storeCaps.isCompressedFormat = false;
     }
 
-    void GetPixelDataFromTexture( Interface *engineInterface, void *objMem, pixelDataTraversal& pixelsOut );
-    void SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut );
-    void UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate );
+    void GetPixelDataFromTexture( Interface *engineInterface, void *objMem, pixelDataTraversal& pixelsOut ) override;
+    void SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut ) override;
+    void UnsetPixelDataFromTexture( Interface *engineInterface, void *objMem, bool deallocate ) override;
 
     void SetTextureVersion( Interface *engineInterface, void *objMem, LibraryVersion version )
     {
@@ -843,7 +1353,9 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
 
         nativeTex->texVersion = version;
 
-        // TODO: handle different RW versions.
+        // Make sure our content is consistent with the version that we set.
+        // This matters because pre-3.3.0.2 does not support luminance raster formats.
+        nativeTex->UpdateStructure();
     }
 
     LibraryVersion GetTextureVersion( const void *objMem )
@@ -862,15 +1374,37 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
 
     eRasterFormat GetTextureRasterFormat( const void *objMem ) override
     {
-        // TODO.
-        return RASTER_DEFAULT;
+        const NativeTextureGC *nativeTex = (const NativeTextureGC*)objMem;
+
+        // There is no good raster format representation for the GC native texture.
+        // We instead return the best approximation.
+        eRasterFormat recRasterFormat;
+        uint32 recDepth;
+        eColorOrdering recColorOrder;
+        ePaletteType recPaletteType;
+
+        eCompressionType recCompressionType;
+
+        bool gotFormat =
+            getRecommendedGCNativeTextureRasterFormat(
+                nativeTex->internalFormat, nativeTex->palettePixelFormat,
+                recRasterFormat, recDepth, recColorOrder, recPaletteType,
+                recCompressionType
+            );
+
+        if ( !gotFormat )
+        {
+            recRasterFormat = RASTER_DEFAULT;
+        }
+
+        return recRasterFormat;
     }
 
     ePaletteType GetTexturePaletteType( const void *objMem ) override
     {
         const NativeTextureGC *nativeTex = (const NativeTextureGC*)objMem;
 
-        return nativeTex->paletteType;
+        return getPaletteTypeFromGCNativeFormat( nativeTex->internalFormat );
     }
 
     bool IsTextureCompressed( const void *objMem ) override
@@ -907,7 +1441,10 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
 
     void GetFormatSizeRules( const pixelFormat& format, nativeTextureSizeRules& rulesOut ) const override
     {
-        // TODO.
+        // We luckily are static in the size rules.
+        bool isDXTCompressed = ( format.compressionType == RWCOMPRESS_DXT1 );
+
+        NativeTextureGC::getSizeRules( isDXTCompressed, rulesOut );
     }
 
     void GetTextureSizeRules( const void *objMem, nativeTextureSizeRules& rulesOut ) const override
@@ -916,7 +1453,9 @@ struct gamecubeNativeTextureTypeProvider : public texNativeTypeProvider
         // hardware of the same generation.
         const NativeTextureGC *nativeTex = (const NativeTextureGC*)objMem;
 
-        NativeTextureGC::getSizeRules( nativeTex->internalFormat, rulesOut );
+        bool isDXTCompressed = ( nativeTex->internalFormat == GVRFMT_CMP );
+
+        NativeTextureGC::getSizeRules( isDXTCompressed, rulesOut );
     }
 
     void* GetNativeInterface( void *objMem ) override
@@ -952,10 +1491,9 @@ namespace gamecube
 {
 
 #pragma pack(1)
-struct textureMetaHeaderStructGeneric
+// Version newer than 3.3.0.2
+struct textureMetaHeaderStructGeneric35
 {
-    endian::big_endian <uint32> platformDescriptor;
-
     rw::texFormatInfo_serialized <endian::big_endian <uint32>> texFormat;
 
     endian::big_endian <uint32> unk1;   // gotta be some sort of gamecube registers.
@@ -966,7 +1504,7 @@ struct textureMetaHeaderStructGeneric
     char name[32];
     char maskName[32];
 
-    endian::big_endian <uint32> rasterFormat;
+    endian::big_endian <rwGenericRasterFormatFlags> rasterFormat;
 
     endian::big_endian <uint16> width;
     endian::big_endian <uint16> height;
@@ -976,6 +1514,53 @@ struct textureMetaHeaderStructGeneric
     eGCPixelFormat palettePixelFormat;
 
     endian::big_endian <uint32> hasAlpha;
+};
+
+// Version newer than 3.3.0.0
+struct textureMetaHeaderStructGeneric33
+{
+    rw::texFormatInfo_serialized <endian::big_endian <uint32>> texFormat;
+
+    endian::big_endian <uint32> unk1;   // gotta be some sort of gamecube registers.
+    endian::big_endian <uint32> unk2;
+    endian::big_endian <uint32> unk3;
+    endian::big_endian <uint32> unk4;
+
+    char name[32];
+    char maskName[32];
+
+    endian::big_endian <rwGenericRasterFormatFlags> rasterFormat;
+
+    endian::big_endian <uint32> hasAlpha;
+
+    endian::big_endian <uint16> width;
+    endian::big_endian <uint16> height;
+    uint8 depth;
+    uint8 mipmapCount;
+    uint8 rasterType;
+
+    bool isCompressed;
+};
+
+// Version older than 3.3.0.0
+struct textureMetaHeaderStructGeneric32
+{
+    rw::texFormatInfo_serialized <endian::big_endian <uint32>> texFormat;
+
+    char name[32];
+    char maskName[32];
+
+    endian::big_endian <rwGenericRasterFormatFlags> rasterFormat;
+
+    endian::big_endian <uint32> hasAlpha;
+
+    endian::big_endian <uint16> width;
+    endian::big_endian <uint16> height;
+    uint8 depth;
+    uint8 mipmapCount;
+    uint8 rasterType;
+
+    bool isCompressed;
 };
 #pragma pack()
 

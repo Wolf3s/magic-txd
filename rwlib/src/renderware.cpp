@@ -1,7 +1,7 @@
-#include <cstdlib>
-
-#include <StdInc.h>
+#include "StdInc.h"
 using namespace std;
+
+#include <cstdlib>
 
 namespace rw {
 
@@ -55,6 +55,14 @@ LibraryVersion KnownVersions::getGameVersion( KnownVersions::eGameVersion gameVe
         outVer.rwLibMinor = 7;
         outVer.rwRevMinor = 2;
         outVer.buildNumber = 10;
+    }
+    else if ( gameVer == LCS_PSP )
+    {
+        outVer.rwLibMinor = 1;
+    }
+    else if ( gameVer == SHEROES_GC )
+    {
+        outVer.rwLibMinor = 5;
     }
 
     return outVer;
@@ -246,7 +254,16 @@ string getChunkName(uint32 i)
 		return "Unknown";
 }
 
+}
+
 #ifdef RWLIB_INCLUDE_FRAMEWORK_ENTRYPOINTS
+
+#ifdef _WIN32
+#include "native.win32.hxx"
+#endif
+
+namespace rw
+{
 
 // Definition of the framework entry points.
 extern LibraryVersion app_version( void );

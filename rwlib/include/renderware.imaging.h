@@ -3,9 +3,6 @@
 */
 
 // Special optimized mipmap pushing algorithms.
-bool DeserializeMipmapLayer( Stream *inputStream, rawMipmapLayer& rawLayer );
-bool SerializeMipmapLayer( Stream *outputStream, const char *formatDescriptor, const rawMipmapLayer& rawLayer );
-
 bool IsImagingFormatAvailable( Interface *engineInterface, const char *formatDescriptor );
 
 // The main API for pushing and pulling pixels.
@@ -36,3 +33,39 @@ struct registered_image_format
 typedef std::vector <registered_image_format> registered_image_formats_t;
 
 void GetRegisteredImageFormats( Interface *engineInterface, registered_image_formats_t& formatsOut );
+
+// Native imaging.
+
+// Virtual interface to native image formats.
+struct NativeImage abstract RWSDK_FINALIZER
+{
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
+
+    const char* getTypeName( void ) const;
+
+    const char* getRecommendedNativeTextureTarget( void ) const;
+
+    void fetchFromRaster( Raster *raster );
+    void putToRaster( Raster *raster );
+
+    void readFromStream( Stream *stream );
+    void writeToStream( Stream *stream );
+
+    Interface* getEngine( void ) const;
+};
+
+NativeImage* CreateNativeImage( Interface *engineInterface, const char *typeName );
+void DeleteNativeImage( NativeImage *imageHandle );
+
+// Description API to know what native images are creatable from sources.
+const char* GetNativeImageTypeForStream( Stream *stream );
+
+typedef std::vector <std::string> nativeImageRasterResults_t;
+
+void GetNativeImageTypesForNativeTexture( Interface *engineInterface, const char *nativeTexName, nativeImageRasterResults_t& resultsOut );
+bool DoesNativeImageSupportNativeTextureFriendly( Interface *engineInterface, const char *nativeImageName, const char *nativeTexName );
+const char* GetNativeImageTypeNameFromFriendlyName( Interface *engineInterface, const char *nativeImageName );
+
+bool GetNativeImageInfo( Interface *engineInterface, const char *nativeImageName, registered_image_format& infoOut );
+bool IsNativeImageFormatAvailable( Interface *engineInterface, const char *nativeImageName );
+void GetRegisteredNativeImageTypes( Interface *engineInterface, registered_image_formats_t& formatsOut );

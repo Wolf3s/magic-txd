@@ -166,7 +166,7 @@ bool TxdGenModule::ProcessTXDArchive(
 
                                                         // Put the debug content into it.
                                                         {
-                                                            rw::Bitmap debugTexContent;
+                                                            rw::Bitmap debugTexContent( rwEngine );
 
                                                             debugTexContent.setBgColor( 1, 1, 1 );
 
@@ -509,106 +509,13 @@ TxdGenModule::run_config TxdGenModule::ParseConfig( CFileTranslator *root, const
 
                 if ( targetPlatform )
                 {
-                    if ( stricmp( targetPlatform, "PC" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_PC;
-                    }
-                    else if ( stricmp( targetPlatform, "PS2" ) == 0 ||
-                                stricmp( targetPlatform, "Playstation 2" ) == 0 ||
-                                stricmp( targetPlatform, "PlayStation2" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_PS2;
-                    }
-                    else if ( stricmp( targetPlatform, "XBOX" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_XBOX;
-                    }
-                    else if ( stricmp( targetPlatform, "DXT_MOBILE" ) == 0 ||
-                                stricmp( targetPlatform, "S3TC_MOBILE" ) == 0 ||
-                                stricmp( targetPlatform, "MOBILE_DXT" ) == 0 ||
-                                stricmp( targetPlatform, "MOBILE_S3TC" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_DXT_MOBILE;
-                    }
-                    else if ( stricmp( targetPlatform, "PVR" ) == 0 ||
-                                stricmp( targetPlatform, "PowerVR" ) == 0 ||
-                                stricmp( targetPlatform, "PVRTC" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_PVR;
-                    }
-                    else if ( stricmp( targetPlatform, "ATC" ) == 0 ||
-                                stricmp( targetPlatform, "ATI_Compress" ) == 0 ||
-                                stricmp( targetPlatform, "ATI" ) == 0 ||
-                                stricmp( targetPlatform, "ATITC" ) == 0 ||
-                                stricmp( targetPlatform, "ATI TC" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_ATC;
-                    }
-                    else if ( stricmp( targetPlatform, "UNC" ) == 0 ||
-                                stricmp( targetPlatform, "UNCOMPRESSED" ) == 0 ||
-                                stricmp( targetPlatform, "unc_mobile" ) == 0 ||
-                                stricmp( targetPlatform, "uncompressed_mobile" ) == 0 ||
-                                stricmp( targetPlatform, "mobile_unc" ) == 0 ||
-                                stricmp( targetPlatform, "mobile_uncompressed" ) == 0 )
-                    {
-                        cfg.c_targetPlatform = PLATFORM_UNC_MOBILE;
-                    }
+                    rwkind::GetTargetPlatformFromFriendlyString( targetPlatform, cfg.c_targetPlatform );
                 }
 
                 // Target game version.
                 if ( const char *targetVersion = mainEntry->Get( "targetVersion" ) )
                 {
-                    rwkind::eTargetGame gameType;
-                    bool hasGameType = false;
-                            
-                    if ( stricmp( targetVersion, "SA" ) == 0 ||
-                            stricmp( targetVersion, "SanAndreas" ) == 0 ||
-                            stricmp( targetVersion, "San Andreas" ) == 0 ||
-                            stricmp( targetVersion, "GTA SA" ) == 0 ||
-                            stricmp( targetVersion, "GTASA" ) == 0 )
-                    {
-                        gameType = GAME_GTASA;
-
-                        hasGameType = true;
-                    }
-                    else if ( stricmp( targetVersion, "VC" ) == 0 ||
-                                stricmp( targetVersion, "ViceCity" ) == 0 ||
-                                stricmp( targetVersion, "Vice City" ) == 0 ||
-                                stricmp( targetVersion, "GTA VC" ) == 0 ||
-                                stricmp( targetVersion, "GTAVC" ) == 0 )
-                    {
-                        gameType = GAME_GTAVC;
-
-                        hasGameType = true;
-                    }
-                    else if ( stricmp( targetVersion, "GTAIII" ) == 0 ||
-                                stricmp( targetVersion, "III" ) == 0 ||
-                                stricmp( targetVersion, "GTA3" ) == 0 ||
-                                stricmp( targetVersion, "GTA 3" ) == 0 )
-                    {
-                        gameType = GAME_GTA3;
-
-                        hasGameType = true;
-                    }
-                    else if ( stricmp( targetVersion, "MANHUNT" ) == 0 ||
-                                stricmp( targetVersion, "MHUNT" ) == 0 ||
-                                stricmp( targetVersion, "MH" ) == 0 )
-                    {
-                        gameType = GAME_MANHUNT;
-
-                        hasGameType = true;
-                    }
-                    else if ( stricmp( targetVersion, "BULLY" ) == 0 )
-                    {
-                        gameType = GAME_BULLY;
-
-                        hasGameType = true;
-                    }
-                        
-                    if ( hasGameType )
-                    {
-                        cfg.c_gameType = gameType;
-                    }
+                    rwkind::GetTargetGameFromFriendlyString( targetVersion, cfg.c_gameType );
                 }
 
                 // Mipmap clear flag.
@@ -810,64 +717,14 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         rw::LibraryVersion targetVersion;
         {
             // Determine the real target version.
-            if ( targetGame == GAME_GTA3 )
-            {
-                if ( cfg.c_targetPlatform == PLATFORM_XBOX )
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::GTA3_XBOX );
-                }
-                else
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::GTA3_PC );
-                }
+            bool getVer = rwkind::GetTargetVersionFromPlatformAndGame( cfg.c_targetPlatform, targetGame, targetVersion, strTargetVersion );
 
-                strTargetVersion = "GTA 3";
-            }
-            else if ( targetGame == GAME_GTAVC )
-            {
-                if ( cfg.c_targetPlatform == PLATFORM_PS2 )
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_PS2 );
-                }
-                else if ( cfg.c_targetPlatform == PLATFORM_XBOX )
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_XBOX );
-                }
-                else
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::VC_PC );
-                }
-
-                strTargetVersion = "Vice City";
-            }
-            else if ( targetGame == GAME_GTASA )
+            // Just pick a default if we could not get the version.
+            if ( getVer == false )
             {
                 targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::SA );
 
-                strTargetVersion = "San Andreas";
-            }
-            else if ( targetGame == GAME_MANHUNT )
-            {
-                if ( cfg.c_targetPlatform == PLATFORM_PS2 )
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::MANHUNT_PS2 );
-                }
-                else
-                {
-                    targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::MANHUNT_PC );
-                }
-
-                strTargetVersion = "Manhunt";
-            }
-            else if ( targetGame == GAME_BULLY )
-            {
-                targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::BULLY );
-
-                strTargetVersion = "Bully";
-            }
-            else
-            {
-                targetVersion = rw::KnownVersions::getGameVersion( rw::KnownVersions::SA );
+                strTargetVersion = "San Andreas (default)";
             }
         }
 
@@ -884,6 +741,10 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         else if ( cfg.c_targetPlatform == PLATFORM_PS2 )
         {
             strTargetPlatform = "PS2";
+        }
+        else if ( cfg.c_targetPlatform == PLATFORM_PSP )
+        {
+            strTargetPlatform = "PSP";
         }
         else if ( cfg.c_targetPlatform == PLATFORM_XBOX )
         {

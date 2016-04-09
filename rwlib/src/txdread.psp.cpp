@@ -1,12 +1,10 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PSP
 
 #include "txdread.psp.hxx"
 
 #include "txdread.psp.mem.hxx"
-
-#include "txdread.common.hxx"
 
 #include "pluginutil.hxx"
 
@@ -75,7 +73,7 @@ void pspNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
             texFormatInfo formatInfo;
             formatInfo.readFromBlock( metaBlock );
 
-            formatInfo.parse( *theTexture );
+            formatInfo.parse( *theTexture, true );
         }
         catch( ... )
         {
@@ -171,15 +169,8 @@ void pspNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                 throw RwException( "unknown raster format for PSP native texture" );
             }
 
-            // Maybe it is swizzled?
-            bool isSwizzled = isPSPSwizzlingRequired( baseWidth, baseHeight, depth );
-
-            pspTex->isSwizzled = isSwizzled;
-
             // This native texture format is pretty dumbed down to what the PSP can actually support I think.
             eFormatEncodingType encodingType = FORMAT_UNKNOWN;
-
-            if ( isSwizzled )
             {
                 encodingType = getPSPHardwareColorBufferFormat( depth );
 
@@ -270,6 +261,13 @@ void pspNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                         newLayer.texels = texels;
                         newLayer.dataSize = mipDataSize;
 
+                        // Store swizzling property.
+                        {
+                            bool isMipSwizzled = isPSPSwizzlingRequired( layerWidth, layerHeight, depth );
+
+                            newLayer.isSwizzled = isMipSwizzled;
+                        }
+
                         pspTex->mipmaps.push_back( std::move( newLayer ) );
 
                         mip_index++;
@@ -319,6 +317,24 @@ void pspNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                     // Fix the filtering settings.
                     fixFilteringMode( *theTexture, mip_index );
+                    
+                    // Sometimes there is strange padding added to the GPU data block.
+                    // We want to skip that and warn the user.
+                    {
+                        int64 currentBlockSeek = gpuDataBlock.tell();
+
+                        int64 leftToEnd = gpuDataBlock.getBlockLength() - currentBlockSeek;
+
+                        if ( leftToEnd > 0 )
+                        {
+                            if ( engineInterface->GetWarningLevel() >= 3 )
+                            {
+                                engineInterface->PushWarning( "skipped meta-data at the end of PSP native texture GPU data block" );
+                            }
+
+                            gpuDataBlock.skip( (size_t)leftToEnd );
+                        }
+                    }
                 }
                 catch( ... )
                 {

@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 
@@ -20,8 +20,6 @@
 
 #include "txdread.ps2gsman.hxx"
 
-#include "txdread.common.hxx"
-
 #include "pluginutil.hxx"
 
 #include "txdread.miputil.hxx"
@@ -31,7 +29,7 @@
 namespace rw
 {
 
-inline void verifyTexture( const NativeTexturePS2::GSTexture& gsTex, bool hasHeaders, eFormatEncodingType currentEncodingType, eFormatEncodingType imageDecodeFormatType, ps2MipmapTransmissionData& transmissionOffset )
+inline void verifyTexture( Interface *engineInterface, const NativeTexturePS2::GSTexture& gsTex, bool hasHeaders, eFormatEncodingType currentEncodingType, eFormatEncodingType imageDecodeFormatType, ps2MipmapTransmissionData& transmissionOffset )
 {
     // If the texture had the headers, then it should have come with the required registers.
     if ( hasHeaders )
@@ -52,9 +50,18 @@ inline void verifyTexture( const NativeTexturePS2::GSTexture& gsTex, bool hasHea
                 // TRXPOS
                 const ps2GSRegisters::TRXPOS_REG& trxpos = (const ps2GSRegisters::TRXPOS_REG&)regInfo.content;
 
-                assert(trxpos.ssax == 0);
-                assert(trxpos.ssay == 0);
-                assert(trxpos.dir == 0);
+                if ( trxpos.ssax != 0 )
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXPOS register: invalid value for ssax" );
+                }
+                if ( trxpos.ssay != 0 )
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXPOS register: invalid value for ssay" );
+                }
+                if ( trxpos.dir != 0 )
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXPOS register: invalid value for dir" );
+                }
 
                 // Give the transmission settings to the runtime.
                 transmissionOffset.destX = trxpos.dsax;
@@ -76,8 +83,14 @@ inline void verifyTexture( const NativeTexturePS2::GSTexture& gsTex, bool hasHea
                     storedSwizzleWidth /= 2;
                 }
 
-                assert(storedSwizzleWidth == gsTex.swizzleWidth);
-                assert(storedSwizzleHeight == gsTex.swizzleHeight);
+                if ( storedSwizzleWidth != gsTex.swizzleWidth )
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXREG register: invalid transmission area width" );
+                }
+                if ( storedSwizzleHeight != gsTex.swizzleHeight)
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXREG register: invalid transmission area height" );
+                }
 
                 hasTRXREG = true;
             }
@@ -87,16 +100,28 @@ inline void verifyTexture( const NativeTexturePS2::GSTexture& gsTex, bool hasHea
                 const ps2GSRegisters::TRXDIR_REG& trxdir = (const ps2GSRegisters::TRXDIR_REG&)regInfo.content;
 
                 // Textures have to be transferred to the GS memory.
-                assert(trxdir.xdir == 0);
+                if ( trxdir.xdir != 0 )
+                {
+                    engineInterface->PushWarning( "PS2 native texture TRXDIR register: invalid xdir value" );
+                }
 
                 hasTRXDIR = true;
             }
         }
 
         // We kinda require all registers.
-        assert(hasTRXPOS == true);
-        assert(hasTRXREG == true);
-        assert(hasTRXDIR == true);
+        if ( hasTRXPOS == false )
+        {
+            engineInterface->PushWarning( "PS2 native texture is missing TRXPOS register" );
+        }
+        if ( hasTRXREG == false )
+        {
+            engineInterface->PushWarning( "PS2 native texture is missing TRXREG register" );
+        }
+        if ( hasTRXDIR == false )
+        {
+            engineInterface->PushWarning( "PS2 native texture is missing TRXDIR register" );
+        }
     }
 }
 
@@ -610,12 +635,17 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                                 uint32 readCount = newMipmap.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
 
+                                if ( readCount > (uint32)remainingImageData )
+                                {
+                                    throw RwException( "invalid image data bounds for PS2 native texture" );
+                                }
+
                                 remainingImageData -= readCount;
 
                                 if ( !hasCorruptedHeaders )
                                 {
                                     // Verify this mipmap.
-                                    verifyTexture( newMipmap, hasHeader, imageEncodingType, actualEncodingType, _origMipmapTransData[i] );
+                                    verifyTexture( engineInterface, newMipmap, hasHeader, imageEncodingType, actualEncodingType, _origMipmapTransData[i] );
 
                                     // Remember that we have an original transmission offset.
                                     _hasOrigMipmapTransData[ i ] = true;
@@ -676,10 +706,15 @@ void ps2NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
 
                                 uint32 readCount = palTex.readGIFPacket(engineInterface, gsPacketBlock, hasHeader, hasCorruptedHeaders);
 
+                                if ( readCount > (uint32)remainingPaletteData )
+                                {
+                                    throw RwException( "invalid palette texture data in PS2 native texture" );
+                                }
+
                                 if ( !hasCorruptedHeaders )
                                 {
                                     // Also debug this texture.
-                                    verifyTexture( palTex, hasHeader, palEncodingType, palEncodingType, palTransData );
+                                    verifyTexture( engineInterface, palTex, hasHeader, palEncodingType, palEncodingType, palTransData );
                                 }
                                 else
                                 {
@@ -867,7 +902,7 @@ void registerPS2NativePlugin( void )
     ps2NativeTexturePlugin.RegisterPlugin( engineFactory );
 }
 
-inline void* TruncateMipmapLayer(
+inline void* TruncateMipmapLayerPS2(
     Interface *engineInterface,
     const void *srcTexels, uint32 srcMipWidth, uint32 srcMipHeight, uint32 srcDepth, uint32 srcRowAlignment,
     uint32 dstMipWidth, uint32 dstMipHeight, uint32 dstRowAlignment,
@@ -909,11 +944,11 @@ inline void* TruncateMipmapLayer(
                 // Otherwise we just clear the coordinate.
                 if ( srcRow && col < srcMipWidth )
                 {
-                    moveDataByDepth( dstRow, srcRow, srcDepth, col, col );
+                    moveDataByDepth( dstRow, srcRow, srcDepth, eByteAddressingMode::MOST_SIGNIFICANT, col, col );
                 }
                 else
                 {
-                    setDataByDepth( dstRow, srcDepth, col, 0 );
+                    setDataByDepth( dstRow, srcDepth, col, eByteAddressingMode::MOST_SIGNIFICANT, 0 );
                 }
             }
         }
@@ -997,7 +1032,7 @@ inline void GetPS2TextureTranscodedMipmapData(
         {
             srcRowAlignment = getPS2ExportTextureDataRowAlignment();
 
-            srcTexels = TruncateMipmapLayer(
+            srcTexels = TruncateMipmapLayerPS2(
                 engineInterface,
                 srcTexels,
                 srcLayerWidth, srcLayerHeight, srcDepth, getPS2TextureDataRowAlignment(),
@@ -1023,7 +1058,7 @@ inline void GetPS2TextureTranscodedMipmapData(
     try
     {
         // Cache important values.
-        bool isConversionComplyingItemSwap = !shouldAllocateNewRasterBuffer( srcLayerWidth, srcDepth, srcRowAlignment, dstDepth, dstRowAlignment );
+        bool isConversionComplyingItemSwap = !hasConflictingAddressing( srcLayerWidth, srcDepth, srcRowAlignment, paletteType, dstDepth, dstRowAlignment, paletteType );
 
         if ( hasToTranscode )
         {
@@ -1227,8 +1262,8 @@ void ps2NativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
 
             newLayer.width = layerWidth;
             newLayer.height = layerHeight;
-            newLayer.mipWidth = layerWidth;   // layer dimensions.
-            newLayer.mipHeight = layerHeight;
+            newLayer.layerWidth = layerWidth;   // layer dimensions.
+            newLayer.layerHeight = layerHeight;
 
             newLayer.texels = dstTexels;
             newLayer.dataSize = dstDataSize;
@@ -1373,7 +1408,7 @@ inline void ConvertMipmapToPS2Format(
 
                 dstSwizzledDataSize = getRasterDataSizeByRowSize( dstSwizzledRowSize, packedHeight );
 
-                dstSwizzledTexelData = TruncateMipmapLayer(
+                dstSwizzledTexelData = TruncateMipmapLayerPS2(
                     engineInterface,
                     dstLinearTexelData,
                     mipWidth, mipHeight, dstItemDepth, swizzledRowAlignment,
@@ -1986,7 +2021,7 @@ bool ps2NativeTextureTypeProvider::DoesTextureHaveAlpha( const void *objMem )
 
         hasAlpha =
             rawMipmapCalculateHasAlpha(
-                rawLayer.mipData.mipWidth, rawLayer.mipData.mipHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
+                rawLayer.mipData.layerWidth, rawLayer.mipData.layerHeight, rawLayer.mipData.texels, rawLayer.mipData.dataSize,
                 rawLayer.rasterFormat, rawLayer.depth, rawLayer.rowAlignment, rawLayer.colorOrder,
                 rawLayer.paletteType, rawLayer.paletteData, rawLayer.paletteSize
             );

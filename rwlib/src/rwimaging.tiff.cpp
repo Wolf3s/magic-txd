@@ -823,9 +823,9 @@ struct tiffImagingExtension : public imagingFormatExtension
                             {
                                 // We have a good chance to directly aquire the colors from raw images.
                                 canColorDirectlyAcquire = 
-                                    doesRasterFormatNeedConversion(
-                                        tiffRasterFormat, tiffDepth, tiffColorOrder, dstPaletteType,
-                                        dstRasterFormat, dstDepth, dstColorOrder, dstPaletteType
+                                    doRawMipmapBuffersNeedConversion(
+                                        tiffRasterFormat, tiffDepth, tiffColorOrder, PALETTE_NONE,
+                                        dstRasterFormat, dstDepth, dstColorOrder, PALETTE_NONE
                                     );
 
                                 canTexelsDirectlyAcquire = canColorDirectlyAcquire;
@@ -859,7 +859,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                         else
                         {
                             // Create a put dispatch.
-                            colorModelDispatcher <void> putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
+                            colorModelDispatcher putDispatch( dstRasterFormat, dstColorOrder, dstDepth, NULL, 0, PALETTE_NONE );
 
                             void *scanlineBuf = engineInterface->PixelAllocate( scanline_size );
 
@@ -942,7 +942,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                             // Create a put dispatch.
                             uint32 palRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
 
-                            colorModelDispatcher <void> palPutDispatch( dstRasterFormat, dstColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
+                            colorModelDispatcher palPutDispatch( dstRasterFormat, dstColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
 
                             // Sadly, I have not found a way to retrieve the actual palette length from the TIFF.
                             // TIFF really is an outdated format. :(
@@ -1126,12 +1126,9 @@ struct tiffImagingExtension : public imagingFormatExtension
             {
                 tiff_has_alpha = canRasterFormatHaveAlpha( srcRasterFormat );
 
-                if ( srcRasterFormat == RASTER_1555 ||
-                     srcRasterFormat == RASTER_565 ||
-                     srcRasterFormat == RASTER_4444 ||
-                     srcRasterFormat == RASTER_8888 ||
-                     srcRasterFormat == RASTER_888 ||
-                     srcRasterFormat == RASTER_555 )
+                eColorModel rasterColorModel = getColorModelFromRasterFormat( srcRasterFormat );
+
+                if ( rasterColorModel == COLORMODEL_RGBA )
                 {
                     photometric_type = PHOTOMETRIC_RGB;
                     bits_per_sample = 8;
@@ -1150,13 +1147,21 @@ struct tiffImagingExtension : public imagingFormatExtension
 
                     sample_count = 3;
                 }
-                else if ( srcRasterFormat == RASTER_LUM )
+                else if ( rasterColorModel == COLORMODEL_LUMINANCE )
                 {
                     photometric_type = PHOTOMETRIC_MINISBLACK;
                     bits_per_sample = 8;
 
-                    tiffRasterFormat = RASTER_LUM;
-                    tiffDepth = 8;
+                    if ( tiff_has_alpha )
+                    {
+                        tiffRasterFormat = RASTER_LUM_ALPHA;
+                        tiffDepth = 16;
+                    }
+                    else
+                    {
+                        tiffRasterFormat = RASTER_LUM;
+                        tiffDepth = 8;
+                    }
 
                     sample_count = 1;
                 }
@@ -1188,7 +1193,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                     uint32 palRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
 
                     // Create a color dispatch for copying palette colors.
-                    colorModelDispatcher <const void> palFetchDispatch( srcRasterFormat, srcColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
+                    colorModelDispatcher palFetchDispatch( srcRasterFormat, srcColorOrder, palRasterDepth, NULL, 0, PALETTE_NONE );
 
                     // Partition the data into three chunks for r, g, b.
                     colormap_red = (uint16*)colormap;
@@ -1279,7 +1284,7 @@ struct tiffImagingExtension : public imagingFormatExtension
                 else
                 {
                     canDirectlyWrite =
-                        doesRasterFormatNeedConversion(
+                        doRawMipmapBuffersNeedConversion(
                             srcRasterFormat, srcDepth, srcColorOrder, srcPaletteType,
                             tiffRasterFormat, tiffDepth, tiffColorOrder, tiffPaletteType
                         ) == false

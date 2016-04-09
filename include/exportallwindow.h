@@ -1,5 +1,7 @@
 #pragma once
 
+#include <renderware.h>
+
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -36,12 +38,15 @@ private:
             {
                 // If we are the first raster we encounter, we add all of its formats to our list.
                 // Otherwise we check for support on each raster until no more support is guarranteed.
-                const char *nativeFormat =
-                    rw::GetNativeTextureImageFormatExtension( engineInterface, texRaster->getNativeDataTypeName() );
+                rw::nativeImageRasterResults_t reg_natTex;
+
+                const char *nativeName = texRaster->getNativeDataTypeName();
+
+                rw::GetNativeImageTypesForNativeTexture( engineInterface, nativeName, reg_natTex );
                 
                 if ( isFirstRaster )
                 {
-                    if ( nativeFormat )
+                    for ( const std::string& nativeFormat : reg_natTex )
                     {
                         formatsOut.push_back( nativeFormat );
                     }
@@ -59,7 +64,7 @@ private:
                     // Remove anything thats not part of the supported.
                     std::vector <std::string> newList;
 
-                    if ( nativeFormat )
+                    for ( const std::string& nativeFormat : reg_natTex )
                     {
                         for ( const std::string& formstr : formatsOut )
                         {

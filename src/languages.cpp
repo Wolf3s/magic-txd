@@ -57,10 +57,15 @@ bool RegisterTextLocalizationItem( magicTextLocalizationItem *provider )
         // Register this.
         ourLanguages.culturalItems.push_back( provider );
 
-        // If we have a loaded language, notify the item.
-        if ( ourLanguages.currentLanguage != -1 )
+        // Need to be initialized to update any content.
+        if ( ourLanguages.isInitialized )
         {
-            provider->updateContent( ourLanguages.mainWnd );
+            // Update the text in the language item.
+            // We do that all the time.
+            //if ( ourLanguages.currentLanguage != -1 )
+            {
+                provider->updateContent( ourLanguages.mainWnd );
+            }
         }
 
         success = true;
@@ -74,7 +79,7 @@ bool UnregisterTextLocalizationItem( magicTextLocalizationItem *provider )
     bool success = false;
     {
         // Try to find this item.
-        MagicLanguages::localizations_t::const_iterator iter = std::find( ourLanguages.culturalItems.begin(), ourLanguages.culturalItems.end(), provider );
+        localizations_t::const_iterator iter = std::find( ourLanguages.culturalItems.begin(), ourLanguages.culturalItems.end(), provider );
 
         if ( iter != ourLanguages.culturalItems.end() )
         {
@@ -86,6 +91,11 @@ bool UnregisterTextLocalizationItem( magicTextLocalizationItem *provider )
     }
 
     return success;
+}
+
+localizations_t GetTextLocalizationItems( void )
+{
+    return ourLanguages.culturalItems;
 }
 
 QString getLanguageItemByKey( QString token, bool *found )  // RIP mainWnd param
@@ -107,8 +117,8 @@ static magic_value_item_t valueVars[] =
     { "_AUTHOR_NAME_2",  "The_GTA" },
 };
 
-QString MagicLanguage::getStringFormattedWithVars(QString &string) {
-    QString result = string;
+QString MagicLanguage::getStringFormattedWithVars(QString&& string) {
+    QString result = std::move( string );
     for (unsigned int i = 0; i < NUMELMS(valueVars); i++)
     {
         const magic_value_item_t& valuePair = valueVars[ i ];
@@ -133,20 +143,80 @@ bool MagicLanguage::loadText()
     while (!in.atEnd())
     {
         QString line = in.readLine();
-        if (line.size() > 0)
+
+        if ( line.isEmpty() )
+            continue;
+
+        int key_start = line.indexOf(regExp1);
+
+        if (key_start == -1)
+            continue;
+        
+        // Ignore commented lines.
+        if (line.at(key_start) == '#')
+            continue;
+
+        QRegExp regExpTokenEnclose("\\[(\\S+)\\]");
+
+        // Check what kind of type of line we have.
+        int token_enclose_start = line.indexOf( regExpTokenEnclose );
+
+        if (token_enclose_start != -1)
         {
-            int key_start = line.indexOf(regExp1);
-            if (key_start != -1 && line.at(key_start) != '#')
+            QString keyToken = getStringFormattedWithVars( regExpTokenEnclose.cap( 1 ) );
+
+            // In this we read lines until we find the end token.
+            bool didHaveLine = false;
+
+            QString localeItem;
+
+            while ( !in.atEnd() )
             {
-                int key_end = line.indexOf(regExp2, key_start);
-                if (key_end != -1)
+                QString locale_line = in.readLine();
+
+                // If we found the ending token, we quit.
+                int token_end_start = locale_line.indexOf( regExpTokenEnclose );
+
+                if ( token_end_start != -1 && regExpTokenEnclose.cap( 1 ).compare( "END", Qt::CaseInsensitive ) == 0 )
                 {
-                    int value_start = line.indexOf(regExp1, key_end);
-                    if (value_start != -1)
+                    // We are at the end, so quit.
+                    break;
+                }
+                
+                // Add a new locale line.
+                if ( didHaveLine )
+                {
+                    localeItem += '\n';
+                }
+
+                localeItem += locale_line;
+
+                didHaveLine = true;
+            }
+
+            // Register this item.
+            strings.insert(
+                keyToken,
+                getStringFormattedWithVars( std::move( localeItem ) )
+            );
+        }
+        else
+        {
+            int key_end = line.indexOf(regExp2, key_start);
+
+            if (key_end != -1)
+            {
+                int value_start = line.indexOf(regExp1, key_end);
+                if (value_start != -1)
+                {
+                    QString keyToken = line.mid(key_start, key_end - key_start);
+                    QString valueToken = line.mid(value_start);
+
+                    if ( keyToken.isEmpty() == false && valueToken.isEmpty() == false )
                     {
                         strings.insert(
-                            getStringFormattedWithVars(line.mid(key_start, key_end - key_start)),
-                            getStringFormattedWithVars(line.mid(value_start))
+                            getStringFormattedWithVars(std::move( keyToken )),
+                            getStringFormattedWithVars(std::move( valueToken ))
                         );
                         //TestMessage(L"key: \"%s\" value: \"%s\"", getStringFormattedWithVars(line.mid(key_start, key_end - key_start)).toStdWString().c_str(),
                         //    getStringFormattedWithVars(line.mid(value_start)).toStdWString().c_str());

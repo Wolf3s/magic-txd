@@ -27,61 +27,72 @@ CINI::CINI(const char *buffer)
 		size_t len;
 		const char *token = syntax.ParseToken( &len );
 
-		if ( len == 1 )
-		{
-			if ( *token == '[' )
-			{
-				char *name;
-				size_t offset = syntax.GetOffset();
+        if ( token )
+        {
+            // Holy fuck, my past implementation of this was really a danger to human society!
 
-				// Read section and select it
-				if ( !syntax.ScanCharacterEx( ']', true, true, false ) )
-					continue;
+            bool hasProcessedSpecialToken = false;
 
-				size_t tokLen = syntax.GetOffset() - offset - 1;
+		    if ( len == 1 )
+		    {
+			    if ( *token == '[' )
+			    {
+				    char *name;
+				    size_t offset = syntax.GetOffset();
 
-				name = (char*)malloc( tokLen + 1 );
-				strncpy( name, token + 1, tokLen );
+				    // Read section and select it
+				    if ( syntax.ScanCharacterEx( ']', true, true, false ) )
+                    {
+				        size_t tokLen = syntax.GetOffset() - offset - 1;
 
-				name[tokLen] = 0;
+				        name = (char*)malloc( tokLen + 1 );
+				        strncpy( name, token + 1, tokLen );
 
-				section = new Entry( name );
+				        name[tokLen] = 0;
 
-				entries.push_back( section );
-			}
-            else if ( *token == ';' || *token == '#' )
-			{
-				syntax.ScanCharacter( '\n' );
-				syntax.Seek( -1 );
-				continue;
-			}
-			else
-				goto sectionDo;
-		}
-		else if ( section )
-		{
-sectionDo:
-			char name[256];
-			const char *set;
+				        section = new Entry( name );
 
-			len = std::min(len, (size_t)255);
+				        entries.push_back( section );
 
-			strncpy(name, token, len );
-			name[len] = 0;
+                        hasProcessedSpecialToken = true;
+                    }
+			    }
+                else if ( *token == ';' || *token == '#' )
+			    {
+				    syntax.ScanCharacter( '\n' );
+				    syntax.Seek( -1 );
 
-			set = syntax.ParseToken( &len );
+                    hasProcessedSpecialToken = true;
+			    }
+		    }
+		    
+            if ( !hasProcessedSpecialToken )
+            {
+                if ( section )
+		        {
+			        char name[256];
+			        const char *set;
 
-			if ( len != 1 || *set != '=' )
-				continue;
+			        len = std::min(len, (size_t)255);
 
-            // Read everything until new line.
-            size_t contentSize;
-            const char *lineBuf = syntax.ReadUntilNewLine( &contentSize );
+			        strncpy(name, token, len );
+			        name[len] = 0;
 
-            std::string strbuf( lineBuf, contentSize );
+			        set = syntax.ParseToken( &len );
 
-			section->Set( name, strbuf.c_str() );
-		}
+			        if ( len == 1 && *set == '=' )
+                    {
+                        // Read everything until new line.
+                        size_t contentSize;
+                        const char *lineBuf = syntax.ReadUntilNewLine( &contentSize );
+
+                        std::string strbuf( lineBuf, contentSize );
+
+			            section->Set( name, strbuf.c_str() );
+                    }
+		        }
+            }
+        }
 
 	} while ( syntax.GotoNewLine() );
 }

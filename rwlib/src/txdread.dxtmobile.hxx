@@ -4,6 +4,8 @@
 
 #include "txdread.d3d.genmip.hxx"
 
+#include "txdread.common.hxx"
+
 #define PLATFORMDESC_DXT_MOBILE 9
 
 namespace rw

@@ -106,111 +106,119 @@ IFACEMETHODIMP RenderWareContextHandlerProvider::Initialize( LPCITEMIDLIST idLis
 
     HRESULT res = E_FAIL;
 
-    if ( auto DragQueryFileW = shell32min.DragQueryFileW )
+    try
     {
-        if ( auto ReleaseStgMedium = ole32min.ReleaseStgMedium )
+        if ( auto DragQueryFileW = shell32min.DragQueryFileW )
         {
-            try
+            if ( auto ReleaseStgMedium = ole32min.ReleaseStgMedium )
             {
-                FORMATETC fe = { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
-                STGMEDIUM stm;
-
-                HRESULT getHandleSuccess = dataObj->GetData( &fe, &stm );
-
-                if ( SUCCEEDED(getHandleSuccess) )
+                try
                 {
-                    try
+                    FORMATETC fe = { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
+                    STGMEDIUM stm;
+
+                    HRESULT getHandleSuccess = dataObj->GetData( &fe, &stm );
+
+                    if ( SUCCEEDED(getHandleSuccess) )
                     {
-                        HDROP drop = (HDROP)GlobalLock( stm.hGlobal );
-
-                        if ( drop )
+                        try
                         {
-                            try
+                            HDROP drop = (HDROP)GlobalLock( stm.hGlobal );
+
+                            if ( drop )
                             {
-                                UINT numFiles = DragQueryFileW( drop, 0xFFFFFFFF, NULL, 0 );
-
-                                // For now we want to only support operation on one file.
-                                for ( UINT n = 0; n < numFiles; n++ )
+                                try
                                 {
-                                    // Check what kind of file we got.
-                                    std::wstring fileName;
+                                    UINT numFiles = DragQueryFileW( drop, 0xFFFFFFFF, NULL, 0 );
 
-                                    UINT fileNameCharCount = DragQueryFileW( drop, n, NULL, 0 );
-
-                                    fileName.resize( (size_t)fileNameCharCount );
-
-                                    DragQueryFileW( drop, n, (LPWSTR)fileName.data(), fileNameCharCount + 1 );
-
-                                    // We want to extract the extension, because everything depends on it.
-                                    const wchar_t *extStart = FileSystem::FindFileNameExtension( fileName.c_str() );
-
-                                    if ( extStart != NULL )
+                                    // For now we want to only support operation on one file.
+                                    for ( UINT n = 0; n < numFiles; n++ )
                                     {
-                                        // Check for a known extension.
-                                        bool hasKnownExt = false;
-                                        eContextMenuOptionType optionType;
+                                        // Check what kind of file we got.
+                                        std::wstring fileName;
 
-                                        if ( wcsicmp( extStart, L"TXD" ) == 0 )
+                                        UINT fileNameCharCount = DragQueryFileW( drop, n, NULL, 0 );
+
+                                        fileName.resize( (size_t)fileNameCharCount );
+
+                                        DragQueryFileW( drop, n, (LPWSTR)fileName.data(), fileNameCharCount + 1 );
+
+                                        // We want to extract the extension, because everything depends on it.
+                                        const wchar_t *extStart = FileSystem::FindFileNameExtension( fileName.c_str() );
+
+                                        if ( extStart != NULL )
                                         {
-                                            optionType = CONTEXTOPT_TXD;
+                                            // Check for a known extension.
+                                            bool hasKnownExt = false;
+                                            eContextMenuOptionType optionType;
 
-                                            hasKnownExt = true;
-                                        }
-                                        else if ( wcsicmp( extStart, L"RWTEX" ) == 0 )
-                                        {
-                                            optionType = CONTEXTOPT_TEXTURE;
+                                            if ( wcsicmp( extStart, L"TXD" ) == 0 )
+                                            {
+                                                optionType = CONTEXTOPT_TXD;
 
-                                            hasKnownExt = true;
-                                        }
+                                                hasKnownExt = true;
+                                            }
+                                            else if ( wcsicmp( extStart, L"RWTEX" ) == 0 )
+                                            {
+                                                optionType = CONTEXTOPT_TEXTURE;
 
-                                        if ( hasKnownExt )
-                                        {
-                                            // Add this context option.
-                                            contextOption_t opt;
-                                            opt.fileName = std::move( fileName );
-                                            opt.optionType = optionType;
+                                                hasKnownExt = true;
+                                            }
 
-                                            this->contextOptions.push_back( std::move( opt ) );
+                                            if ( hasKnownExt )
+                                            {
+                                                // Add this context option.
+                                                contextOption_t opt;
+                                                opt.fileName = std::move( fileName );
+                                                opt.optionType = optionType;
+
+                                                this->contextOptions.push_back( std::move( opt ) );
+                                            }
                                         }
                                     }
-                                }
 
-                                // As long as we processed one valid item, we can show the context menu.
-                                if ( this->contextOptions.empty() == false )
+                                    // As long as we processed one valid item, we can show the context menu.
+                                    if ( this->contextOptions.empty() == false )
+                                    {
+                                        res = S_OK;
+                                    }
+                                }
+                                catch( ... )
                                 {
-                                    res = S_OK;
+                                    GlobalUnlock( stm.hGlobal );
+
+                                    throw;
                                 }
-                            }
-                            catch( ... )
-                            {
+
                                 GlobalUnlock( stm.hGlobal );
-
-                                throw;
                             }
-
-                            GlobalUnlock( stm.hGlobal );
                         }
-                    }
-                    catch( ... )
-                    {
+                        catch( ... )
+                        {
+                            ReleaseStgMedium( &stm );
+
+                            throw;
+                        }
+
                         ReleaseStgMedium( &stm );
-
-                        throw;
                     }
-
-                    ReleaseStgMedium( &stm );
+                }
+                catch( ... )
+                {
+                    // Ignore errors.
                 }
             }
-            catch( ... )
-            {
-                // Ignore errors.
-            }
         }
+
+        this->isInitialized = true;
+
+        return res;
     }
-
-    this->isInitialized = true;
-
-    return res;
+    catch( ... )
+    {
+        // Any runtime error? Fuck this.
+        return E_FAIL;
+    }
 }
 
 inline std::wstring RenderWareContextHandlerProvider::getContextDirectory( void ) const
@@ -926,333 +934,340 @@ IFACEMETHODIMP RenderWareContextHandlerProvider::QueryContextMenu(
 
     contextMan manager( this, indexMenu, idCmdFirst, idCmdLast, uFlags, hMenu );
 
-    contextMan::node mainMenu = manager.ConstructRoot();
-
-    // Only make options visible that make sense.
-    bool hasTXDOptions = this->hasContextOption( CONTEXTOPT_TXD );
-    bool hasTextureOptions = this->hasContextOption( CONTEXTOPT_TEXTURE );
-
-    bool hasOnlyTextureOptions = this->hasOnlyContextOption( CONTEXTOPT_TEXTURE );
-
-    // Do the menu.
+    try
     {
-        contextMan::node optionsNode = mainMenu.AddSubmenuEntryW( L"RenderWare Options", this->rwlogo_bitmap );
+        contextMan::node mainMenu = manager.ConstructRoot();
 
-        // Add some cool options.
-        try
+        // Only make options visible that make sense.
+        bool hasTXDOptions = this->hasContextOption( CONTEXTOPT_TXD );
+        bool hasTextureOptions = this->hasContextOption( CONTEXTOPT_TEXTURE );
+
+        bool hasOnlyTextureOptions = this->hasOnlyContextOption( CONTEXTOPT_TEXTURE );
+
+        // Do the menu.
         {
-            // If we have only textures selected and more than one, we can build a TXD out of them!
-            if ( hasOnlyTextureOptions && this->contextOptions.size() > 1 )
+            contextMan::node optionsNode = mainMenu.AddSubmenuEntryW( L"RenderWare Options", this->rwlogo_bitmap );
+
+            // Add some cool options.
+            try
             {
-                optionsNode.AddCommandEntryW( L"Build TXD", "build_txd",
-                    [=]( void )
+                // If we have only textures selected and more than one, we can build a TXD out of them!
+                if ( hasOnlyTextureOptions && this->contextOptions.size() > 1 )
                 {
-                    // We need a target path to write the TXD to.
-                    static const COMDLG_FILTERSPEC writeTypes[] =
+                    optionsNode.AddCommandEntryW( L"Build TXD", "build_txd",
+                        [=]( void )
                     {
-                        L"RW Texture Dictionary",
-                        L"*.txd"
-                    };
+                        // We need a target path to write the TXD to.
+                        static const COMDLG_FILTERSPEC writeTypes[] =
+                        {
+                            L"RW Texture Dictionary",
+                            L"*.txd"
+                        };
+
+                        try
+                        {
+                            ShellGetFileTargetPath( this->getContextDirectory(), ARRAYSIZE( writeTypes ), writeTypes, L"txd",
+                                [=]( const wchar_t *targetPath )
+                            {
+                                // Create a tex dictionary, add the textures to it and write it to disk.
+                                rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
+
+                                if ( texDict )
+                                {
+                                    try
+                                    {
+                                        this->forAllContextItems(
+                                            [&]( const wchar_t *filePath )
+                                        {
+                                            TexObj_forAllTextures_ser( filePath,
+                                                [&]( rw::TextureBase *texHandle )
+                                            {
+                                                // We clone the textures.
+                                                // For this we do not have to perform deep cloning.
+                                                rw::TextureBase *newTex = (rw::TextureBase*)rwEngine->CloneRwObject( texHandle );
+
+                                                if ( newTex )
+                                                {
+                                                    newTex->AddToDictionary( texDict );
+                                                }
+                                            });
+                                        });
+
+                                        // Set the version of the TXD to the version of the first texture, if available.
+                                        if ( rw::TextureBase *firstTex = GetFirstTexture( texDict ) )
+                                        {
+                                            texDict->SetEngineVersion( firstTex->GetEngineVersion() );
+                                        }
+
+                                        // Write the TXD now.
+                                        RwObjectStreamWrite( targetPath, texDict );
+                                    }
+                                    catch( ... )
+                                    {
+                                        rwEngine->DeleteRwObject( texDict );
+
+                                        throw;
+                                    }
+
+                                    rwEngine->DeleteRwObject( texDict );
+                                }
+                            });
+                        }
+                        catch( rw::RwException& except )
+                        {
+                            std::string errorMsg( "failed to build TXD: " );
+
+                            errorMsg += except.message;
+
+                            MessageBoxA( NULL, errorMsg.c_str(), "Build Error", MB_OK );
+
+                            throw;
+                        }
+                        return true;
+                    });
+                }
+        
+                // We can extract things from texture dictionaries (and textures).
+                if ( hasTXDOptions || hasTextureOptions )
+                {
+                    contextMan::node extractNode = optionsNode.AddSubmenuEntryW( L"Extract" );
 
                     try
                     {
-                        ShellGetFileTargetPath( this->getContextDirectory(), ARRAYSIZE( writeTypes ), writeTypes, L"txd",
-                            [=]( const wchar_t *targetPath )
-                        {
-                            // Create a tex dictionary, add the textures to it and write it to disk.
-                            rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
+                        // We add the default options that RenderWare supports.
 
-                            if ( texDict )
+                        // If there are TXD files, it makes sense to allow exporting as texture chunks.
+                        if ( hasTXDOptions )
+                        {
+                            extractNode.AddCommandEntryW( L"Texture Chunks", "extrTexChunks",
+                                [=]( void )
+                            {
+                                ShellGetTargetDirectory( this->getContextDirectory(),
+                                    [=]( const wchar_t *targetPath )
+                                {
+                                    this->forAllContextItems(
+                                        [=]( const wchar_t *fileName )
+                                    {
+                                        // We want to export the contents as raw texture chunks.
+                                        TexObj_exportAs( fileName, L"rwtex", targetPath,
+                                            [=]( rw::TextureBase *texHandle, rw::Stream *outStream )
+                                        {
+                                            // We export the texture directly.
+                                            rwEngine->Serialize( texHandle, outStream );
+                                        });
+                                    });
+                                });
+                                return true;
+                            });
+                        }
+
+                        try
+                        {
+                            rw::registered_image_formats_t regFormats;
+                            rw::GetRegisteredImageFormats( rwEngine, regFormats );
+
+                            for ( const rw::registered_image_format& format : regFormats )
+                            {
+                                // Make a nice display string.
+                                const char *niceExt = rw::GetLongImagingFormatExtension( format.num_ext, format.ext_array );
+
+                                if ( niceExt )
+                                {
+                                    std::wstring displayString = ansi_to_unicode( niceExt );
+                                    displayString += L" (";
+                                    displayString += ansi_to_unicode( format.formatName );
+                                    displayString += L")";
+
+                                    extractNode.AddCommandEntryW( displayString.c_str(), std::string( "extr_" ) + niceExt,
+                                        [=]( void )
+                                    {
+                                        // TODO: actually use a good extention instead of the default.
+                                        // We want to add support into RW to specify multiple image format extentions.
+
+                                        std::string extention( niceExt );
+                                        std::wstring wideExtention( extention.begin(), extention.end() );
+
+                                        std::transform( wideExtention.begin(), wideExtention.end(), wideExtention.begin(), ::tolower );
+
+                                        ShellGetTargetDirectory( this->getContextDirectory(),
+                                            [=]( const wchar_t *targetDir )
+                                        {
+                                            this->forAllContextItems(
+                                                [=]( const wchar_t *fileName )
+                                            {
+                                                TexObj_exportAs( fileName, wideExtention.c_str(), targetDir,
+                                                    [=]( rw::TextureBase *texHandle, rw::Stream *outStream )
+                                                {
+                                                    // Only perform if we have a raster, which should be always anyway.
+                                                    if ( rw::Raster *texRaster = texHandle->GetRaster() )
+                                                    {
+                                                        texRaster->writeImage( outStream, extention.c_str() );
+                                                    }
+                                                });
+                                            });
+                                        });
+                        
+                                        return true;
+                                    });
+                                }
+                            }
+                        }
+                        catch( rw::RwException& )
+                        {
+                            // If there was any RW exception, we continue anyway.
+                        }
+                    }
+                    catch( ... )
+                    {
+                        extractNode.Revert();
+
+                        throw;
+                    }
+                }
+
+                if ( hasTXDOptions || hasTextureOptions )
+                {
+                    // We also might want to convert TXD files.
+                    contextMan::node convertNode = optionsNode.AddSubmenuEntryW( L"Set Platform" );
+
+                    try
+                    {
+                        // Fill it with entries of platforms that we can target.
+                        rw::platformTypeNameList_t availPlatforms = rw::GetAvailableNativeTextureTypes( rwEngine );
+
+                        UINT cur_index = 0;
+
+                        for ( const std::string& name : availPlatforms )
+                        {
+                            std::wstring displayString = ansi_to_unicode( name.c_str() );
+
+                            convertNode.AddCommandEntryW( displayString.c_str(), "setPlat_" + name,
+                                [=]( void )
                             {
                                 try
                                 {
                                     this->forAllContextItems(
-                                        [&]( const wchar_t *filePath )
+                                        [=]( const wchar_t *fileName )
                                     {
-                                        TexObj_forAllTextures_ser( filePath,
-                                            [&]( rw::TextureBase *texHandle )
+                                        TexObj_transform_ser( fileName,
+                                            [=]( rw::TextureBase *texHandle )
                                         {
-                                            // We clone the textures.
-                                            // For this we do not have to perform deep cloning.
-                                            rw::TextureBase *newTex = (rw::TextureBase*)rwEngine->CloneRwObject( texHandle );
-
-                                            if ( newTex )
+                                            // Convert to another platform.
+                                            // We only want to suceed with stuff if we actually wrote everything.
+                                            if ( rw::Raster *texRaster = texHandle->GetRaster() )
                                             {
-                                                newTex->AddToDictionary( texDict );
+                                                rw::ConvertRasterTo( texRaster, name.c_str() );
                                             }
                                         });
                                     });
-
-                                    // Set the version of the TXD to the version of the first texture, if available.
-                                    if ( rw::TextureBase *firstTex = GetFirstTexture( texDict ) )
-                                    {
-                                        texDict->SetEngineVersion( firstTex->GetEngineVersion() );
-                                    }
-
-                                    // Write the TXD now.
-                                    RwObjectStreamWrite( targetPath, texDict );
                                 }
-                                catch( ... )
+                                catch( rw::RwException& except )
                                 {
-                                    rwEngine->DeleteRwObject( texDict );
+                                    // We should display a message box.
+                                    std::string errorMessage( "failed to convert to platform: " );
 
+                                    errorMessage += except.message;
+
+                                    MessageBoxA( NULL, errorMessage.c_str(), "Conversion Error", MB_OK );
+
+                                    // Throw further.
                                     throw;
                                 }
 
-                                rwEngine->DeleteRwObject( texDict );
-                            }
-                        });
+                                return true;
+                            });
+                        }
                     }
-                    catch( rw::RwException& except )
+                    catch( ... )
                     {
-                        std::string errorMsg( "failed to build TXD: " );
-
-                        errorMsg += except.message;
-
-                        MessageBoxA( NULL, errorMsg.c_str(), "Build Error", MB_OK );
+                        convertNode.Revert();
 
                         throw;
                     }
-                    return true;
-                });
-            }
-        
-            // We can extract things from texture dictionaries (and textures).
-            if ( hasTXDOptions || hasTextureOptions )
-            {
-                contextMan::node extractNode = optionsNode.AddSubmenuEntryW( L"Extract" );
+                }
 
-                try
+                // Every RenderWare object has this ability.
+                // We also want the ability to change game version.
                 {
-                    // We add the default options that RenderWare supports.
-
-                    // If there are TXD files, it makes sense to allow exporting as texture chunks.
-                    if ( hasTXDOptions )
-                    {
-                        extractNode.AddCommandEntryW( L"Texture Chunks", "extrTexChunks",
-                            [=]( void )
-                        {
-                            ShellGetTargetDirectory( this->getContextDirectory(),
-                                [=]( const wchar_t *targetPath )
-                            {
-                                this->forAllContextItems(
-                                    [=]( const wchar_t *fileName )
-                                {
-                                    // We want to export the contents as raw texture chunks.
-                                    TexObj_exportAs( fileName, L"rwtex", targetPath,
-                                        [=]( rw::TextureBase *texHandle, rw::Stream *outStream )
-                                    {
-                                        // We export the texture directly.
-                                        rwEngine->Serialize( texHandle, outStream );
-                                    });
-                                });
-                            });
-                            return true;
-                        });
-                    }
+                    contextMan::node versionNode = optionsNode.AddSubmenuEntryW( L"Set Version" );
 
                     try
                     {
-                        rw::registered_image_formats_t regFormats;
-                        rw::GetRegisteredImageFormats( rwEngine, regFormats );
-
-                        for ( const rw::registered_image_format& format : regFormats )
+                        // Add game versions.
+                        for ( const std::pair <std::wstring, rw::KnownVersions::eGameVersion>& verPair : gameVerMap )
                         {
-                            // Make a nice display string.
-                            const char *niceExt = rw::GetLongImagingFormatExtension( format.num_ext, format.ext_array );
-
-                            if ( niceExt )
+                            versionNode.AddCommandEntryW( verPair.first.c_str(), std::string( "gameVer_" ) + std::to_string( verPair.second ),
+                                [=]( void )
                             {
-                                std::wstring displayString = ansi_to_unicode( niceExt );
-                                displayString += L" (";
-                                displayString += ansi_to_unicode( format.formatName );
-                                displayString += L")";
-
-                                extractNode.AddCommandEntryW( displayString.c_str(), std::string( "extr_" ) + niceExt,
-                                    [=]( void )
+                                try
                                 {
-                                    // TODO: actually use a good extention instead of the default.
-                                    // We want to add support into RW to specify multiple image format extentions.
-
-                                    std::string extention( niceExt );
-                                    std::wstring wideExtention( extention.begin(), extention.end() );
-
-                                    std::transform( wideExtention.begin(), wideExtention.end(), wideExtention.begin(), ::tolower );
-
-                                    ShellGetTargetDirectory( this->getContextDirectory(),
-                                        [=]( const wchar_t *targetDir )
+                                    // Execute us.
+                                    this->forAllContextItems(
+                                        [=]( const wchar_t *fileName )
                                     {
-                                        this->forAllContextItems(
-                                            [=]( const wchar_t *fileName )
+                                        RwObj_transform_ser( fileName,
+                                            [=]( rw::RwObject *rwObj )
                                         {
-                                            TexObj_exportAs( fileName, wideExtention.c_str(), targetDir,
-                                                [=]( rw::TextureBase *texHandle, rw::Stream *outStream )
+                                            RwObj_deepTraverse( rwObj,
+                                                [=]( rw::RwObject *rwObj )
                                             {
-                                                // Only perform if we have a raster, which should be always anyway.
-                                                if ( rw::Raster *texRaster = texHandle->GetRaster() )
-                                                {
-                                                    texRaster->writeImage( outStream, extention.c_str() );
-                                                }
+                                                rw::LibraryVersion newVer = rw::KnownVersions::getGameVersion( verPair.second );
+
+                                                rwObj->SetEngineVersion( newVer );
                                             });
                                         });
                                     });
-                        
-                                    return true;
-                                });
-                            }
+                                }
+                                catch( rw::RwException& except )
+                                {
+                                    // We want to inform about this aswell.
+                                    std::string errorMsg( "failed to set game version: " );
+
+                                    errorMsg += except.message;
+
+                                    MessageBoxA( NULL, errorMsg.c_str(), "Error", MB_OK );
+
+                                    // Pass on the error.
+                                    throw;
+                                }
+                                return true;
+                            });
                         }
                     }
-                    catch( rw::RwException& )
+                    catch( ... )
                     {
-                        // If there was any RW exception, we continue anyway.
+                        versionNode.Revert();
+
+                        throw;
                     }
                 }
-                catch( ... )
+
+                // TODO: detect whether Magic.TXD has been installed into a location.
+                if ( false )
                 {
-                    extractNode.Revert();
-
-                    throw;
-                }
-            }
-
-            if ( hasTXDOptions || hasTextureOptions )
-            {
-                // We also might want to convert TXD files.
-                contextMan::node convertNode = optionsNode.AddSubmenuEntryW( L"Set Platform" );
-
-                try
-                {
-                    // Fill it with entries of platforms that we can target.
-                    rw::platformTypeNameList_t availPlatforms = rw::GetAvailableNativeTextureTypes( rwEngine );
-
-                    UINT cur_index = 0;
-
-                    for ( const std::string& name : availPlatforms )
+                    // For texture dictionaries, we allow opening with Magic.TXD.
+                    if ( hasTXDOptions && this->contextOptions.size() < 4 )
                     {
-                        std::wstring displayString = ansi_to_unicode( name.c_str() );
-
-                        convertNode.AddCommandEntryW( displayString.c_str(), "setPlat_" + name,
+                        optionsNode.AddCommandEntryW( L"Open with Magic.TXD", "open_with_mgtxd",
                             [=]( void )
                         {
-                            try
-                            {
-                                this->forAllContextItems(
-                                    [=]( const wchar_t *fileName )
-                                {
-                                    TexObj_transform_ser( fileName,
-                                        [=]( rw::TextureBase *texHandle )
-                                    {
-                                        // Convert to another platform.
-                                        // We only want to suceed with stuff if we actually wrote everything.
-                                        if ( rw::Raster *texRaster = texHandle->GetRaster() )
-                                        {
-                                            rw::ConvertRasterTo( texRaster, name.c_str() );
-                                        }
-                                    });
-                                });
-                            }
-                            catch( rw::RwException& except )
-                            {
-                                // We should display a message box.
-                                std::string errorMessage( "failed to convert to platform: " );
-
-                                errorMessage += except.message;
-
-                                MessageBoxA( NULL, errorMessage.c_str(), "Conversion Error", MB_OK );
-
-                                // Throw further.
-                                throw;
-                            }
-
+                            //__debugbreak();
                             return true;
                         });
                     }
                 }
-                catch( ... )
-                {
-                    convertNode.Revert();
-
-                    throw;
-                }
             }
-
-            // Every RenderWare object has this ability.
-            // We also want the ability to change game version.
+            catch( ... )
             {
-                contextMan::node versionNode = optionsNode.AddSubmenuEntryW( L"Set Version" );
+                optionsNode.Revert();
 
-                try
-                {
-                    // Add game versions.
-                    for ( const std::pair <std::wstring, rw::KnownVersions::eGameVersion>& verPair : gameVerMap )
-                    {
-                        versionNode.AddCommandEntryW( verPair.first.c_str(), std::string( "gameVer_" ) + std::to_string( verPair.second ),
-                            [=]( void )
-                        {
-                            try
-                            {
-                                // Execute us.
-                                this->forAllContextItems(
-                                    [=]( const wchar_t *fileName )
-                                {
-                                    RwObj_transform_ser( fileName,
-                                        [=]( rw::RwObject *rwObj )
-                                    {
-                                        RwObj_deepTraverse( rwObj,
-                                            [=]( rw::RwObject *rwObj )
-                                        {
-                                            rw::LibraryVersion newVer = rw::KnownVersions::getGameVersion( verPair.second );
-
-                                            rwObj->SetEngineVersion( newVer );
-                                        });
-                                    });
-                                });
-                            }
-                            catch( rw::RwException& except )
-                            {
-                                // We want to inform about this aswell.
-                                std::string errorMsg( "failed to set game version: " );
-
-                                errorMsg += except.message;
-
-                                MessageBoxA( NULL, errorMsg.c_str(), "Error", MB_OK );
-
-                                // Pass on the error.
-                                throw;
-                            }
-                            return true;
-                        });
-                    }
-                }
-                catch( ... )
-                {
-                    versionNode.Revert();
-
-                    throw;
-                }
-            }
-
-            // TODO: detect whether Magic.TXD has been installed into a location.
-            if ( false )
-            {
-                // For texture dictionaries, we allow opening with Magic.TXD.
-                if ( hasTXDOptions && this->contextOptions.size() < 4 )
-                {
-                    optionsNode.AddCommandEntryW( L"Open with Magic.TXD", "open_with_mgtxd",
-                        [=]( void )
-                    {
-                        //__debugbreak();
-                        return true;
-                    });
-                }
+                return HRESULT_FROM_WIN32( GetLastError() );
             }
         }
-        catch( ... )
-        {
-            optionsNode.Revert();
-
-            return HRESULT_FROM_WIN32( GetLastError() );
-        }
+    }
+    catch( ... )
+    {
+        // We cannot afford having any runtime error, so we must cleanly abort.
     }
 
     // Determine the highest used ID.
@@ -1280,79 +1295,87 @@ IFACEMETHODIMP RenderWareContextHandlerProvider::QueryContextMenu(
 
 IFACEMETHODIMP RenderWareContextHandlerProvider::InvokeCommand( LPCMINVOKECOMMANDINFO pici )
 {
-    // Check whether we do a unicode request.
-    bool isUnicode = false;
-
-    if ( pici->cbSize == sizeof( CMINVOKECOMMANDINFOEX ) )
+    try
     {
-        CMINVOKECOMMANDINFOEX *infoEx = (CMINVOKECOMMANDINFOEX*)pici;
+        // Check whether we do a unicode request.
+        bool isUnicode = false;
 
-        if ( HIWORD( infoEx->lpVerbW ) != 0 )
-        {
-            isUnicode = true;
-        }
-    }
-
-    // We check by context menu id.
-    bool isANSIVerbMode = ( HIWORD( pici->lpVerb ) != 0 );
-    
-    bool hasFoundCommandID = false;
-    UINT cmdID = 0xFFFFFFFF;
-
-    if ( !hasFoundCommandID )
-    {
-        // Try to handle the unicode version.
-        if ( isUnicode )
+        if ( pici->cbSize == sizeof( CMINVOKECOMMANDINFOEX ) )
         {
             CMINVOKECOMMANDINFOEX *infoEx = (CMINVOKECOMMANDINFOEX*)pici;
 
-            hasFoundCommandID = findCommandUnicode( infoEx->lpVerbW, cmdID );
-        }
-    }
-
-    if ( !hasFoundCommandID ) 
-    {
-        // Try to handle the ANSI version.
-        if ( isANSIVerbMode )
-        {
-            hasFoundCommandID = findCommandANSI( pici->lpVerb, cmdID );
-        }
-    }
-
-    if ( !hasFoundCommandID )
-    {
-        if ( !isANSIVerbMode )
-        {
-            cmdID = LOWORD( pici->lpVerb );
-
-            hasFoundCommandID = true;
-        }
-    }
-
-    HRESULT isHandled = E_FAIL;
-
-    if ( hasFoundCommandID )
-    {
-        // Execute the item.
-        menuCmdMap_t::const_iterator iter = this->cmdMap.find( cmdID );
-
-        if ( iter != this->cmdMap.end() )
-        {
-            try
+            if ( HIWORD( infoEx->lpVerbW ) != 0 )
             {
-                // Do it.
-                bool successful = iter->second();
-
-                isHandled = ( successful ? S_OK : S_FALSE );
-            }
-            catch( ... )
-            {
-                // If we encountered any exception, just fail the handler.
+                isUnicode = true;
             }
         }
-    }
 
-    return isHandled;
+        // We check by context menu id.
+        bool isANSIVerbMode = ( HIWORD( pici->lpVerb ) != 0 );
+    
+        bool hasFoundCommandID = false;
+        UINT cmdID = 0xFFFFFFFF;
+
+        if ( !hasFoundCommandID )
+        {
+            // Try to handle the unicode version.
+            if ( isUnicode )
+            {
+                CMINVOKECOMMANDINFOEX *infoEx = (CMINVOKECOMMANDINFOEX*)pici;
+
+                hasFoundCommandID = findCommandUnicode( infoEx->lpVerbW, cmdID );
+            }
+        }
+
+        if ( !hasFoundCommandID ) 
+        {
+            // Try to handle the ANSI version.
+            if ( isANSIVerbMode )
+            {
+                hasFoundCommandID = findCommandANSI( pici->lpVerb, cmdID );
+            }
+        }
+
+        if ( !hasFoundCommandID )
+        {
+            if ( !isANSIVerbMode )
+            {
+                cmdID = LOWORD( pici->lpVerb );
+
+                hasFoundCommandID = true;
+            }
+        }
+
+        HRESULT isHandled = E_FAIL;
+
+        if ( hasFoundCommandID )
+        {
+            // Execute the item.
+            menuCmdMap_t::const_iterator iter = this->cmdMap.find( cmdID );
+
+            if ( iter != this->cmdMap.end() )
+            {
+                try
+                {
+                    // Do it.
+                    bool successful = iter->second();
+
+                    isHandled = ( successful ? S_OK : S_FALSE );
+                }
+                catch( ... )
+                {
+                    // If we encountered any exception, just fail the handler.
+                }
+            }
+        }
+
+        return isHandled;
+    }
+    catch( ... )
+    {
+        // Any exception really should not be passed on
+        return E_FAIL;
+    }
 }
 
 IFACEMETHODIMP RenderWareContextHandlerProvider::GetCommandString(
@@ -1360,63 +1383,71 @@ IFACEMETHODIMP RenderWareContextHandlerProvider::GetCommandString(
     UINT *pwReserved, LPSTR pszName, UINT cchMax
 )
 {
-    HRESULT res = E_FAIL;
-
-    if ( uFlags == GCS_HELPTEXTA || uFlags == GCS_HELPTEXTW )
+    try
     {
-        // No thanks.
-        res = E_FAIL;
-    }
-    else if ( uFlags == GCS_VALIDATEA || uFlags == GCS_VALIDATEW )
-    {
-        // Check by string.
-        bool doesExist = false;
+        HRESULT res = E_FAIL;
 
-        // We check in the map directly.
-        UINT cmdID = 0xFFFFFFFF;
-
-        if ( uFlags == GCS_VALIDATEA )
+        if ( uFlags == GCS_HELPTEXTA || uFlags == GCS_HELPTEXTW )
         {
-            doesExist = findCommandANSI( pszName, cmdID );
+            // No thanks.
+            res = E_FAIL;
         }
-        else if ( uFlags == GCS_VALIDATEW )
+        else if ( uFlags == GCS_VALIDATEA || uFlags == GCS_VALIDATEW )
         {
-            doesExist = findCommandUnicode( (const wchar_t*)pszName, cmdID );
-        }
+            // Check by string.
+            bool doesExist = false;
 
-        res = ( doesExist ? S_OK : S_FALSE );
-    }
-    else if ( uFlags == GCS_VERBA || uFlags == GCS_VERBW )
-    {
-        const verbMap_t::const_iterator verbIter = this->verbMap.find( (UINT)idCommand );
+            // We check in the map directly.
+            UINT cmdID = 0xFFFFFFFF;
 
-        if ( verbIter != this->verbMap.end() )
-        {
-            const std::string& theVerb = verbIter->second;
-
-            if ( uFlags == GCS_VERBA )
+            if ( uFlags == GCS_VALIDATEA )
             {
-                if ( cchMax >= theVerb.size() + 1 )
-                {
-                    // Write the string.
-                    strcpy( pszName, theVerb.c_str() );
+                doesExist = findCommandANSI( pszName, cmdID );
+            }
+            else if ( uFlags == GCS_VALIDATEW )
+            {
+                doesExist = findCommandUnicode( (const wchar_t*)pszName, cmdID );
+            }
 
-                    res = S_OK;
+            res = ( doesExist ? S_OK : S_FALSE );
+        }
+        else if ( uFlags == GCS_VERBA || uFlags == GCS_VERBW )
+        {
+            const verbMap_t::const_iterator verbIter = this->verbMap.find( (UINT)idCommand );
+
+            if ( verbIter != this->verbMap.end() )
+            {
+                const std::string& theVerb = verbIter->second;
+
+                if ( uFlags == GCS_VERBA )
+                {
+                    if ( cchMax >= theVerb.size() + 1 )
+                    {
+                        // Write the string.
+                        strcpy( pszName, theVerb.c_str() );
+
+                        res = S_OK;
+                    }
+                }
+                else if ( uFlags == GCS_VERBW )
+                {
+                    std::wstring wideVerb( theVerb.begin(), theVerb.end() );
+
+                    if ( cchMax >= wideVerb.size() + 1 )
+                    {
+                        wcscpy( (wchar_t*)pszName, wideVerb.c_str() );
+
+                        res = S_OK;
+                    }
                 }
             }
-            else if ( uFlags == GCS_VERBW )
-            {
-                std::wstring wideVerb( theVerb.begin(), theVerb.end() );
-
-                if ( cchMax >= wideVerb.size() + 1 )
-                {
-                    wcscpy( (wchar_t*)pszName, wideVerb.c_str() );
-
-                    res = S_OK;
-                }
-            }
         }
-    }
 
-    return res;
+        return res;
+    }
+    catch( ... )
+    {
+        // Be sure to cleanly terminate!
+        return E_FAIL;
+    }
 }

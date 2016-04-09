@@ -838,23 +838,33 @@ struct SquareMatrix
     }
 
 private:
+    template <size_t n>
+    struct cachedMatrixMultiply
+    {
+        AINLINE static void mult( SquareMatrix& newMat, const SquareMatrix& left, const SquareMatrix& right )
+        {
+            newMat[ n ] = ( left * right[ n ] );
+
+            cachedMatrixMultiply <n+1>::mult( newMat, left, right );
+        }
+    };
+
+    template <>
+    struct cachedMatrixMultiply <dimm>
+    {
+        AINLINE static void mult( SquareMatrix& newMat, const SquareMatrix& left, const SquareMatrix& right )
+        {
+            return;
+        }
+    };
+
     AINLINE static void multiplyWith( SquareMatrix& newMat, const SquareMatrix& left, const SquareMatrix& right )
     {
-        for ( size_t y_pos = 0; y_pos < dimm; y_pos++ )
-        {
-            for ( size_t x_pos = 0; x_pos < dimm; x_pos++ )
-            {
-                // Cross product of row and column vectors.
-                numberType val = numberType();
+        // Optimized multiply based on linear combination of vectors.
+        // After all, the computer is very good at mutating things.
+        const SquareMatrix cachedLeftMat( left );
 
-                for ( size_t dimiter = 0; dimiter < dimm; dimiter++ )
-                {
-                    val += ( left[y_pos][dimiter] * right[dimiter][x_pos] );
-                }
-
-                newMat[ y_pos ][ x_pos ] = val;
-            }
-        }
+        cachedMatrixMultiply <0>::mult( newMat, cachedLeftMat, right );
     }
 
 public:
@@ -878,26 +888,33 @@ public:
     }
 
     // Transforming vectors.
+private:
+    template <size_t n>
+    struct cachedVectorTransform
+    {
+        AINLINE static void trans( vec_t& newVec, const SquareMatrix& srcMat, const vec_t& right )
+        {
+            newVec += ( srcMat.vecs[ n ] * right[ n ] );
+
+            cachedVectorTransform <n+1>::trans( newVec, srcMat, right );
+        }
+    };
+
+    template <>
+    struct cachedVectorTransform <dimm>
+    {
+        AINLINE static void trans( vec_t& newVec, const SquareMatrix& srcMat, const vec_t& right )
+        {
+            return;
+        }
+    };
+
+public:
     AINLINE vec_t operator * ( const vec_t& right ) const
     {
         vec_t newVec;
 
-        for ( size_t n = 0; n < dimm; n++ )
-        {
-            newVec += ( this->vecs[ n ] * right[ n ] );
-        }
-
-        return newVec;
-    }
-
-    AINLINE vec_t operator * ( vec_t&& right ) const
-    {
-        vec_t newVec;
-
-        for ( size_t n = 0; n < dimm; n++ )
-        {
-            newVec += ( this->vecs[ n ] * right[ n ] );
-        }
+        cachedVectorTransform <0>::trans( newVec, *this, right );
 
         return newVec;
     }

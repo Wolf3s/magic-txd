@@ -12,7 +12,7 @@
 #define RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 #define RWLIB_INCLUDE_NATIVETEX_PSP
 #define RWLIB_INCLUDE_NATIVETEX_XBOX
-//#define RWLIB_INCLUDE_NATIVETEX_GAMECUBE  This one will be done later.. not really important.
+#define RWLIB_INCLUDE_NATIVETEX_GAMECUBE
 #define RWLIB_INCLUDE_NATIVETEX_S3TC_MOBILE
 #define RWLIB_INCLUDE_NATIVETEX_POWERVR_MOBILE
 #define RWLIB_INCLUDE_NATIVETEX_UNC_MOBILE
@@ -35,6 +35,11 @@
 #define RWLIB_INCLUDE_JPEG_IMAGING
 #define RWLIB_INCLUDE_GIF_IMAGING
 #define RWLIB_INCLUDE_TIFF_IMAGING
+
+// Define those if you want to include support for certain native image formats.
+// Native image formats are more powerful than generic imaging formats but are more complicated.
+#define RWLIB_INCLUDE_DDS_NATIVEIMG
+#define RWLIB_INCLUDE_PVR_NATIVEIMG
 
 // Define this if you want to enable the "libimagequant" library for palletizing
 // image data. This is highly recommended, as that library produces high

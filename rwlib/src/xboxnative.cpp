@@ -1,9 +1,12 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include <cstdio>
 #include <cstdlib>
 
 #include "streamutil.hxx"
+
+#pragma warning(disable: 4267)
+#pragma warning(disable: 4244)
 
 namespace rw
 {

@@ -1,6 +1,8 @@
 #ifndef _XGRAPHICS_LITE_
 #define _XGRAPHICS_LITE_
 
+typedef std::uint32_t DWORD;
+
 // Taken from the XDK.
 typedef DWORD SWIZNUM;
 

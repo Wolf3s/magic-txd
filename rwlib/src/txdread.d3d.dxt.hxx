@@ -36,7 +36,7 @@ AINLINE numType indexlist_lookup( const numType& indexList, numType index, numTy
 
     numType shiftCount = ( index * bit_count );
 
-    return ( indexList & ( bitMask << shiftCount ) ) >> shiftCount;
+    return ( ( indexList >> shiftCount ) & bitMask );
 }
 
 AINLINE uint32 fetchDXTIndexList( const uint32& indexList, uint32 local_x, uint32 local_y )
@@ -46,38 +46,71 @@ AINLINE uint32 fetchDXTIndexList( const uint32& indexList, uint32 local_x, uint3
     return indexlist_lookup( indexList, coord_index, 2u );
 }
 
+template <typename numType>
+AINLINE void indexlist_put( numType& indexList, numType index, numType bit_count, numType value )
+{
+    numType bitMask = ( (numType)std::pow( (numType)2, bit_count ) - 1 );
+
+    numType shiftCount = ( index * bit_count );
+
+    indexList |= ( ( value & bitMask ) << shiftCount );
+}
+
+AINLINE void putDXTIndexList( uint32& indexList, uint32 local_x, uint32 local_y, uint32 value )
+{
+    uint32 coord_index = getDXTLocalBlockIndex( local_x, local_y );
+
+    indexlist_put( indexList, coord_index, 2u, value );
+}
+
+// TODO: maybe force these to be little-endian?
+// We might want to convert them to the architecture format before passing
+// to SQUISH and other libraries, tbh. Something to think about.
+
+template <template <typename numberType> class endianness>
 struct dxt1_block
 {
-    rgb565 col0;
-    rgb565 col1;
+    endianness <rgb565> col0;
+    endianness <rgb565> col1;
 
-    uint32 indexList;
+    endianness <uint32> indexList;
 };
+static_assert( sizeof( dxt1_block <endian::little_endian> ) == 8, "DXT1 block must be 8 bytes in size!" );
 
+template <template <typename numberType> class endianness>
 struct dxt2_3_block
 {
-    uint64 alphaList;
+    endianness <uint64> alphaList;
 
-    rgb565 col0;
-    rgb565 col1;
+    endianness <rgb565> col0;
+    endianness <rgb565> col1;
 
-    uint32 indexList;
+    endianness <uint32> indexList;
 
     inline uint32 getAlphaForTexel( uint32 index ) const
     {
-        return indexlist_lookup( this->indexList, index, 4u );
+        uint32 indexList = this->indexList;
+
+        return indexlist_lookup( indexList, index, 4u );
     }
 };
+static_assert( sizeof( dxt2_3_block <endian::little_endian> ) == 16, "DXT2/3 block must be 16 bytes in size!" );
 
+struct uint48_t
+{
+    char data[6];
+};
+
+template <template <typename numberType> class endianness>
 struct dxt4_5_block
 {
     uint8 alphaPreMult[2];
-    uint8 alphaList[6];
+    endianness <uint48_t> alphaList;
 
-    rgb565 col0;
-    rgb565 col1;
+    endianness <rgb565> col0;
+    endianness <rgb565> col1;
 
-    uint32 indexList;
+    endianness <uint32> indexList;
 
     static inline uint8 getAlphaByIndex( uint32 first_alpha, uint32 second_alpha, uint32 alphaIndex )
     {
@@ -128,6 +161,7 @@ struct dxt4_5_block
         return theAlpha;
     }
 };
+static_assert( sizeof( dxt4_5_block <endian::little_endian> ) == 16, "DXT4/5 block must be 16 bytes in size!" );
 
 struct squish_color
 {
@@ -180,6 +214,7 @@ inline void unpremultiplyByAlpha(
     blueOut = packcolor( b );
 }
 
+template <template <typename numberType> class endianness>
 inline bool decompressDXTBlock(
     eDXTCompressionMethod dxtMethod,
     const void *theTexels, uint32 blockIndex, uint32 dxtType,
@@ -188,337 +223,244 @@ inline bool decompressDXTBlock(
 {
     bool hasDecompressed = false;
 
-    bool useNative = false;
-
-    if (dxtMethod == DXTRUNTIME_NATIVE || dxtType == 2 || dxtType == 4)
+    // Since Squish supports little-endian only, we do the decompression ourselves.
+    if (dxtType == 1)
     {
-        useNative = true;
+        const dxt1_block <endianness> *block = (const dxt1_block <endianness>*)theTexels + blockIndex;
+
+		/* calculate colors */
+		const rgb565 col0 = block->col0;
+		const rgb565 col1 = block->col1;
+		uint32 c[4][4];
+
+		c[0][0] = col0.red * 0xFF/0x1F;
+		c[0][1] = col0.green * 0xFF/0x3F;
+		c[0][2] = col0.blue * 0xFF/0x1F;
+		c[0][3] = 0xFF;
+
+		c[1][0] = col1.red * 0xFF/0x1F;
+		c[1][1] = col1.green * 0xFF/0x3F;
+		c[1][2] = col1.blue * 0xFF/0x1F;
+        c[1][3] = 0xFF;
+
+		if (col0.val > col1.val)
+        {
+			c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
+			c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
+			c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
+			c[2][3] = 0xFF;
+
+			c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
+			c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
+			c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
+			c[3][3] = 0xFF;
+		}
+        else
+        {
+			c[2][0] = (c[0][0] + c[1][0])/2;
+			c[2][1] = (c[0][1] + c[1][1])/2;
+			c[2][2] = (c[0][2] + c[1][2])/2;
+			c[2][3] = 0xFF;
+
+			c[3][0] = 0x00;
+			c[3][1] = 0x00;
+			c[3][2] = 0x00;
+		    c[3][3] = 0x00;
+		}
+
+		/* make index list */
+		uint32 indicesint = block->indexList;
+		uint8 indices[16];
+		for (int32 k = 0; k < 16; k++)
+        {
+			indices[k] = indicesint & 0x3;
+			indicesint >>= 2;
+		}
+
+		/* write bytes */
+		for (uint32 y_block = 0; y_block < 4; y_block++)
+        {
+			for (uint32 x_block = 0; x_block < 4; x_block++)
+            {
+                PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
+
+                uint32 coordIndex = ( y_block * 4 + x_block );
+
+                uint32 colorIndex = indices[ coordIndex ];
+
+                uint8 red       = c[ colorIndex ][0];
+                uint8 green     = c[ colorIndex ][1];
+                uint8 blue      = c[ colorIndex ][2];
+                uint8 alpha     = c[ colorIndex ][3];
+
+                pixelOut.red    = red;
+                pixelOut.green  = green;
+                pixelOut.blue   = blue;
+                pixelOut.alpha  = alpha;
+			}
+        }
+
+        hasDecompressed = true;
     }
-    
-    if (useNative)
+    else if (dxtType == 2 || dxtType == 3)
     {
-        if (dxtType == 1)
+        bool isPremultiplied = ( dxtType == 2 );
+
+        const dxt2_3_block <endianness> *block = (const dxt2_3_block <endianness>*)theTexels + blockIndex;
+
+		/* calculate colors */
+		const rgb565 col0 = block->col0;
+		const rgb565 col1 = block->col1;
+		uint32 c[4][4];
+
+		c[0][0] = col0.red * 0xFF/0x1F;
+		c[0][1] = col0.green * 0xFF/0x3F;
+		c[0][2] = col0.blue * 0xFF/0x1F;
+
+		c[1][0] = col1.red * 0xFF/0x1F;
+		c[1][1] = col1.green * 0xFF/0x3F;
+		c[1][2] = col1.blue * 0xFF/0x1F;
+
+		c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
+		c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
+		c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
+
+		c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
+		c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
+		c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
+
+		/* make index list */
+		uint32 indicesint = block->indexList;
+		uint8 indices[16];
+
+		for (int32 k = 0; k < 16; k++)
         {
-            const dxt1_block *block = (const dxt1_block*)theTexels + blockIndex;
+			indices[k] = indicesint & 0x3;
+			indicesint >>= 2;
+		}
 
-		    /* calculate colors */
-		    const rgb565 col0 = block->col0;
-		    const rgb565 col1 = block->col1;
-		    uint32 c[4][4];
+		uint64 alphasint = block->alphaList;
+		uint8 alphas[16];
 
-		    c[0][0] = col0.red * 0xFF/0x1F;
-		    c[0][1] = col0.green * 0xFF/0x3F;
-		    c[0][2] = col0.blue * 0xFF/0x1F;
-		    c[0][3] = 0xFF;
-
-		    c[1][0] = col1.red * 0xFF/0x1F;
-		    c[1][1] = col1.green * 0xFF/0x3F;
-		    c[1][2] = col1.blue * 0xFF/0x1F;
-            c[1][3] = 0xFF;
-
-		    if (col0.val > col1.val)
-            {
-			    c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
-			    c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
-			    c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
-			    c[2][3] = 0xFF;
-
-			    c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
-			    c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
-			    c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
-			    c[3][3] = 0xFF;
-		    }
-            else
-            {
-			    c[2][0] = (c[0][0] + c[1][0])/2;
-			    c[2][1] = (c[0][1] + c[1][1])/2;
-			    c[2][2] = (c[0][2] + c[1][2])/2;
-			    c[2][3] = 0xFF;
-
-			    c[3][0] = 0x00;
-			    c[3][1] = 0x00;
-			    c[3][2] = 0x00;
-		        c[3][3] = 0x00;
-		    }
-
-		    /* make index list */
-		    uint32 indicesint = block->indexList;
-		    uint8 indices[16];
-		    for (int32 k = 0; k < 16; k++)
-            {
-			    indices[k] = indicesint & 0x3;
-			    indicesint >>= 2;
-		    }
-
-		    /* write bytes */
-		    for (uint32 y_block = 0; y_block < 4; y_block++)
-            {
-			    for (uint32 x_block = 0; x_block < 4; x_block++)
-                {
-                    PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
-
-                    uint32 coordIndex = ( y_block * 4 + x_block );
-
-                    uint32 colorIndex = indices[ coordIndex ];
-
-                    uint8 red       = c[ colorIndex ][0];
-                    uint8 green     = c[ colorIndex ][1];
-                    uint8 blue      = c[ colorIndex ][2];
-                    uint8 alpha     = c[ colorIndex ][3];
-
-                    pixelOut.red    = red;
-                    pixelOut.green  = green;
-                    pixelOut.blue   = blue;
-                    pixelOut.alpha  = alpha;
-			    }
-            }
-
-            hasDecompressed = true;
-        }
-        else if (dxtType == 2 || dxtType == 3)
+		for (int32 k = 0; k < 16; k++)
         {
-            bool isPremultiplied = ( dxtType == 2 );
+			alphas[k] = (alphasint & 0xF)*17;
+			alphasint >>= 4;
+		}
 
-            const dxt2_3_block *block = (const dxt2_3_block*)theTexels + blockIndex;
-
-		    /* calculate colors */
-		    const rgb565 col0 = block->col0;
-		    const rgb565 col1 = block->col1;
-		    uint32 c[4][4];
-
-		    c[0][0] = col0.red * 0xFF/0x1F;
-		    c[0][1] = col0.green * 0xFF/0x3F;
-		    c[0][2] = col0.blue * 0xFF/0x1F;
-
-		    c[1][0] = col1.red * 0xFF/0x1F;
-		    c[1][1] = col1.green * 0xFF/0x3F;
-		    c[1][2] = col1.blue * 0xFF/0x1F;
-
-		    c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
-		    c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
-		    c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
-
-		    c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
-		    c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
-		    c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
-
-		    /* make index list */
-		    uint32 indicesint = block->indexList;
-		    uint8 indices[16];
-
-		    for (int32 k = 0; k < 16; k++)
-            {
-			    indices[k] = indicesint & 0x3;
-			    indicesint >>= 2;
-		    }
-
-		    uint64 alphasint = block->alphaList;
-		    uint8 alphas[16];
-
-		    for (int32 k = 0; k < 16; k++)
-            {
-			    alphas[k] = (alphasint & 0xF)*17;
-			    alphasint >>= 4;
-		    }
-
-		    /* write bytes */
-		    for (uint32 y_block = 0; y_block < 4; y_block++)
-            {
-			    for (uint32 x_block = 0; x_block < 4; x_block++)
-                {
-                    PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
-
-                    uint32 coordIndex = ( y_block * 4 + x_block );
-
-                    uint32 colorIndex = indices[ coordIndex ];
-
-                    uint8 red       = c[ colorIndex ][0];
-                    uint8 green     = c[ colorIndex ][1];
-                    uint8 blue      = c[ colorIndex ][2];
-                    uint8 alpha     = alphas[ coordIndex ];
-
-                    // Since the color has been premultiplied with the alpha, we should reverse that.
-                    if ( isPremultiplied )
-                    {
-                        unpremultiplyByAlpha( red, green, blue, alpha, red, green, blue );
-                    }
-
-                    pixelOut.red    = red;
-                    pixelOut.green  = green;
-                    pixelOut.blue   = blue;
-                    pixelOut.alpha  = alpha;
-			    }
-            }
-
-            hasDecompressed = true;
-        }
-        else if (dxtType == 4 || dxtType == 5)
+		/* write bytes */
+		for (uint32 y_block = 0; y_block < 4; y_block++)
         {
-            bool isPremultiplied = ( dxtType == 4 );
-
-            const dxt4_5_block *block = (const dxt4_5_block*)theTexels + blockIndex;
-
-		    /* calculate colors */
-		    const rgb565 col0 = block->col0;
-		    const rgb565 col1 = block->col1;
-		    uint32 c[4][4];
-
-		    c[0][0] = col0.red * 0xFF/0x1F;
-		    c[0][1] = col0.green * 0xFF/0x3F;
-		    c[0][2] = col0.blue * 0xFF/0x1F;
-
-		    c[1][0] = col1.red * 0xFF/0x1F;
-		    c[1][1] = col1.green * 0xFF/0x3F;
-		    c[1][2] = col1.blue * 0xFF/0x1F;
-
-		    c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
-		    c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
-		    c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
-
-		    c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
-		    c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
-		    c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
-
-		    uint32 a[8];
-
-            uint8 first_alpha = block->alphaPreMult[0];
-            uint8 second_alpha = block->alphaPreMult[1];
-
-            for ( uint32 n = 0; n < 8; n++ )
+			for (uint32 x_block = 0; x_block < 4; x_block++)
             {
-                a[n] = dxt4_5_block::getAlphaByIndex( first_alpha, second_alpha, n );
-            }
+                PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
 
-		    /* make index list */
-		    uint32 indicesint = block->indexList;
-		    uint8 indices[16];
-		    for (uint32 k = 0; k < 16; k++)
-            {
-			    indices[k] = indexlist_lookup( indicesint, k, 2u );
-		    }
-		    // actually 6 bytes
-		    uint64 alphasint = *((uint64 *) &block->alphaList );
-		    uint8 alphas[16];
-		    for (uint32 k = 0; k < 16; k++)
-            {
-			    alphas[k] = (uint8)indexlist_lookup( alphasint, (uint64)k, (uint64)3 );
-		    }
+                uint32 coordIndex = ( y_block * 4 + x_block );
 
-		    /* write bytes */
-		    for (uint32 y_block = 0; y_block < 4; y_block++)
-            {
-			    for (uint32 x_block = 0; x_block < 4; x_block++)
-                {
-                    PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
+                uint32 colorIndex = indices[ coordIndex ];
 
-                    uint32 coordIndex = getDXTLocalBlockIndex( x_block, y_block );
+                uint8 red       = c[ colorIndex ][0];
+                uint8 green     = c[ colorIndex ][1];
+                uint8 blue      = c[ colorIndex ][2];
+                uint8 alpha     = alphas[ coordIndex ];
 
-                    uint32 colorIndex = indices[ coordIndex ];
-
-                    uint8 red       = c[ colorIndex ][0];
-                    uint8 green     = c[ colorIndex ][1];
-                    uint8 blue      = c[ colorIndex ][2];
-                    uint8 alpha     = a[ alphas[ coordIndex ] ];
-
-                    // Since the color has been premultiplied with the alpha, we should reverse that.
-                    if ( isPremultiplied )
-                    {
-                        unpremultiplyByAlpha( red, green, blue, alpha, red, green, blue );
-                    }
-
-                    pixelOut.red    = red;
-                    pixelOut.green  = green;
-                    pixelOut.blue   = blue;
-                    pixelOut.alpha  = alpha;
-			    }
-            }
-
-            hasDecompressed = true;
-        }
-    }
-
-    if ( !hasDecompressed )
-    {
-        // Get the decompression flags.
-        int dxt_flags = 0;
-
-        bool canDecompress = false;
-
-        bool isPremultiplied = false;
-
-        if (dxtType == 1)
-        {
-            dxt_flags |= squish::kDxt1;
-
-            canDecompress = true;
-        }
-        else if (dxtType == 2 || dxtType == 3)
-        {
-            dxt_flags |= squish::kDxt3;
-
-            canDecompress = true;
-
-            isPremultiplied = ( dxtType == 2 );
-        }
-        else if (dxtType == 4 || dxtType == 5)
-        {
-            dxt_flags |= squish::kDxt5;
-
-            canDecompress = true;
-            
-            isPremultiplied = ( dxtType == 4 );
-        }
-
-        if (canDecompress)
-        {
-            // If the native code did not decode the DXT block, try to do it with SQUISH.
-            size_t dxtBlockSize = 0;
-
-            if (dxtType == 1)
-            {
-                dxtBlockSize = sizeof(dxt1_block);
-            }
-            else if (dxtType == 2 || dxtType == 3)
-            {
-                dxtBlockSize = sizeof(dxt2_3_block);
-            }
-            else if (dxtType == 4 || dxtType == 5)
-            {
-                dxtBlockSize = sizeof(dxt4_5_block);
-            }
-
-            if ( dxtBlockSize != 0 )
-            {
-                const void *dxt_block = (const uint8*)theTexels + ( blockIndex * dxtBlockSize );
-
-                squish::Decompress( (squish::u8*)colorsOut, dxt_block, dxt_flags );
-
-                hasDecompressed = true;
-
-                // If we are premultiplied, we gotta fix that.
+                // Since the color has been premultiplied with the alpha, we should reverse that.
                 if ( isPremultiplied )
                 {
-                    for ( uint32 y_block = 0; y_block < 4; y_block++ )
-                    {
-                        for ( uint32 x_block = 0; x_block < 4; x_block++ )
-                        {
-                            PixelFormat::pixeldata32bit& color = colorsOut[ y_block ][ x_block ];
-
-                            uint8 red = color.red;
-                            uint8 green = color.green;
-                            uint8 blue = color.blue;
-                            uint8 alpha = color.alpha;
-
-                            unpremultiplyByAlpha( red, green, blue, alpha, red, green, blue );
-
-                            color.red = red;
-                            color.green = green;
-                            color.blue = blue;
-                        }
-                    }
+                    unpremultiplyByAlpha( red, green, blue, alpha, red, green, blue );
                 }
-            }
+
+                pixelOut.red    = red;
+                pixelOut.green  = green;
+                pixelOut.blue   = blue;
+                pixelOut.alpha  = alpha;
+			}
         }
+
+        hasDecompressed = true;
+    }
+    else if (dxtType == 4 || dxtType == 5)
+    {
+        bool isPremultiplied = ( dxtType == 4 );
+
+        const dxt4_5_block <endianness> *block = (const dxt4_5_block <endianness>*)theTexels + blockIndex;
+
+		/* calculate colors */
+		const rgb565 col0 = block->col0;
+		const rgb565 col1 = block->col1;
+		uint32 c[4][4];
+
+		c[0][0] = col0.red * 0xFF/0x1F;
+		c[0][1] = col0.green * 0xFF/0x3F;
+		c[0][2] = col0.blue * 0xFF/0x1F;
+
+		c[1][0] = col1.red * 0xFF/0x1F;
+		c[1][1] = col1.green * 0xFF/0x3F;
+		c[1][2] = col1.blue * 0xFF/0x1F;
+
+		c[2][0] = (2*c[0][0] + 1*c[1][0])/3;
+		c[2][1] = (2*c[0][1] + 1*c[1][1])/3;
+		c[2][2] = (2*c[0][2] + 1*c[1][2])/3;
+
+		c[3][0] = (1*c[0][0] + 2*c[1][0])/3;
+		c[3][1] = (1*c[0][1] + 2*c[1][1])/3;
+		c[3][2] = (1*c[0][2] + 2*c[1][2])/3;
+
+		uint32 a[8];
+
+        uint8 first_alpha = block->alphaPreMult[0];
+        uint8 second_alpha = block->alphaPreMult[1];
+
+        for ( uint32 n = 0; n < 8; n++ )
+        {
+            a[n] = dxt4_5_block <endianness>::getAlphaByIndex( first_alpha, second_alpha, n );
+        }
+
+		/* make index list */
+		uint32 indicesint = block->indexList;
+		uint8 indices[16];
+		for (uint32 k = 0; k < 16; k++)
+        {
+			indices[k] = indexlist_lookup( indicesint, k, 2u );
+		}
+		// actually 6 bytes
+		uint64 alphasint = *((uint64 *) &block->alphaList );
+		uint8 alphas[16];
+		for (uint32 k = 0; k < 16; k++)
+        {
+			alphas[k] = (uint8)indexlist_lookup( alphasint, (uint64)k, (uint64)3 );
+		}
+
+		/* write bytes */
+		for (uint32 y_block = 0; y_block < 4; y_block++)
+        {
+			for (uint32 x_block = 0; x_block < 4; x_block++)
+            {
+                PixelFormat::pixeldata32bit& pixelOut = colorsOut[ y_block ][ x_block ];
+
+                uint32 coordIndex = getDXTLocalBlockIndex( x_block, y_block );
+
+                uint32 colorIndex = indices[ coordIndex ];
+
+                uint8 red       = c[ colorIndex ][0];
+                uint8 green     = c[ colorIndex ][1];
+                uint8 blue      = c[ colorIndex ][2];
+                uint8 alpha     = a[ alphas[ coordIndex ] ];
+
+                // Since the color has been premultiplied with the alpha, we should reverse that.
+                if ( isPremultiplied )
+                {
+                    unpremultiplyByAlpha( red, green, blue, alpha, red, green, blue );
+                }
+
+                pixelOut.red    = red;
+                pixelOut.green  = green;
+                pixelOut.blue   = blue;
+                pixelOut.alpha  = alpha;
+			}
+        }
+
+        hasDecompressed = true;
     }
 
     return hasDecompressed;
@@ -550,6 +492,7 @@ inline uint32 getDXTRasterDataSize(uint32 dxtType, uint32 texUnitCount)
     return ( texBlockCount * blockSize );
 }
 
+template <template <typename numberType> class endianness>
 inline void compressTexelsUsingDXT(
     Interface *engineInterface,
     uint32 dxtType, const void *texelSource, uint32 mipWidth, uint32 mipHeight, uint32 rowAlignment,
@@ -566,117 +509,159 @@ inline void compressTexelsUsingDXT(
 
     void *dxtArray = engineInterface->PixelAllocate( dxtDataSize );
 
-    // Calculate the row size of the source texture.
-    uint32 rawRowSize = getRasterDataRowSize( mipWidth, itemDepth, rowAlignment );
-
-    // Loop across the image.
-    uint32 compressedBlockCount = 0;
-
-    uint32 widthBlocks = alignedMipWidth / 4;
-    uint32 heightBlocks = alignedMipHeight / 4;
-
-    uint32 y = 0;
-
-    colorModelDispatcher <const void> fetchSrcDispatch( rasterFormat, colorOrder, itemDepth, paletteData, maxpalette, paletteType );
-
-    for ( uint32 y_block = 0; y_block < heightBlocks; y_block++, y += 4 )
+    if ( !dxtArray )
     {
-        uint32 x = 0;
+        throw RwException( "failed to allocate DXT surface in compression routine" );
+    }
+    
+    try
+    {
+        // Calculate the row size of the source texture.
+        uint32 rawRowSize = getRasterDataRowSize( mipWidth, itemDepth, rowAlignment );
 
-        for ( uint32 x_block = 0; x_block < widthBlocks; x_block++, x += 4 )
+        // Loop across the image.
+        uint32 compressedBlockCount = 0;
+
+        uint32 widthBlocks = alignedMipWidth / 4;
+        uint32 heightBlocks = alignedMipHeight / 4;
+
+        uint32 y = 0;
+
+        colorModelDispatcher fetchSrcDispatch( rasterFormat, colorOrder, itemDepth, paletteData, maxpalette, paletteType );
+
+        for ( uint32 y_block = 0; y_block < heightBlocks; y_block++, y += 4 )
         {
-            // Compress a 4x4 color block.
-            PixelFormat::pixeldata32bit colors[4][4];
+            uint32 x = 0;
 
-            // Check whether we should premultiply.
-            bool isPremultiplied = ( dxtType == 2 || dxtType == 4 );
-
-            for ( uint32 y_iter = 0; y_iter != 4; y_iter++ )
+            for ( uint32 x_block = 0; x_block < widthBlocks; x_block++, x += 4 )
             {
-                for ( uint32 x_iter = 0; x_iter != 4; x_iter++ )
+                // Compress a 4x4 color block.
+                PixelFormat::pixeldata32bit colors[4][4];
+
+                // Check whether we should premultiply.
+                bool isPremultiplied = ( dxtType == 2 || dxtType == 4 );
+
+                for ( uint32 y_iter = 0; y_iter != 4; y_iter++ )
                 {
-                    PixelFormat::pixeldata32bit& inColor = colors[ y_iter ][ x_iter ];
-
-                    uint8 r = 0;
-                    uint8 g = 0;
-                    uint8 b = 0;
-                    uint8 a = 0;
-
-                    uint32 targetX = ( x + x_iter );
-                    uint32 targetY = ( y + y_iter );
-
-                    if ( targetX < mipWidth && targetY < mipHeight )
+                    for ( uint32 x_iter = 0; x_iter != 4; x_iter++ )
                     {
-                        const void *rowData = getConstTexelDataRow( texelSource, rawRowSize, targetY );
+                        PixelFormat::pixeldata32bit& inColor = colors[ y_iter ][ x_iter ];
 
-                        fetchSrcDispatch.getRGBA( rowData, targetX, r, g, b, a );
+                        uint8 r = 0;
+                        uint8 g = 0;
+                        uint8 b = 0;
+                        uint8 a = 0;
+
+                        uint32 targetX = ( x + x_iter );
+                        uint32 targetY = ( y + y_iter );
+
+                        if ( targetX < mipWidth && targetY < mipHeight )
+                        {
+                            const void *rowData = getConstTexelDataRow( texelSource, rawRowSize, targetY );
+
+                            fetchSrcDispatch.getRGBA( rowData, targetX, r, g, b, a );
+                        }
+
+                        if ( isPremultiplied )
+                        {
+                            premultiplyByAlpha( r, g, b, a, r, g, b );
+                        }
+
+                        inColor.red = r;
+                        inColor.green = g;
+                        inColor.blue = b;
+                        inColor.alpha = a;
                     }
-
-                    if ( isPremultiplied )
-                    {
-                        premultiplyByAlpha( r, g, b, a, r, g, b );
-                    }
-
-                    inColor.red = r;
-                    inColor.green = g;
-                    inColor.blue = b;
-                    inColor.alpha = a;
                 }
+
+                // Compress it using SQUISH.
+
+                // Since SQUISH only supports native-word DXT blocks, we will have to
+                // convert to the correct endianness after compression.
+                if ( dxtType == 1 )
+                {
+                    struct native_dxt1_block
+                    {
+                        rgb565 col0;
+                        rgb565 col1;
+
+                        uint32 indexList;
+                    };
+                    native_dxt1_block compr_block;
+
+                    squish::Compress( (const squish::u8*)colors, &compr_block, squish::kDxt1 );
+
+                    // Write it into the texture in correct endianness.
+                    dxt1_block <endianness> *dstBlock = (dxt1_block <endianness>*)dxtArray + compressedBlockCount;
+
+                    dstBlock->col0 = compr_block.col0;
+                    dstBlock->col1 = compr_block.col1;
+                    dstBlock->indexList = compr_block.indexList;
+                }
+                else if ( dxtType == 2 || dxtType == 3 )
+                {
+                    struct native_dxt23_block
+                    {
+                        uint64 alphaList;
+
+                        rgb565 col0;
+                        rgb565 col1;
+
+                        uint32 indexList;
+                    };
+                    native_dxt23_block compr_block;
+
+                    squish::Compress( (const squish::u8*)colors, &compr_block, squish::kDxt3 );
+
+                    // Write it in correct endianness to the texture.
+                    dxt2_3_block <endianness> *dstBlock = (dxt2_3_block <endianness>*)dxtArray + compressedBlockCount;
+
+                    dstBlock->alphaList = compr_block.alphaList;
+                    dstBlock->col0 = compr_block.col0;
+                    dstBlock->col1 = compr_block.col1;
+                    dstBlock->indexList = compr_block.indexList;
+                }
+                else if ( dxtType == 4 || dxtType == 5 )
+                {
+                    struct native_dxt45_block
+                    {
+                        uint8 alphaPreMult[2];
+                        uint48_t alphaList;
+
+                        rgb565 col0;
+                        rgb565 col1;
+
+                        uint32 indexList;
+                    };
+                    native_dxt45_block compr_block;
+
+                    squish::Compress( (const squish::u8*)colors, &compr_block, squish::kDxt5 );
+
+                    // Write the destination block into the texture.
+                    dxt4_5_block <endianness> *dstBlock = (dxt4_5_block <endianness>*)dxtArray + compressedBlockCount;
+
+                    dstBlock->alphaPreMult[0] = compr_block.alphaPreMult[0];
+                    dstBlock->alphaPreMult[1] = compr_block.alphaPreMult[1];
+                    dstBlock->alphaList = compr_block.alphaList;
+                    dstBlock->col0 = compr_block.col0;
+                    dstBlock->col1 = compr_block.col1;
+                    dstBlock->indexList = compr_block.indexList;
+                }
+                else
+                {
+                    assert( 0 );
+                }
+
+                // Increment the block count.
+                compressedBlockCount++;
             }
-
-            // Compress it using SQUISH.
-            int squishFlags = 0;
-            bool canCompress = false;
-
-            size_t compressBlockSize = 0;
-            void *blockPointer = NULL;
-
-            union
-            {
-                dxt1_block _dxt1_block;
-                dxt2_3_block _dxt2_3_block;
-                dxt4_5_block _dxt4_5_block;
-            };
-
-            if ( dxtType == 1 )
-            {
-                squishFlags |= squish::kDxt1;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt1_block );
-                blockPointer = &_dxt1_block;
-            }
-            else if ( dxtType == 2 || dxtType == 3 )
-            {
-                squishFlags |= squish::kDxt3;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt2_3_block );
-                blockPointer = &_dxt2_3_block;
-            }
-            else if ( dxtType == 4 || dxtType == 5 )
-            {
-                squishFlags |= squish::kDxt5;
-
-                canCompress = true;
-
-                compressBlockSize = sizeof( _dxt4_5_block );
-                blockPointer = &_dxt4_5_block;
-            }
-
-            if ( canCompress )
-            {
-                squish::Compress( (const squish::u8*)colors, blockPointer, squishFlags );
-            }
-
-            // Put the block into the texture.
-            memcpy( (char*)dxtArray + compressedBlockCount * compressBlockSize, blockPointer, compressBlockSize );
-
-            // Increment the block count.
-            compressedBlockCount++;
         }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( dxtArray );
+
+        throw;
     }
 
     // Give the new texels to the runtime, along with the data size.
@@ -685,6 +670,132 @@ inline void compressTexelsUsingDXT(
 
     realWidthOut = alignedMipWidth;
     realHeightOut = alignedMipHeight;
+}
+
+// Generic decompressor based on no fixed types.
+template <template <typename numberType> class endianness, typename dstDispatchType>
+inline bool genericDecompressTexelsUsingDXT(
+    Interface *engineInterface, uint32 dxtType, eDXTCompressionMethod dxtMethod,
+    uint32 texWidth, uint32 texHeight, uint32 texRowAlignment,
+    uint32 texLayerWidth, uint32 texLayerHeight,
+    const void *srcTexels, dstDispatchType& putDispatch, uint32 putDepth,
+    void*& dstTexelsOut, uint32& dstTexelsDataSizeOut
+)
+{
+    // Allocate the new texel array.
+	uint32 rowSize = getRasterDataRowSize( texLayerWidth, putDepth, texRowAlignment );
+
+    uint32 dataSize = getRasterDataSizeByRowSize( rowSize, texHeight );
+
+	void *newtexels = engineInterface->PixelAllocate( dataSize );
+
+    if ( !newtexels )
+    {
+        throw RwException( "failed to allocate decompression destination surface for DXT" );
+    }
+    
+    bool successfullyDecompressed = true;
+
+    try
+    {
+        // Get the compressed block count.
+        uint32 compressedBlockCount = ( texWidth * texHeight ) / 16;
+
+	    uint32 x = 0, y = 0;
+
+	    for (uint32 n = 0; n < compressedBlockCount; n++)
+        {
+            PixelFormat::pixeldata32bit colors[4][4];
+
+            bool couldDecompressBlock = decompressDXTBlock <endianness> (dxtMethod, srcTexels, n, dxtType, colors);
+
+            if (couldDecompressBlock == false)
+            {
+                // If even one block fails to decompress, abort.
+                successfullyDecompressed = false;
+                break;
+            }
+
+            // Write the colors.
+            for (uint32 y_block = 0; y_block < 4; y_block++)
+            {
+                for (uint32 x_block = 0; x_block < 4; x_block++)
+                {
+                    uint32 target_x = ( x + x_block );
+                    uint32 target_y = ( y + y_block );
+
+                    if ( target_x < texLayerWidth && target_y < texLayerHeight )
+                    {
+                        const PixelFormat::pixeldata32bit& srcColor = colors[ y_block ][ x_block ];
+
+                        uint8 red       = srcColor.red;
+                        uint8 green     = srcColor.green;
+                        uint8 blue      = srcColor.blue;
+                        uint8 alpha     = srcColor.alpha;
+
+                        // Get the target row.
+                        void *theRow = getTexelDataRow( newtexels, rowSize, target_y );
+
+                        putDispatch.setRGBA(theRow, target_x, red, green, blue, alpha);
+                    }
+                }
+            }
+
+		    x += 4;
+
+		    if (x >= texWidth)
+            {
+			    y += 4;
+			    x = 0;
+		    }
+
+            if (y >= texHeight)
+            {
+                break;
+            }
+	    }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( newtexels );
+
+        throw;
+    }
+
+    if ( !successfullyDecompressed )
+    {
+        // Delete the new texel array again.
+        engineInterface->PixelFree( newtexels );
+    }
+    else
+    {
+        // Give the data to the runtime.
+        dstTexelsOut = newtexels;
+        dstTexelsDataSizeOut = dataSize;
+    }
+
+    return successfullyDecompressed;
+}
+
+// Generic decompressor based on framework types.
+template <template <typename numberType> class endianness>
+inline bool decompressTexelsUsingDXT(
+    Interface *engineInterface, uint32 dxtType, eDXTCompressionMethod dxtMethod,
+    uint32 texWidth, uint32 texHeight, uint32 texRowAlignment,
+    uint32 texLayerWidth, uint32 texLayerHeight,
+    const void *srcTexels, eRasterFormat rawRasterFormat, eColorOrdering rawColorOrder, uint32 rawDepth,
+    void*& dstTexelsOut, uint32& dstTexelsDataSizeOut
+)
+{
+    colorModelDispatcher putDispatch( rawRasterFormat, rawColorOrder, rawDepth, NULL, 0, PALETTE_NONE );
+
+    return genericDecompressTexelsUsingDXT <endianness> (
+        engineInterface, dxtType, dxtMethod,
+        texWidth, texHeight, texRowAlignment,
+        texLayerWidth, texLayerHeight,
+        srcTexels, putDispatch, rawDepth,
+        dstTexelsOut, dstTexelsDataSizeOut
+    );
 }
 
 inline bool IsDXTCompressionType( eCompressionType compressionType, uint32& dxtType )

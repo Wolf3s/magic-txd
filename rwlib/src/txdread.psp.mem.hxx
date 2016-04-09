@@ -25,6 +25,29 @@ namespace pspMemoryPermutationData
         { 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191 },
         { 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255 }
     };
+
+#if 0
+    // Used for encoding PSMCT32 data on the PSP handheld.
+    // permutationStride: 4
+    const static uint32 psp_psmct32_packing_desc[8][16] =
+    {
+        {  0,  8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88,  96, 104, 112, 120 },
+        {  1,  9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89,  97, 105, 113, 121 },
+        {  2, 10, 18, 26, 34, 42, 50, 58, 66, 74, 82, 90,  98, 106, 114, 122 },
+        {  3, 11, 19, 27, 35, 43, 51, 59, 67, 75, 83, 91,  99, 107, 115, 123 },
+        {  4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108, 116, 124 },
+        {  5, 13, 21, 29, 37, 45, 53, 61, 69, 77, 85, 93, 101, 109, 117, 125 },
+        {  6, 14, 22, 30, 38, 46, 54, 62, 70, 78, 86, 94, 102, 110, 118, 126 },
+        {  7, 15, 23, 31, 39, 47, 55, 63, 71, 79, 87, 95, 103, 111, 119, 127 }
+    };
+
+    const static uint32 psp_psmct32_packing_width = 16;
+    const static uint32 psp_psmct32_packing_height = 8;
+
+    const static uint32 psp_psmct32_permDepth = 128;
+
+    const static bool psp_psmct32_perm_isPackingConvention = false;
+#endif
 };
 
 // Since the PSP hardware is very similar to the PS2 hardware, I think it is justified to use the same permutation strategies.

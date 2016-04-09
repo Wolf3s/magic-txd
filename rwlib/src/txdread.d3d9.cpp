@@ -1,12 +1,10 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_D3D9
 
 #include "txdread.d3d9.hxx"
 
 #include "pixelformat.hxx"
-
-#include "txdread.common.hxx"
 
 #include "txdread.d3d.dxt.hxx"
 
@@ -104,14 +102,14 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                         // There are countless undefined formats out there that we must be able to just "pass on".
 
 		                // Detect FOUR-CC versions for compression method.
-                        uint32 dxtCompression = getCompressionFromD3DFormat(d3dFormat);
+                        eCompressionType comprType = getFrameworkCompressionTypeFromD3DFORMAT( d3dFormat );
 
-                        platformTex->dxtCompression = dxtCompression;
+                        platformTex->colorComprType = comprType;
                     }
 	                else
                     {
                         // There is never compression in original RW.
-		                platformTex->dxtCompression = 0;
+		                platformTex->colorComprType = RWCOMPRESS_NONE;
                     }
                 }
 
@@ -119,13 +117,13 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                 // Broken textures travel with mods like San Andreas Retextured.
                 // - Verify compression.
                 {
-                    uint32 actualCompression = getCompressionFromD3DFormat( d3dFormat );
+                    eCompressionType actualCompression = getFrameworkCompressionTypeFromD3DFORMAT( d3dFormat );
 
-                    if (actualCompression != platformTex->dxtCompression)
+                    if (actualCompression != platformTex->colorComprType)
                     {
                         engineInterface->PushWarning( "texture " + theTexture->GetName() + " has invalid compression parameters (ignoring)" );
 
-                        platformTex->dxtCompression = actualCompression;
+                        platformTex->colorComprType = actualCompression;
                     }
                 }
                 // - Verify depth.
@@ -258,7 +256,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                             // If the user wants to know about such things, notify him.
                             if ( engineIgnoreSecureWarnings == false )
                             {
-                                engineInterface->PushWarning( "texture " + theTexture->GetName() + " has an unknown D3DFORMAT link (" + std::to_string( (DWORD)d3dFormat ) + ")" );
+                                engineInterface->PushWarning( "texture " + theTexture->GetName() + " has an unknown D3DFORMAT link (" + std::to_string( d3dFormat ) + ")" );
 
                                 hasReportedStrongWarning = true;
                             }
@@ -403,7 +401,10 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                 uint32 processedMipmapCount = 0;
 
-                uint32 dxtCompression = platformTex->dxtCompression;
+                eCompressionType colorComprType = platformTex->colorComprType;
+
+                uint32 dxtType = 0;
+                bool isDXTCompressed = IsDXTCompressionType( colorComprType, dxtType );
 
                 bool hasDamagedMipmaps = false;
 
@@ -433,7 +434,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                     {
 		                // DXT compression works on 4x4 blocks,
 		                // no smaller values allowed
-		                if (dxtCompression != 0)
+		                if (isDXTCompressed)
                         {
 			                texWidth = ALIGN_SIZE( texWidth, 4u );
                             texHeight = ALIGN_SIZE( texHeight, 4u );
@@ -456,11 +457,11 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                     {
                         uint32 actualDataSize = 0;
 
-                        if (dxtCompression != 0)
+                        if (isDXTCompressed)
                         {
                             uint32 texItemCount = ( texWidth * texHeight );
 
-                            actualDataSize = getDXTRasterDataSize(dxtCompression, texItemCount);
+                            actualDataSize = getDXTRasterDataSize(dxtType, texItemCount);
                         }
                         else
                         {

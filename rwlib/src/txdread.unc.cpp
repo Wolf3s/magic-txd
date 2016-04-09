@@ -6,8 +6,6 @@
 
 #include "pluginutil.hxx"
 
-#include "txdread.common.hxx"
-
 namespace rw
 {
 
@@ -101,8 +99,10 @@ void uncNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                 platformTex->unk2 = metaHeader.unk2;
                 platformTex->unk3 = metaHeader.unk3;
 
+#ifdef _DEBUG
                 assert( metaHeader.unk1 == false );
                 assert( metaHeader.unk2 == 0 );
+#endif
 
                 // This texture format is very primitive.
                 // It supports only RASTER_4444 textures with 16 depth.

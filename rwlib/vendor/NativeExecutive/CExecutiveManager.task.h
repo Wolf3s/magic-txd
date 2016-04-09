@@ -29,29 +29,14 @@ public:
 
     RwListEntry <CExecTask> node;
 
-    HANDLE finishEvent;
+    void *finishEvent;
 
     bool isInitialized;
     bool isOnProcessedList;
-    volatile LONG usageCount;
+    std::atomic <int> usageCount;
 
-    CExecTask( CExecutiveManager *manager, CFiber *runtime )
-    {
-        this->runtimeFiber = runtime;
-
-        this->manager = manager;
-
-        // Event that is signaled when the task finished execution.
-        this->finishEvent = CreateEvent( NULL, true, true, NULL );
-        this->isInitialized = false;
-        this->isOnProcessedList = false;
-        this->usageCount = 0;
-    }
-
-    ~CExecTask( void )
-    {
-        CloseHandle( finishEvent );
-    }
+    CExecTask( CExecutiveManager *manager, CFiber *runtime );
+    ~CExecTask( void );
 
     void    Execute( void );
     void    WaitForFinish( void );

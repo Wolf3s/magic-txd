@@ -4,236 +4,834 @@
 
 #include "txdbuild.h"
 
-static rw::TextureBase* RwMakeTextureFromStream( rw::Interface *rwEngine, rw::Stream *imgStream, rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform )
+#include "configtree.h"
+
+#include <gtaconfig/include.h>
+
+#include <regex>
+
+#include "imagepipe.hxx"
+
+static const std::regex gameVer_regex( "(\\w+),(\\w+)" );
+static const std::regex game_regex( "(\\w+),(\\w+)" );
+
+static const std::regex size_tuple( "(\\d+),(\\d+)" );
+
+// Helper to decide the native name also with user configuration.
+inline std::string DecidePlatformString(
+    rw::Interface *engineInterface,
+    const ConfigNode& cfgNode,
+    rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatformType
+)
 {
-    // Since we do not care about warnings, we can just process things here.
-    // Otherwise we have a loader implementation at the texture add dialog, which is really great.
-
-    rw::int64 streamBeg = imgStream->tell();
-
-    // First check whether it is a texture chunk.
-    try
+    // Check if there is a target platform in the configuration system.
+    // If there is, then just use that, if it is indeed a valid platform.
     {
-        rw::RwObject *rwObj = rwEngine->Deserialize( imgStream );
+        std::string targetPlatform;
 
-        if ( rwObj )
+        if ( cfgNode.GetString( "platform", targetPlatform ) )
         {
-            try
+            // Check if it even is a valid platform.
+            if ( rw::IsNativeTexture( engineInterface, targetPlatform.c_str() ) )
             {
-                if ( rw::TextureBase *texChunk = rw::ToTexture( rwEngine, rwObj ) )
-                {
-                    return texChunk;
-                }
+                // Alright, should work.
+                return targetPlatform;
             }
-            catch( ... )
-            {
-                rwEngine->DeleteRwObject( rwObj );
-                throw;
-            }
-
-            rwEngine->DeleteRwObject( rwObj );
         }
     }
-    catch( rw::RwException& )
+
+    // Return the thing that is given by the runtime as default.
+    return rwkind::GetTargetNativeFormatName( targetPlatformType, targetGame );
+}
+
+struct txdBuildImageImportMethods : public makeRasterImageImportMethods
+{
+    inline txdBuildImageImportMethods( rw::Interface *engineInterface, TxdBuildModule *module ) : makeRasterImageImportMethods( engineInterface )
     {
-        // Ignore failed texture chunk deserialization.
-        // We still have other options.
+        this->module = module;
+
+        // Set some standard default values.
+        // Update those before loading.
+        this->targetPlatform = rwkind::PLATFORM_PC;
+        this->targetGame = rwkind::GAME_GTASA;
+
+        this->cfgNode = NULL;
     }
 
-    imgStream->seek( streamBeg, rw::RWSEEK_BEG );
-
-    // Next check whether we have an image.
-    try
+    void OnWarning( std::string&& msg ) const override
     {
-        rw::Raster *texRaster = rw::CreateRaster( rwEngine );
+        this->module->OnMessage( "import warning: " + std::move( msg ) );
+    }
 
-        if ( texRaster )
+    void OnError( std::string&& msg ) const override
+    {
+        this->module->OnMessage( "import error: " + msg );
+    }
+
+    // Properties for loading.
+    rwkind::eTargetPlatform targetPlatform;
+    rwkind::eTargetGame targetGame;
+    const ConfigNode *cfgNode;
+
+    std::string GetNativeTextureName( void ) const override
+    {
+        return DecidePlatformString( this->engineInterface, *this->cfgNode, this->targetGame, this->targetPlatform );
+    }
+
+private:
+    TxdBuildModule *module;
+};
+
+static rw::TextureBase* BuilderMakeTextureFromStream( 
+    rw::Interface *rwEngine, rw::Stream *imgStream, const filePath& extention,
+    TxdBuildModule *module,
+    rwkind::eTargetGame targetGame, rwkind::eTargetPlatform targetPlatform,
+    const ConfigNode& cfgNode
+)
+{
+    txdBuildImageImportMethods imgImporter( rwEngine, module );
+
+    // Set things up.
+    // TODO: cache the image importer somewhere and just set things up here.
+    imgImporter.targetGame = targetGame;
+    imgImporter.targetPlatform = targetPlatform;
+    imgImporter.cfgNode = &cfgNode;
+
+    return RwMakeTextureFromStream( rwEngine, imgStream, extention, imgImporter );
+}
+
+inline bool getFilterModeFromString( const char *string, rw::eRasterStageFilterMode& filter_out )
+{
+    if ( stricmp( string, "point" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_POINT;
+        return true;
+    }
+    else if ( stricmp( string, "linear" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_LINEAR;
+        return true;
+    }
+    else if ( stricmp( string, "point_mip_point" ) == 0 ||
+              stricmp( string, "point_point" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_POINT_POINT;
+        return true;
+    }
+    else if ( stricmp( string, "linear_mip_point" ) == 0 ||
+              stricmp( string, "linear_point" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_LINEAR_POINT;
+        return true;
+    }
+    else if ( stricmp( string, "point_mip_linear" ) == 0 ||
+              stricmp( string, "point_linear" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_POINT_LINEAR;
+        return true;
+    }
+    else if ( stricmp( string, "linear_mip_linear" ) == 0 ||
+              stricmp( string, "linear_linear" ) == 0 )
+    {
+        filter_out = rw::RWFILTER_LINEAR_LINEAR;
+        return true;
+    }
+
+    return false;
+}
+
+inline rw::eRasterStageFilterMode GetConfigNodeFilterMode( const ConfigNode& cfgNode, const std::string& key, rw::eRasterStageFilterMode defaultValue )
+{
+    std::string strVal;
+
+    bool gotConfig = cfgNode.GetString( key, strVal );
+
+    if ( gotConfig )
+    {
+        getFilterModeFromString( strVal.c_str(), defaultValue );
+    }
+
+    return defaultValue;
+}
+
+inline bool getTexAddressFromString( const char *string, rw::eRasterStageAddressMode& address_out )
+{
+    if ( stricmp( string, "wrap" ) == 0 )
+    {
+        address_out = rw::RWTEXADDRESS_WRAP;
+        return true;
+    }
+    else if ( stricmp( string, "clamp" ) == 0 )
+    {
+        address_out = rw::RWTEXADDRESS_CLAMP;
+        return true;
+    }
+    else if ( stricmp( string, "mirror" ) == 0 )
+    {
+        address_out = rw::RWTEXADDRESS_MIRROR;
+        return true;
+    }
+    else if ( stricmp( string, "border" ) == 0 )
+    {
+        address_out = rw::RWTEXADDRESS_BORDER;
+        return true;
+    }
+
+    return false;
+}
+
+inline rw::eRasterStageAddressMode GetConfigNodeAddressMode( const ConfigNode& cfgNode, const std::string& key, rw::eRasterStageAddressMode defaultValue )
+{
+    std::string strVal;
+
+    bool gotConfig = cfgNode.GetString( key, strVal );
+
+    if ( gotConfig )
+    {
+        getTexAddressFromString( strVal.c_str(), defaultValue );
+    }
+
+    return defaultValue;
+}
+
+inline bool getPaletteTypeFromString( const char *string, rw::ePaletteType& palTypeOut )
+{
+    if ( stricmp( string, "PAL8" ) == 0 ||
+         stricmp( string, "8BIT" ) == 0 )
+    {
+        palTypeOut = rw::PALETTE_8BIT;
+        return true;
+    }
+    else if ( stricmp( string, "PAL4" ) == 0 ||
+              stricmp( string, "4BIT" ) == 0 )
+    {
+        palTypeOut = rw::PALETTE_4BIT;
+        return true;
+    }
+
+    return false;
+}
+
+inline bool ParseStringToVersion( const char *string, rw::LibraryVersion& verOut )
+{
+    unsigned int rwLibMajor, rwLibMinor, rwRevMajor, rwRevMinor;
+
+    int parseCount = sscanf( string, "%u.%u.%u.%u", &rwLibMajor, &rwLibMinor, &rwRevMajor, &rwRevMinor );
+
+    if ( parseCount == 4 )
+    {
+        if ( rwLibMajor == 3 && rwLibMinor <= 7 && rwRevMajor <= 15 && rwRevMinor <= 63 )
         {
-            try
-            {
-                // We need to give this raster a start native format.
-                // For that we should give it the format it actually should have.
-                const char *nativeName = rwkind::GetTargetNativeFormatName( targetPlatform, targetGame );
+            verOut.rwLibMajor = (rw::uint8)rwLibMajor;
+            verOut.rwLibMinor = (rw::uint8)rwLibMinor;
+            verOut.rwRevMajor = (rw::uint8)rwRevMajor;
+            verOut.rwRevMinor = (rw::uint8)rwRevMinor;
+            verOut.buildNumber = 0xFFFF;
+            return true;
+        }
+    }
 
-                if ( nativeName )
+    return false;
+}
+
+inline void PutVersionOnObjectFromConfig( rw::RwObject *rwObj, const ConfigNode& cfgNode )
+{
+    std::string strVer;
+
+    if ( cfgNode.GetString( "rwver", strVer ) )
+    {
+        rw::LibraryVersion version;
+
+        if ( ParseStringToVersion( strVer.c_str(), version ) )
+        {
+            rwObj->SetEngineVersion( version );
+        }
+    }
+}
+
+void BuildSingleTexture(
+    rw::Interface *rwEngine, rw::TexDictionary *texDict,
+    const filePath& texturePath, rw::Stream *imgStream,
+    TxdBuildModule *module, const TxdBuildModule::run_config& config, const filePath& extention,
+    const ConfigNode& cfgParent
+)
+{
+    rw::TextureBase *imgTex = BuilderMakeTextureFromStream( rwEngine, imgStream, extention, module, config.targetGame, config.targetPlatform, cfgParent );
+
+    if ( imgTex )
+    {
+        try
+        {
+            // Put the texture into a correct version.
+            PutVersionOnObjectFromConfig( imgTex, cfgParent );
+
+            // Give the texture a name based on the original filename.
+            filePath texName = FileSystem::GetFileNameItem( texturePath, false );
+
+            std::string ansiTexName = texName.convert_ansi();
+            
+            // Tell the runtime that we process a texture.
+            {
+                module->OnMessage( std::string( "*** " ) + ansiTexName + " ...\n" );
+            }
+
+            imgTex->SetName( ansiTexName.c_str() );
+
+            // Set some default rendering properties.
+            imgTex->SetFilterMode(
+                GetConfigNodeFilterMode( cfgParent, "filterMode", rw::RWFILTER_LINEAR )
+            );
+            imgTex->SetUAddressing(
+                GetConfigNodeAddressMode( cfgParent, "uAddress", rw::RWTEXADDRESS_WRAP )
+            );
+            imgTex->SetVAddressing(
+                GetConfigNodeAddressMode( cfgParent, "vAddress", rw::RWTEXADDRESS_WRAP )
+            );
+
+            // Scale the raster?
+            {
+                std::string strSize;
+
+                if ( cfgParent.GetString( "size", strSize ) )
                 {
-                    texRaster->newNativeData( nativeName );
+                    // Try parsing a valid size tuple.
+                    // If successful, resize things.
+                    unsigned int width, height;
+
+                    int parseCount = sscanf( strSize.c_str(), "%u,%u", &width, &height );
+
+                    if ( parseCount == 2 )
+                    {
+                        // Do the resize with default filters.
+                        rw::Raster *texRaster = imgTex->GetRaster();
+
+                        if ( texRaster )
+                        {
+                            texRaster->resize( width, height );
+                        }
+                    }
+                }
+            }
+
+            // Generate mipmaps?
+            if ( GetConfigNodeBoolean( cfgParent, "genMipmaps", false ) )
+            {
+                rw::Raster *texRaster = imgTex->GetRaster();
+
+                if ( texRaster )
+                {
+                    int genMipMaxLevel = GetConfigNodeInt( cfgParent, "genMipMaxLevel", 32 );
+
+                    texRaster->generateMipmaps( genMipMaxLevel );
+                }
+            }
+
+            // We want to palettize?
+            if ( GetConfigNodeBoolean( cfgParent, "palettized", false ) )
+            {
+                rw::Raster *texRaster = imgTex->GetRaster();
+
+                if ( texRaster )
+                {
+                    // Decide what palette format.
+                    rw::ePaletteType paletteType = rw::PALETTE_8BIT;
+                    {
+                        std::string palName = GetConfigNodeString( cfgParent, "palType", "PAL8" );
+
+                        getPaletteTypeFromString( palName.c_str(), paletteType );
+                    }
+
+                    texRaster->convertToPalette( paletteType, rw::RASTER_8888 );    // maximum palette quality.
+                }
+            }
+
+            // Maybe this texture wants to be compressed.
+            if ( GetConfigNodeBoolean( cfgParent, "compressed", false ) )
+            {
+                // Lets do it.
+                rw::Raster *texRaster = imgTex->GetRaster();
+
+                if ( texRaster )
+                {
+                    float comprQuality = (float)GetConfigNodeFloat( cfgParent, "comprQuality", 1.0 );
+
+                    texRaster->compress( comprQuality );
+                }
+            }
+
+            // ;)
+            imgTex->fixFiltering();
+
+            // Add our texture to the dictionary!
+            imgTex->AddToDictionary( texDict );
+        }
+        catch( ... )
+        {
+            // In very rare cases we might have encountered an error.
+            // This means that we decided against the texture, so delete it.
+            rwEngine->DeleteRwObject( imgTex );
+
+            throw;
+        }
+    }
+}
+
+inline void InstrumentConfigKeys( rw::Interface *rwEngine, TxdBuildModule *module, ConfigNode& txdConfigNode, CINI::Entry *entry )
+{
+    entry->ForAllEntries(
+        [&]( const CINI::Entry::Setting& cfg )
+    {
+        // Check all kinds of keys here and plant them into the configuration system properly.
+        if ( stricmp( cfg.key, "platform" ) == 0 )
+        {
+            // Is it even a platform?
+            if ( rw::IsNativeTexture( rwEngine, cfg.value ) )
+            {
+                txdConfigNode.SetString( "platform", cfg.value );
+            }
+            else
+            {
+                module->OnMessage( std::string( "not a platform: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "rwversion" ) == 0 ||
+                  stricmp( cfg.key, "version" ) == 0 ||
+                  stricmp( cfg.key, "rw_version" ) == 0 ||
+                  stricmp( cfg.key, "rwver" ) == 0 )
+        {
+            txdConfigNode.SetString( "rwver", cfg.value );
+        }
+        else if ( stricmp( cfg.key, "gameVer" ) == 0 ||
+                  stricmp( cfg.key, "gameVersion" ) == 0 )
+        {
+            // Process this and try to set a better RW version if we found a match.
+            std::cmatch verMatch;
+            
+            bool didMatch = std::regex_match( cfg.value, verMatch, gameVer_regex );
+
+            if ( didMatch && verMatch.size() == 3 )
+            {
+                // Do things.
+                const std::string& gameName = verMatch[1];
+                const std::string& gamePlat = verMatch[2];
+
+                // Try to find a configuration that matches this description.
+                rw::LibraryVersion libVer;
+                bool hasVersion = false;
+                {
+                    // Try with built-in first.
+                    rwkind::eTargetGame builtinGame;
+
+                    if ( rwkind::GetTargetGameFromFriendlyString( gameName.c_str(), builtinGame ) )
+                    {
+                        rwkind::eTargetPlatform builtinPlat;
+
+                        if ( rwkind::GetTargetPlatformFromFriendlyString( gamePlat.c_str(), builtinPlat ) )
+                        {
+                            // Get the config for this.
+                            const char *unused;
+
+                            hasVersion = rwkind::GetTargetVersionFromPlatformAndGame( builtinPlat, builtinGame, libVer, unused );
+                        }
+                    }
+
+                    // TODO: check game registry if built-in was not successful.
+                    if ( !hasVersion )
+                    {
+                        //
+                    }
+                }
+
+                // If we have a version, set it as current.
+                if ( hasVersion )
+                {
+                    txdConfigNode.SetString( "rwver", libVer.toString( false ) );
                 }
                 else
                 {
-                    assert( 0 );
-                }
-
-                texRaster->readImage( imgStream );
-
-                // OK, we got an image. This means we should put the raster into a texture and return it!
-                if ( rw::TextureBase *texHandle = rw::CreateTexture( rwEngine, texRaster ) )
-                {
-                    // We have to release our reference to the raster.
-                    rw::DeleteRaster( texRaster );
-
-                    return texHandle;
+                    module->OnMessage( std::string( "failed to map gameVer: " ) + cfg.value + '\n' );
                 }
             }
-            catch( ... )
+            else
             {
-                rw::DeleteRaster( texRaster );
-                throw;
+                module->OnMessage( std::string( "failed to parse gameVer: " ) + cfg.value + '\n' );
             }
-
-            rw::DeleteRaster( texRaster );
         }
-    }
-    catch( rw::RwException& )
-    {
-        // Alright, we failed this one too.
-    }
+        else if ( stricmp( cfg.key, "game" ) == 0 )
+        {
+            // We do very similar work to gameVer, just more.
+            std::cmatch verMatch;
+            
+            bool didMatch = std::regex_match( cfg.value, verMatch, game_regex );
 
-    // We got nothing.
-    return NULL;
+            if ( didMatch && verMatch.size() == 3 )
+            {
+                // Do things.
+                const std::string& gameName = verMatch[1];
+                const std::string& gamePlat = verMatch[2];
+
+                // Try to find a configuration that matches this description.
+                rw::LibraryVersion libVer;
+                bool hasVersion = false;
+                const char *targetNativeName = NULL;
+                {
+                    // Try with built-in first.
+                    rwkind::eTargetGame builtinGame;
+
+                    if ( rwkind::GetTargetGameFromFriendlyString( gameName.c_str(), builtinGame ) )
+                    {
+                        rwkind::eTargetPlatform builtinPlat;
+
+                        if ( rwkind::GetTargetPlatformFromFriendlyString( gamePlat.c_str(), builtinPlat ) )
+                        {
+                            // Get the config for this.
+                            const char *unused;
+
+                            hasVersion = rwkind::GetTargetVersionFromPlatformAndGame( builtinPlat, builtinGame, libVer, unused );
+
+                            targetNativeName = rwkind::GetTargetNativeFormatName( builtinPlat, builtinGame );
+                        }
+                    }
+
+                    // TODO: check game registry if built-in was not successful.
+                    if ( !hasVersion )
+                    {
+                        //
+                    }
+
+                    if ( !targetNativeName )
+                    {
+                        //
+                    }
+                }
+
+                // If we have a version, set it as current.
+                if ( hasVersion )
+                {
+                    txdConfigNode.SetString( "rwver", libVer.toString( false ) );
+                }
+
+                if ( targetNativeName != NULL )
+                {
+                    txdConfigNode.SetString( "platform", targetNativeName );
+                }
+
+                if ( !hasVersion && targetNativeName == NULL )
+                {
+                    module->OnMessage( std::string( "failed to map game: " ) + cfg.value + '\n' );
+                }
+            }
+            else
+            {
+                module->OnMessage( std::string( "failed to parse game: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "size" ) == 0 )
+        {
+            // Ability to scale texture to a fixed size.
+            txdConfigNode.SetString( "size", cfg.value );
+        }
+        else if ( stricmp( cfg.key, "filterMode" ) == 0 )
+        {
+            rw::eRasterStageFilterMode filterOut;
+
+            if ( getFilterModeFromString( cfg.value, filterOut ) )
+            {
+                txdConfigNode.SetString( "filterMode", cfg.value );
+            }
+            else
+            {
+                module->OnMessage( std::string( "not a filterMode: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "uAddress" ) == 0 ||
+                  stricmp( cfg.key, "uAddressing" ) == 0 ||
+                  stricmp( cfg.key, "u_address" ) == 0 )
+        {
+            rw::eRasterStageAddressMode addressOut;
+
+            if ( getTexAddressFromString( cfg.value, addressOut ) )
+            {
+                txdConfigNode.SetString( "uAddress", cfg.value );
+            }
+            else
+            {
+                module->OnMessage( std::string( "not a uAddress: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "vAddress" ) == 0 ||
+                  stricmp( cfg.key, "vAddressing" ) == 0 ||
+                  stricmp( cfg.key, "v_address" ) == 0 )
+        {
+            rw::eRasterStageAddressMode addressOut;
+
+            if ( getTexAddressFromString( cfg.value, addressOut ) )
+            {
+                txdConfigNode.SetString( "vAddress", cfg.value );
+            }
+            else
+            {
+                module->OnMessage( std::string( "not a vAddress: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "compressed" ) == 0 )
+        {
+            txdConfigNode.SetBoolean( "compressed", entry->GetBool( cfg.key ) );
+        }
+        else if ( stricmp( cfg.key, "comprQuality" ) == 0 ||
+                  stricmp( cfg.key, "compressionQuality" ) == 0 )
+        {
+            txdConfigNode.SetBoolean( "comprQuality", entry->GetInt( cfg.key ) );
+        }
+        else if ( stricmp( cfg.key, "palettized" ) == 0 )
+        {
+            txdConfigNode.SetBoolean( "palettized", entry->GetBool( cfg.key ) );
+        }
+        else if ( stricmp( cfg.key, "palType" ) == 0 ||
+                  stricmp( cfg.key, "paletteType" ) == 0 )
+        {
+            rw::ePaletteType palTypeOut;
+
+            if ( getPaletteTypeFromString( cfg.value, palTypeOut ) )
+            {
+                txdConfigNode.SetString( "palType", cfg.value );
+            }
+            else
+            {
+                module->OnMessage( std::string( "not a palType: " ) + cfg.value + '\n' );
+            }
+        }
+        else if ( stricmp( cfg.key, "genMipmaps" ) == 0 ||
+                  stricmp( cfg.key, "generateMipmaps" ) == 0 )
+        {
+            txdConfigNode.SetBoolean( "genMipmaps", entry->GetBool( cfg.key ) );
+        }
+        else if ( stricmp( cfg.key, "genMipMaxLevel" ) == 0 ||
+                  stricmp( cfg.key, "maxMipLevel" ) == 0 )
+        {
+            txdConfigNode.SetInt( "genMipMaxLevel", entry->GetInt( cfg.key ) );
+        }
+    });
 }
 
-void BuildTXDArchives( rw::Interface *rwEngine, TxdBuildModule *module, CFileTranslator *gameRoot, CFileTranslator *outputRoot, const TxdBuildModule::run_config& config )
+void ReadConfigurationBlock(
+    rw::Interface *rwEngine,
+    CFileTranslator *gameRoot, const filePath& path,
+    ConfigNode& cfgNode,
+    TxdBuildModule *module
+)
+{
+    if ( CFile *iniStream = gameRoot->Open( path, "rb" ) )
+    {
+        CINI *iniConfig = LoadINI( iniStream );
+
+        delete iniStream;
+
+        if ( iniConfig )
+        {
+            // Just read what is available.
+            if ( CINI::Entry *mainEntry = iniConfig->GetEntry( "main" ) )
+            {
+                InstrumentConfigKeys( rwEngine, module, cfgNode, mainEntry );
+            }
+
+            delete iniConfig;
+        }
+    }
+}
+
+void BuildTXDArchives(
+    rw::Interface *rwEngine,
+    TxdBuildModule *module, CFileTranslator *gameRoot, CFileTranslator *outputRoot,
+    const TxdBuildModule::run_config& config, const ConfigNode& cfgNode
+)
 {
     // Process things.
     auto dir_callback = [&]( const filePath& dirPath )
     {
         try
         {
-            rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
+            // Prepare the TXD write path.
+            filePath txdWritePath;
 
-            if ( !texDict )
+            bool hasTXDWritePath = gameRoot->GetRelativePathFromRoot( dirPath, false, txdWritePath );
+
+            if ( hasTXDWritePath )
             {
-                throw rw::RwException( "failed to allocate texture dictionary object" );
-            }
-        
-            try
-            {
-                auto per_dir_file_cb = [&]( const filePath& texturePath )
+                // Trimm off the slash, if it exists.
                 {
-                    // We first have to establish a stream to the file.
-                    CFile *fsImgStream = gameRoot->Open( texturePath, L"rb" );
+                    size_t outPathLen = txdWritePath.size();
 
-                    if ( fsImgStream )
+                    if ( outPathLen > 0 )
                     {
-                        try
-                        {
-                            // Decompress if we find compressed things. ;)
-                            fsImgStream = module->WrapStreamCodec( fsImgStream );
-                        }
-                        catch( ... )
-                        {
-                            delete fsImgStream;
+                        txdWritePath.resize( outPathLen - 1 );  // Here cannot be encoding issues as long as the character is a traditional slash.
+                    }
+                }
 
-                            throw;
-                        }
+                txdWritePath += L".txd";
+            }
+            
+            // We can only continue if we actually have a valid location to write our TXD to.
+            if ( hasTXDWritePath )
+            {
+                // Send a status message about our building.
+                module->OnMessage( std::string( "building '" ) + txdWritePath.convert_ansi() + "'...\n" );
+
+                rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
+
+                if ( !texDict )
+                {
+                    throw rw::RwException( "failed to allocate texture dictionary object" );
+                }
+        
+                try
+                {
+                    // Load configuration for this TXD.
+                    ConfigNode txdConfigNode;
+                    txdConfigNode.SetParent( &cfgNode );
+                    {
+                        filePath iniPath = dirPath + L"_build.ini";
+
+                        ReadConfigurationBlock(
+                            rwEngine,
+                            gameRoot, std::move( iniPath ),
+                            txdConfigNode,
+                            module
+                        );
                     }
 
-                    if ( fsImgStream )
+                    // Add all textures to this TXD.
                     {
-                        try
+                        auto per_dir_file_cb = [&]( const filePath& texturePath )
                         {
-                            // Try to turn this file into a texture.
-                            try
-                            {
-                                rw::Stream *imgStream = RwStreamCreateTranslated( rwEngine, fsImgStream );
+                            // We first have to establish a stream to the file.
+                            CFile *fsImgStream = gameRoot->Open( texturePath, L"rb" );
 
-                                if ( imgStream )
+                            if ( fsImgStream )
+                            {
+                                try
                                 {
+                                    // Decompress if we find compressed things. ;)
+                                    fsImgStream = module->WrapStreamCodec( fsImgStream );
+                                }
+                                catch( ... )
+                                {
+                                    delete fsImgStream;
+
+                                    throw;
+                                }
+                            }
+
+                            if ( fsImgStream )
+                            {
+                                try
+                                {
+                                    // Try to turn this file into a texture.
                                     try
                                     {
-                                        // We got all streams prepared!
-                                        // Try turning it into a texture now.
-                                        rw::TextureBase *imgTex = RwMakeTextureFromStream( rwEngine, imgStream, config.targetGame, config.targetPlatform );
+                                        rw::Stream *imgStream = RwStreamCreateTranslated( rwEngine, fsImgStream );
 
-                                        if ( imgTex )
+                                        if ( imgStream )
                                         {
                                             try
                                             {
-                                                // Give the texture a name based on the original filename.
-                                                filePath texName = FileSystem::GetFileNameItem( texturePath, false );
+                                                // We have to parse the path to this texture.
+                                                filePath pathToTexture;
+                                                    
+                                                bool gotPath = gameRoot->GetRelativePathFromRoot( texturePath, false, pathToTexture );
 
-                                                std::string ansiTexName = texName.convert_ansi();
-                                            
-                                                imgTex->SetName( ansiTexName.c_str() );
+                                                if ( gotPath )
+                                                {
+                                                    filePath extOut;
 
-                                                // Set some default rendering properties.
-                                                imgTex->SetUAddressing( rw::RWTEXADDRESS_WRAP );
-                                                imgTex->SetVAddressing( rw::RWTEXADDRESS_WRAP );
+                                                    filePath fileNameItem = FileSystem::GetFileNameItem( texturePath, false, NULL, &extOut );
 
-                                                // ;)
-                                                imgTex->improveFiltering();
+                                                    // Ignore some extensions.
+                                                    // Those are used for meta-properties of textures.
+                                                    if ( extOut != L"ini" )
+                                                    {
+                                                        // Alright, this is a candidate for a valid texture!
+                                                        // Let process this entry.
 
-                                                // Add our texture to the dictionary!
-                                                imgTex->AddToDictionary( texDict );
+                                                        // Load configuration for this texture.
+                                                        ConfigNode textureCfgNode;
+                                                        textureCfgNode.SetParent( &txdConfigNode );
+                                                        {
+                                                            filePath texIniPath = ( pathToTexture + fileNameItem + L".ini" );
+
+                                                            ReadConfigurationBlock(
+                                                                rwEngine,
+                                                                gameRoot, std::move( texIniPath ),
+                                                                textureCfgNode,
+                                                                module
+                                                            );
+                                                        }
+
+                                                        // We got all streams prepared!
+                                                        // Try turning it into a texture now.
+                                                        BuildSingleTexture(
+                                                            rwEngine, texDict,
+                                                            texturePath, imgStream,
+                                                            module, config, extOut,
+                                                            textureCfgNode
+                                                        );
+                                                    }
+                                                }
                                             }
                                             catch( ... )
                                             {
-                                                // In very rare cases we might have encountered an error.
-                                                // This means that we decided against the texture, so delete it.
-                                                rwEngine->DeleteRwObject( imgTex );
+                                                rwEngine->DeleteStream( imgStream );
 
                                                 throw;
                                             }
+
+                                            rwEngine->DeleteStream( imgStream );
                                         }
                                     }
-                                    catch( ... )
+                                    catch( rw::RwException& except )
                                     {
-                                        rwEngine->DeleteStream( imgStream );
+                                        // Tell the runtime about any errors.
+                                        module->OnMessage( std::string( "failed to build texture: " ) + except.message + '\n' );
 
-                                        throw;
+                                        // Continue. This is just one of many textures.
                                     }
-
-                                    rwEngine->DeleteStream( imgStream );
                                 }
+                                catch( ... )
+                                {
+                                    delete fsImgStream;
+
+                                    throw;
+                                }
+
+                                delete fsImgStream;
                             }
-                            catch( rw::RwException& )
+                            else
                             {
-                                // If we failed to parse anything, ignore the error.
+                                module->OnMessage( std::wstring( L"failed to open texture: " ) + texturePath.convert_unicode() + L'\n' );
                             }
-                        }
-                        catch( ... )
-                        {
-                            delete fsImgStream;
 
-                            throw;
-                        }
+                            // Allow termination per texture.
+                            rw::CheckThreadHazards( rwEngine );
+                        };
 
-                        delete fsImgStream;
+                        gameRoot->ScanDirectory( dirPath, "*", false, NULL, std::move( per_dir_file_cb ), NULL );
                     }
-                };
 
-                gameRoot->ScanDirectory( dirPath, "*", false, NULL, std::move( per_dir_file_cb ), NULL );
-
-                // If we have at least one texture in this texture dictionary, we can initialize it and write away.
-                if ( texDict->GetTextureCount() != 0 )
-                {
-                    // We give this TXD the version of the first texture inside, for good measure.
-                    rw::TextureBase *firstTex = texDict->GetTextureIterator().Resolve();
-
-                    texDict->SetEngineVersion( firstTex->GetEngineVersion() );
-
-                    // Now write it to disk.
-                    // We want to write it with the same name as the directory had.
-                    // Here we can use a trick: trimm of the last character of the directory path, always a slash, and replace it with ".txd" !
-                    // The path has to be relative, as we want to write it into the output root.
-                    filePath txdWritePath;
-
-                    bool hasPath = gameRoot->GetRelativePathFromRoot( dirPath, false, txdWritePath );
-
-                    if ( hasPath )
+                    // If we have at least one texture in this texture dictionary, we can initialize it and write away.
+                    if ( texDict->GetTextureCount() != 0 )
                     {
-                        // Trimm off the slash, if it exists.
-                        {
-                            size_t outPathLen = txdWritePath.size();
+                        // We give this TXD the version of the first texture inside, for good measure.
+                        rw::TextureBase *firstTex = texDict->GetTextureIterator().Resolve();
 
-                            if ( outPathLen > 0 )
-                            {
-                                txdWritePath.resize( outPathLen - 1 );  // Here cannot be encoding issues as long as the character is a traditional slash.
-                            }
-                        }
+                        texDict->SetEngineVersion( firstTex->GetEngineVersion() );
 
-                        txdWritePath += L".txd";
+                        // Maybe the config has a better version.
+                        PutVersionOnObjectFromConfig( texDict, txdConfigNode );
+
+                        // Now write it to disk.
+                        // We want to write it with the same name as the directory had.
+                        // Here we can use a trick: trimm of the last character of the directory path, always a slash, and replace it with ".txd" !
+                        // The path has to be relative, as we want to write it into the output root.
 
                         // Now establish the stream and push it!
                         CFile *fsTXDStream = outputRoot->Open( txdWritePath, L"wb" );
@@ -270,21 +868,29 @@ void BuildTXDArchives( rw::Interface *rwEngine, TxdBuildModule *module, CFileTra
 
                             delete fsTXDStream;
                         }
+                        else
+                        {
+                            module->OnMessage( std::wstring( L"failed to open TXD for writing\n" ) );
+                        }
                     }
                 }
-            }
-            catch( ... )
-            {
+                catch( ... )
+                {
+                    rwEngine->DeleteRwObject( texDict );
+
+                    throw;
+                }
+
                 rwEngine->DeleteRwObject( texDict );
-
-                throw;
             }
 
-            rwEngine->DeleteRwObject( texDict );
+            // Allow termination per TXD archive.
+            rw::CheckThreadHazards( rwEngine );
         }
-        catch( rw::RwException& )
+        catch( rw::RwException& except )
         {
             // Ignore any errors we encounter at processing a TXD, so other TXDs can try processing.
+            module->OnMessage( std::string( "failed to build TXD: " ) + except.message + '\n' );
         }
     };
 
@@ -296,64 +902,133 @@ bool TxdBuildModule::RunApplication( const run_config& config )
 {
     rw::Interface *rwEngine = this->rwEngine;
 
-    // Isolate us.
-    rw::AssignThreadedRuntimeConfig( rwEngine );
-
     try
     {
-        rwEngine->SetWarningLevel( 0 );
-        rwEngine->SetWarningManager( NULL );
+        // Isolate us.
+        rw::AssignThreadedRuntimeConfig( rwEngine );
 
-        // Get handles to the input and output directories.
-        CFileTranslator *gameRootTranslator = NULL;
-
-        bool hasGameRoot = obtainAbsolutePath( config.gameRoot.c_str(), gameRootTranslator, false );
-
-        if ( hasGameRoot )
+        try
         {
-            try
+            // Give some start message.
+            this->OnMessage( L"\nstarted build process\n\n" );
+
+            // Intercept warnings and send them to our system.
+            rwEngine->SetWarningLevel( 4 );
+            rwEngine->SetWarningManager( this );
+
+            // The main configuration node.
+            // Initialize it.
+            ConfigNode rootNode;
+            rootNode.SetBoolean( "genMipmaps", config.generateMipmaps );
+
+            if ( config.generateMipmaps )
             {
-                CFileTranslator *outputRootTranslator = NULL;
+                rootNode.SetInt( "genMipMaxLevel", config.curMipMaxLevel );
+            }
 
-                bool hasOutputRoot = obtainAbsolutePath( config.outputRoot.c_str(), outputRootTranslator, true );
+            rootNode.SetBoolean( "compressed", config.doCompress );
 
-                if ( hasOutputRoot )
+            if ( config.doCompress )
+            {
+                rootNode.SetFloat( "comprQuality", config.compressionQuality );
+            }
+
+            rootNode.SetBoolean( "palettized", config.doPalettize );
+
+            if ( config.doPalettize )
+            {
+                rw::ePaletteType paletteType = config.paletteType;
+
+                if ( paletteType == rw::PALETTE_4BIT || paletteType == rw::PALETTE_4BIT_LSB )
                 {
-                    try
-                    {
-                        if ( hasGameRoot && hasOutputRoot )
-                        {
-                            BuildTXDArchives( this->rwEngine, this, gameRootTranslator, outputRootTranslator, config );
-                        }
-                    }
-                    catch( ... )
-                    {
-                        delete outputRootTranslator;
-
-                        throw;
-                    }
-
-                    delete outputRootTranslator;
+                    rootNode.SetString( "palType", "PAL4" );
+                }
+                else if ( paletteType == rw::PALETTE_8BIT )
+                {
+                    rootNode.SetString( "palType", "PAL8" );
                 }
             }
-            catch( ... )
-            {
-                delete gameRootTranslator;
 
-                throw;
-            }
+            // Get handles to the input and output directories.
+            CFileTranslator *gameRootTranslator = NULL;
+
+            bool hasGameRoot = obtainAbsolutePath( config.gameRoot.c_str(), gameRootTranslator, false );
+
+            if ( hasGameRoot )
+            {
+                try
+                {
+                    CFileTranslator *outputRootTranslator = NULL;
+
+                    bool hasOutputRoot = obtainAbsolutePath( config.outputRoot.c_str(), outputRootTranslator, true );
+
+                    if ( hasOutputRoot )
+                    {
+                        try
+                        {
+                            if ( hasGameRoot && hasOutputRoot )
+                            {
+                                BuildTXDArchives( this->rwEngine, this, gameRootTranslator, outputRootTranslator, config, rootNode );
+                            }
+                        }
+                        catch( ... )
+                        {
+                            delete outputRootTranslator;
+
+                            throw;
+                        }
+
+                        delete outputRootTranslator;
+                    }
+                    else
+                    {
+                        this->OnMessage( L"failed to get access to destination directory\n" );
+                    }
+                }
+                catch( ... )
+                {
+                    delete gameRootTranslator;
+
+                    throw;
+                }
         
-            delete gameRootTranslator;
+                delete gameRootTranslator;
+            }
+            else
+            {
+                this->OnMessage( L"failed to get access to source directory\n" );
+            }
+
+            // Give a nice finish message.
+            this->OnMessage( L"\nfinished!" );
         }
+        catch( ... )
+        {
+            rw::ReleaseThreadedRuntimeConfig( rwEngine );
+        
+            throw;
+        }
+
+        rw::ReleaseThreadedRuntimeConfig( rwEngine );
+    }
+    catch( std::exception& err )
+    {
+        this->OnMessage( std::string( "\n\nSTL exception in builder: " ) + err.what() );
+
+        throw;
     }
     catch( ... )
     {
-        rw::ReleaseThreadedRuntimeConfig( rwEngine );
-        
+        this->OnMessage( "\n\nunexpected termination of builder" );
+
         throw;
     }
 
-    rw::ReleaseThreadedRuntimeConfig( rwEngine );
-
     return true;
+}
+
+void TxdBuildModule::OnWarning( std::string&& msg )
+{
+    // Forward things to the management.
+    this->OnMessage( "warning: " + msg + '\n' );
 }

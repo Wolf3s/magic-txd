@@ -6,8 +6,6 @@
 
 #include "streamutil.hxx"
 
-#include "txdread.common.hxx"
-
 #include "txdread.miputil.hxx"
 
 namespace rw
@@ -16,6 +14,16 @@ namespace rw
 void dxtMobileNativeTextureTypeProvider::SerializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& outputProvider ) const
 {
     Interface *engineInterface = theTexture->engineInterface;
+
+    // Cast to our native format.
+    NativeTextureMobileDXT *platformTex = (NativeTextureMobileDXT*)nativeTex;
+
+    size_t mipmapCount = platformTex->mipmaps.size();
+
+    if ( mipmapCount == 0 )
+    {
+        throw RwException( "attempt to write S3TC mobile native texture which has no mipmap layers" );
+    }
 
     // Write the texture data.
     {
@@ -38,11 +46,6 @@ void dxtMobileNativeTextureTypeProvider::SerializeTexture( TextureBase *theTextu
             // Also, print a warning if the name is changed this way.
             writeStringIntoBufferSafe( engineInterface, theTexture->GetName(), metaHeader.name, sizeof( metaHeader.name ), theTexture->GetName(), "name" );
             writeStringIntoBufferSafe( engineInterface, theTexture->GetMaskName(), metaHeader.maskName, sizeof( metaHeader.maskName ), theTexture->GetName(), "mask name" );
-
-            // Cast to our native format.
-            NativeTextureMobileDXT *platformTex = (NativeTextureMobileDXT*)nativeTex;
-
-            size_t mipmapCount = platformTex->mipmaps.size();
 
             metaHeader.mipmapCount = (uint8)mipmapCount;
             metaHeader.unk1 = false;
@@ -136,8 +139,8 @@ void dxtMobileNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *eng
         newLayer.width = mipLayer.width;
         newLayer.height = mipLayer.height;
 
-        newLayer.mipWidth = mipLayer.layerWidth;
-        newLayer.mipHeight = mipLayer.layerHeight;
+        newLayer.layerWidth = mipLayer.layerWidth;
+        newLayer.layerHeight = mipLayer.layerHeight;
 
         // Just move over the texels.
         newLayer.texels = mipLayer.texels;
@@ -272,8 +275,8 @@ void dxtMobileNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engin
         uint32 mipWidth = mipLayer.width;
         uint32 mipHeight = mipLayer.height;
 
-        uint32 layerWidth = mipLayer.mipWidth;
-        uint32 layerHeight = mipLayer.mipHeight;
+        uint32 layerWidth = mipLayer.layerWidth;
+        uint32 layerHeight = mipLayer.layerHeight;
 
         void *texels = mipLayer.texels;
         uint32 dataSize = mipLayer.dataSize;

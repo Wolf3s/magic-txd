@@ -1,8 +1,9 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_XBOX
 
 #include "txdread.xbox.hxx"
+#include "txdread.xbox.layerpipe.hxx"
 
 #include "txdread.d3d.hxx"
 
@@ -10,49 +11,12 @@
 
 #include "txdread.d3d.dxt.hxx"
 
-#include "txdread.common.hxx"
-
 #include "pluginutil.hxx"
 
 #include "txdread.miputil.hxx"
 
 namespace rw
 {
-
-inline uint32 getXBOXCompressionTypeFromRW( eCompressionType rwCompressionType )
-{
-    uint32 xboxCompressionType = 0;
-
-    if ( rwCompressionType != RWCOMPRESS_NONE )
-    {
-        if ( rwCompressionType == RWCOMPRESS_DXT1 )
-        {
-            xboxCompressionType = 0xC;
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT2 )
-        {
-            xboxCompressionType = 0xD;
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT3 )
-        {
-            xboxCompressionType = 0xE;
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT5 )
-        {
-            xboxCompressionType = 0xF;
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT4 )
-        {
-            xboxCompressionType = 0x10;
-        }
-        else
-        {
-            assert( 0 );
-        }
-    }
-
-    return xboxCompressionType;
-}
 
 void xboxNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, PlatformTexture *nativeTex, BlockProvider& inputProvider ) const
 {
@@ -83,7 +47,7 @@ void xboxNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                 bool engineIgnoreSecureWarnings = engineInterface->GetIgnoreSecureWarnings();
 
                 // Read the main texture header.
-                textureMetaHeaderStructXbox metaInfo;
+                xbox::textureMetaHeaderStruct metaInfo;
                 texImageDataBlock.read( &metaInfo, sizeof(metaInfo) );
 
                 // Read the texture names.
@@ -95,7 +59,7 @@ void xboxNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                     // Move over the texture name.
                     memcpy( tmpbuf, metaInfo.name, sizeof( metaInfo.name ) );
-
+                    
                     theTexture->SetName( tmpbuf );
 
                     // Move over the texture mask name.
@@ -269,31 +233,38 @@ void xboxNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                     {
                         uint32 texUnitCount = ( texWidth * texHeight );
 
-                        eCompressionType rwCompressionType = getDXTCompressionTypeFromXBOX( dxtCompression );
+                        eCompressionType rwCompressionType;
 
+                        // We only support DXT (for now).
                         uint32 dxtType = 0;
 
-	                    if ( rwCompressionType == RWCOMPRESS_DXT1 )  // DXT1 (?)
+                        bool gotType = getDXTCompressionTypeFromXBOX( dxtCompression, rwCompressionType );
+
+                        if ( gotType )
                         {
-                            dxtType = 1;
+	                        if ( rwCompressionType == RWCOMPRESS_DXT1 )  // DXT1 (?)
+                            {
+                                dxtType = 1;
+                            }
+                            else if ( rwCompressionType == RWCOMPRESS_DXT2 )
+                            {
+                                dxtType = 2;
+                            }
+                            else if ( rwCompressionType == RWCOMPRESS_DXT3 )
+                            {
+                                dxtType = 3;
+                            }
+                            else if ( rwCompressionType == RWCOMPRESS_DXT4 )
+                            {
+                                dxtType = 4;
+                            }
+                            else if ( rwCompressionType == RWCOMPRESS_DXT5 )
+                            {
+                                dxtType = 5;
+                            }
                         }
-                        else if ( rwCompressionType == RWCOMPRESS_DXT2 )
-                        {
-                            dxtType = 2;
-                        }
-                        else if ( rwCompressionType == RWCOMPRESS_DXT3 )
-                        {
-                            dxtType = 3;
-                        }
-                        else if ( rwCompressionType == RWCOMPRESS_DXT4 )
-                        {
-                            dxtType = 4;
-                        }
-                        else if ( rwCompressionType == RWCOMPRESS_DXT5 )
-                        {
-                            dxtType = 5;
-                        }
-                        else
+                        
+                        if ( dxtType == 0 )
                         {
                             throw RwException( "texture " + theTexture->GetName() + " has an unknown compression type" );
                         }
@@ -413,188 +384,22 @@ void registerXBOXNativePlugin( void )
     xboxNativeTexturePlugin.RegisterPlugin( engineFactory );
 }
 
-inline void copyPaletteData(
-    Interface *engineInterface,
-    ePaletteType srcPaletteType, void *srcPaletteData, uint32 srcPaletteSize, eRasterFormat srcRasterFormat,
-    bool isNewlyAllocated,
-    ePaletteType& dstPaletteType, void*& dstPaletteData, uint32& dstPaletteSize
-)
-{
-    dstPaletteType = srcPaletteType;
-
-    if ( dstPaletteType != PALETTE_NONE )
-    {
-        dstPaletteSize = srcPaletteSize;
-
-        if ( isNewlyAllocated )
-        {
-            // Create a new copy.
-            uint32 palRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
-
-            uint32 palDataSize = getPaletteDataSize( dstPaletteSize, palRasterDepth );
-
-            dstPaletteData = engineInterface->PixelAllocate( palDataSize );
-
-            memcpy( dstPaletteData, srcPaletteData, palDataSize );
-        }
-        else
-        {
-            // Just move it over.
-            dstPaletteData = srcPaletteData;
-        }
-    }
-}
-
-inline bool isXBOXTextureSwizzled( const NativeTextureXBOX *nativeTex )
-{
-    // TODO: maybe this is not entirely true.
-    // for now, it seems to be!
-    return ( nativeTex->dxtCompression == 0 );
-}
-
 void xboxNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInterface, void *objMem, pixelDataTraversal& pixelsOut )
 {
     // Cast to our native format.
     NativeTextureXBOX *platformTex = (NativeTextureXBOX*)objMem;
 
-    // We need to find out how to store the texels into the traversal containers.
-    // If we store compressed image data, we can give the data directly to the runtime.
-    eCompressionType rwCompressionType = getDXTCompressionTypeFromXBOX( platformTex->dxtCompression );
-
-    uint32 srcDepth = platformTex->depth;
-
-    eRasterFormat dstRasterFormat = platformTex->rasterFormat;
-    uint32 dstDepth = platformTex->depth;
-
-    bool hasAlpha = platformTex->hasAlpha;
-
-    bool isSwizzledFormat = isXBOXTextureSwizzled( platformTex );
-
-    bool canHavePalette = false;
-
-    if ( rwCompressionType == RWCOMPRESS_DXT1 ||
-         rwCompressionType == RWCOMPRESS_DXT2 ||
-         rwCompressionType == RWCOMPRESS_DXT3 ||
-         rwCompressionType == RWCOMPRESS_DXT4 ||
-         rwCompressionType == RWCOMPRESS_DXT5 )
-    {
-        dstRasterFormat = getVirtualRasterFormat( hasAlpha, rwCompressionType );
-
-        dstDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
-    }
-    else if ( rwCompressionType == RWCOMPRESS_NONE )
-    {
-        // We can have a palette.
-        canHavePalette = true;
-    }
-    else
-    {
-        throw RwException( "invalid compression type in XBOX texture native pixel fetch" );
-    }
-
-    // If we are swizzled, then we have to create a new copy of the texels which is in linear format.
-    // Otherwise we can optimize.
-    bool isNewlyAllocated = ( isSwizzledFormat == true );
-
-    size_t mipmapCount = platformTex->mipmaps.size();
-
-    // Allocate virtual mipmaps.
-    pixelsOut.mipmaps.resize( mipmapCount );
-
-    for ( size_t n = 0; n < mipmapCount; n++ )
-    {
-        const NativeTextureXBOX::mipmapLayer& mipLayer = platformTex->mipmaps[ n ];
-
-        // Fetch all mipmap data onto the stack.
-        uint32 mipWidth = mipLayer.width;
-        uint32 mipHeight = mipLayer.height;
-
-        uint32 layerWidth = mipLayer.layerWidth;
-        uint32 layerHeight = mipLayer.layerHeight;
-
-        void *dstTexels = NULL;
-        uint32 dstDataSize = 0;
-
-        if ( isSwizzledFormat == false )
-        {
-            // We can simply move things over.
-            dstTexels = mipLayer.texels;
-            dstDataSize = mipLayer.dataSize;
-        }
-        else
-        {
-            // Here we have to put the pixels into a linear format.
-            NativeTextureXBOX::swizzleMipmapTraversal swizzleTrav;
-
-            swizzleTrav.mipWidth = mipWidth;
-            swizzleTrav.mipHeight = mipHeight;
-            swizzleTrav.depth = srcDepth;
-            swizzleTrav.rowAlignment = getXBOXTextureDataRowAlignment();
-            swizzleTrav.texels = mipLayer.texels;
-            swizzleTrav.dataSize = mipLayer.dataSize;
-
-            NativeTextureXBOX::unswizzleMipmap( engineInterface, swizzleTrav );
-
-            assert( swizzleTrav.newtexels != swizzleTrav.texels );
-
-            mipWidth = swizzleTrav.newWidth;
-            mipHeight = swizzleTrav.newHeight;
-            dstTexels = swizzleTrav.newtexels;
-            dstDataSize = swizzleTrav.newDataSize;
-        }
-
-        // Create a new virtual mipmap layer.
-        pixelDataTraversal::mipmapResource newLayer;
-
-        newLayer.width = mipWidth;
-        newLayer.height = mipHeight;
-
-        newLayer.mipWidth = layerWidth;
-        newLayer.mipHeight = layerHeight;
-
-        newLayer.texels = dstTexels;
-        newLayer.dataSize = dstDataSize;
-
-        // Store this layer.
-        pixelsOut.mipmaps[ n ] = newLayer;
-    }
-
-    // If we can have a palette, copy it over.
-    ePaletteType dstPaletteType = PALETTE_NONE;
-    void *dstPaletteData = NULL;
-    uint32 dstPaletteSize = 0;
-
-    if ( canHavePalette )
-    {
-        copyPaletteData(
-            engineInterface,
-            platformTex->paletteType, platformTex->palette, platformTex->paletteSize,
-            dstRasterFormat, isNewlyAllocated,
-            dstPaletteType, dstPaletteData, dstPaletteSize
-        );
-    }
-
-    // Copy over general raster data.
-    pixelsOut.rasterFormat = dstRasterFormat;
-    pixelsOut.depth = dstDepth;
-    pixelsOut.rowAlignment = getXBOXTextureDataRowAlignment();
-    pixelsOut.colorOrder = platformTex->colorOrder;
-
-    pixelsOut.compressionType = rwCompressionType;
-
-    // Give it the palette data.
-    pixelsOut.paletteData = dstPaletteData;
-    pixelsOut.paletteSize = dstPaletteSize;
-    pixelsOut.paletteType = dstPaletteType;
-
-    // Copy over more advanced parameters.
-    pixelsOut.hasAlpha = hasAlpha;
-    pixelsOut.autoMipmaps = platformTex->autoMipmaps;
+    xboxFetchPixelDataFromTexture <pixelDataTraversal::mipmapResource> (
+        engineInterface,
+        platformTex,
+        pixelsOut.mipmaps,
+        pixelsOut.rasterFormat, pixelsOut.depth, pixelsOut.rowAlignment, pixelsOut.colorOrder,
+        pixelsOut.paletteType, pixelsOut.paletteData, pixelsOut.paletteSize, pixelsOut.compressionType,
+        pixelsOut.rasterType, pixelsOut.hasAlpha, pixelsOut.autoMipmaps,
+        pixelsOut.isNewlyAllocated
+    );
+    
     pixelsOut.cubeTexture = false;  // XBOX never has cube textures.
-    pixelsOut.rasterType = platformTex->rasterType;
-
-    // Tell the runtime whether we newly allocated those texels.
-    pixelsOut.isNewlyAllocated = isNewlyAllocated;
 }
 
 void xboxNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInterface, void *objMem, const pixelDataTraversal& pixelsIn, acquireFeedback_t& feedbackOut )
@@ -602,315 +407,18 @@ void xboxNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInte
     // Cast to our native texture container.
     NativeTextureXBOX *xboxTex = (NativeTextureXBOX*)objMem;
 
-    // Clear any previous image data.
-    //xboxTex->clearTexelData();
+    bool hasDirectlyAcquired;
 
-    // Verify native texture size rules.
-    {
-        nativeTextureSizeRules sizeRules;
-        getXBOXNativeTextureSizeRules( sizeRules );
+    xboxAcquirePixelDataToTexture <pixelDataTraversal::mipmapResource> (
+        engineInterface,
+        xboxTex,
+        pixelsIn.mipmaps,
+        pixelsIn.rasterFormat, pixelsIn.depth, pixelsIn.rowAlignment, pixelsIn.colorOrder,
+        pixelsIn.paletteType, pixelsIn.paletteData, pixelsIn.paletteSize, pixelsIn.compressionType,
+        pixelsIn.rasterType, pixelsIn.hasAlpha, pixelsIn.autoMipmaps,
+        hasDirectlyAcquired
+    );
 
-        if ( !sizeRules.verifyPixelData( pixelsIn ) )
-        {
-            throw RwException( "invalid mipmap dimensions in XBOX native texture pixel acquisition" );
-        }
-    }
-
-    // We need to make sure that the raster data is compatible.
-    eRasterFormat srcRasterFormat = pixelsIn.rasterFormat;
-    uint32 srcDepth = pixelsIn.depth;
-    uint32 srcRowAlignment = pixelsIn.rowAlignment;
-    eColorOrdering srcColorOrder = pixelsIn.colorOrder;
-    ePaletteType srcPaletteType = pixelsIn.paletteType;
-    void *srcPaletteData = pixelsIn.paletteData;
-    uint32 srcPaletteSize = pixelsIn.paletteSize;
-
-    eRasterFormat dstRasterFormat = srcRasterFormat;
-    uint32 dstDepth = pixelsIn.depth;
-    uint32 dstRowAlignment = getXBOXTextureDataRowAlignment();
-    eColorOrdering dstColorOrder = srcColorOrder;
-
-    ePaletteType dstPaletteType = srcPaletteType;
-
-    // Move over the texture data.
-    eCompressionType rwCompressionType = pixelsIn.compressionType;
-
-    uint32 xboxCompressionType = 0;
-
-    bool requiresSwizzling = false;
-
-    bool canHavePaletteData = false;
-
-    bool canBeConverted = false;
-
-    if ( rwCompressionType != RWCOMPRESS_NONE )
-    {
-        xboxCompressionType = getXBOXCompressionTypeFromRW( rwCompressionType );
-
-        // Compressed rasters are what they are.
-        // They do not need swizzling.
-        requiresSwizzling = false;
-
-        canHavePaletteData = false;
-    }
-    else
-    {
-        // We need to verify that we have good raster properties.
-        // Luckily, we only have to do this in this routine.
-        if ( dstPaletteType != PALETTE_NONE )
-        {
-            if ( dstPaletteType == PALETTE_4BIT || dstPaletteType == PALETTE_8BIT )
-            {
-                dstDepth = 8;
-            }
-            else if ( dstPaletteType == PALETTE_4BIT_LSB )
-            {
-                // We better remap it to the proper order.
-                dstDepth = 8;
-
-                dstPaletteType = PALETTE_4BIT;
-            }
-            else
-            {
-                assert( 0 );
-            }
-
-            // Make sure we have a supported raster format aswell.
-            if ( srcRasterFormat != RASTER_1555 &&
-                 srcRasterFormat != RASTER_565 &&
-                 srcRasterFormat != RASTER_4444 &&
-                 srcRasterFormat != RASTER_LUM &&
-                 srcRasterFormat != RASTER_8888 &&
-                 srcRasterFormat != RASTER_888 &&
-                 srcRasterFormat != RASTER_555 )
-            {
-                dstRasterFormat = RASTER_8888;
-            }
-        }
-        else
-        {
-            if ( srcRasterFormat == RASTER_1555 )
-            {
-                dstDepth = 16;
-            }
-            else if ( srcRasterFormat == RASTER_565 )
-            {
-                dstDepth = 16;
-            }
-            else if ( srcRasterFormat == RASTER_4444 )
-            {
-                dstDepth = 16;
-            }
-            else if ( srcRasterFormat == RASTER_8888 )
-            {
-                dstDepth = 32;
-            }
-            else if ( srcRasterFormat == RASTER_888 )
-            {
-                dstDepth = 32;
-            }
-            else if ( srcRasterFormat == RASTER_555 )
-            {
-                dstDepth = 16;
-            }
-            else if ( srcRasterFormat == RASTER_LUM )
-            {
-                dstDepth = 8;
-            }
-            else
-            {
-                // Unsupported/unknown format, we have to convert it to something safe.
-                dstRasterFormat = RASTER_8888;
-                dstDepth = 32;
-            }
-        }
-
-        // XBOX textures always have BGRA color order, no matter if palette.
-        dstColorOrder = COLOR_BGRA;
-
-        canBeConverted = true;
-
-        // Raw bitmap rasters are always swizzled.
-        requiresSwizzling = true;
-
-        canHavePaletteData = true;
-    }
-
-    // Check whether we need conversion.
-    bool requiresConversion = false;
-
-    if ( canBeConverted )
-    {
-        if ( doesPixelDataNeedConversion(
-                 pixelsIn,
-                 srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType,
-                 dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType
-             )
-           )
-        {
-            // If any format property is different, we need to convert.
-            requiresConversion = true;
-        }
-    }
-
-    // Store texel data.
-    // If we require swizzling, we cannot directly acquire the data.
-    bool hasDirectlyAcquired = ( requiresSwizzling == false && requiresConversion == false );
-
-    size_t mipmapCount = pixelsIn.mipmaps.size();
-
-    // Allocate the mipmaps on the XBOX texture.
-    xboxTex->mipmaps.resize( mipmapCount );
-
-    for ( size_t n = 0; n < mipmapCount; n++ )
-    {
-        const pixelDataTraversal::mipmapResource& srcLayer = pixelsIn.mipmaps[ n ];
-
-        // Grab the pixel information onto the stack.
-        uint32 mipWidth = srcLayer.width;
-        uint32 mipHeight = srcLayer.height;
-
-        uint32 layerWidth = srcLayer.mipWidth;
-        uint32 layerHeight = srcLayer.mipHeight;
-
-        // The destination texels.
-        void *dstTexels = srcLayer.texels;
-        uint32 dstDataSize = srcLayer.dataSize;
-
-        bool hasNewTexels = false;
-
-        // It could need conversion to another format.
-        if ( requiresConversion )
-        {
-            // Call the helper function.
-            ConvertMipmapLayer(
-                engineInterface,
-                srcLayer,
-                srcRasterFormat, srcDepth, srcRowAlignment, srcColorOrder, srcPaletteType, srcPaletteData, srcPaletteSize,
-                dstRasterFormat, dstDepth, dstRowAlignment, dstColorOrder, dstPaletteType,
-                true,
-                dstTexels, dstDataSize
-            );
-
-            hasNewTexels = true;
-        }
-
-        // If we require swizzling, then we need to allocate a new copy of the texels
-        // as destination buffer.
-        if ( requiresSwizzling )
-        {
-            NativeTextureXBOX::swizzleMipmapTraversal swizzleTrav;
-
-            swizzleTrav.mipWidth = mipWidth;
-            swizzleTrav.mipHeight = mipHeight;
-            swizzleTrav.depth = dstDepth;
-            swizzleTrav.rowAlignment = dstRowAlignment;
-            swizzleTrav.texels = dstTexels;
-            swizzleTrav.dataSize = dstDataSize;
-
-            NativeTextureXBOX::swizzleMipmap( engineInterface, swizzleTrav );
-
-            assert( swizzleTrav.texels != swizzleTrav.newtexels );
-
-            // If we had newly allocated texels, free them.
-            if ( hasNewTexels == true )
-            {
-                engineInterface->PixelFree( dstTexels );
-            }
-
-            // Update with the swizzled parameters.
-            mipWidth = swizzleTrav.newWidth;
-            mipHeight = swizzleTrav.newHeight;
-            dstTexels = swizzleTrav.newtexels;
-            dstDataSize = swizzleTrav.newDataSize;
-
-            hasNewTexels = true;
-        }
-
-        // Store it as mipmap.
-        NativeTextureXBOX::mipmapLayer& newLayer = xboxTex->mipmaps[ n ];
-
-        newLayer.width = mipWidth;
-        newLayer.height = mipHeight;
-
-        newLayer.layerWidth = layerWidth;
-        newLayer.layerHeight = layerHeight;
-
-        newLayer.texels = dstTexels;
-        newLayer.dataSize = dstDataSize;
-    }
-
-    // Also copy over the palette data.
-    void *dstPaletteData = NULL;
-    uint32 dstPaletteSize = 0;
-
-    if ( canHavePaletteData )
-    {
-        if ( dstPaletteType != PALETTE_NONE )
-        {
-            dstPaletteSize = srcPaletteSize;
-
-            if ( requiresConversion || hasDirectlyAcquired == false )
-            {
-                // Create a new copy.
-                uint32 dstPalRasterDepth = Bitmap::getRasterFormatDepth( dstRasterFormat );
-
-                uint32 palDataSize = getPaletteDataSize( dstPaletteSize, dstPalRasterDepth );
-
-                dstPaletteData = engineInterface->PixelAllocate( palDataSize );
-
-                if ( requiresConversion )
-                {
-                    uint32 srcPalRasterDepth = Bitmap::getRasterFormatDepth( srcRasterFormat );
-
-                    ConvertPaletteData(
-                        srcPaletteData, dstPaletteData,
-                        srcPaletteSize, dstPaletteSize,
-                        srcRasterFormat, srcColorOrder, srcPalRasterDepth,
-                        dstRasterFormat, dstColorOrder, dstPalRasterDepth
-                    );
-                }
-                else
-                {
-                    memcpy( dstPaletteData, srcPaletteData, palDataSize );
-                }
-            }
-            else
-            {
-                // Just move it over.
-                dstPaletteData = srcPaletteData;
-            }
-        }
-    }
-
-    // Copy general raster information.
-    xboxTex->rasterFormat = dstRasterFormat;
-    xboxTex->depth = dstDepth;
-    xboxTex->colorOrder = dstColorOrder;
-
-    // Store the palette.
-    xboxTex->paletteType = dstPaletteType;
-    xboxTex->palette = dstPaletteData;
-    xboxTex->paletteSize = dstPaletteSize;
-
-    // Copy more advanced properties.
-    xboxTex->rasterType = pixelsIn.rasterType;
-    xboxTex->hasAlpha = pixelsIn.hasAlpha;
-
-    // Properly set the automipmaps field.
-    bool autoMipmaps = pixelsIn.autoMipmaps;
-
-    if ( mipmapCount > 1 )
-    {
-        autoMipmaps = false;
-    }
-
-    xboxTex->autoMipmaps = autoMipmaps;
-
-    xboxTex->dxtCompression = xboxCompressionType;
-
-    // Since we have to swizzle the pixels, we cannot directly acquire the texels.
-    // If the input was compressed though, we can directly take the pixels.
     feedbackOut.hasDirectlyAcquired = hasDirectlyAcquired;
 }
 
@@ -989,12 +497,16 @@ struct xboxMipmapManager
         uint32 layerWidth = mipLayer.layerWidth;
         uint32 layerHeight = mipLayer.layerHeight;
 
-        uint32 depth = nativeTex->depth;
+        uint32 texDepth = nativeTex->depth;
 
         bool isNewlyAllocated = false;
 
         // Decide whether the texture is swizzled.
-        bool isSwizzled = isXBOXTextureSwizzled( this->nativeTex );
+        eRasterFormat texRasterFormat = nativeTex->rasterFormat;
+        ePaletteType texPaletteType = nativeTex->paletteType;
+        uint32 texCompressionType = nativeTex->dxtCompression;
+
+        bool isSwizzled = isXBOXTextureSwizzled( texRasterFormat, texDepth, texPaletteType, texCompressionType );
 
         // If we are swizzled, we must unswizzle.
         if ( isSwizzled )
@@ -1003,7 +515,7 @@ struct xboxMipmapManager
 
             swizzleTrav.mipWidth = mipWidth;
             swizzleTrav.mipHeight = mipHeight;
-            swizzleTrav.depth = depth;
+            swizzleTrav.depth = texDepth;
             swizzleTrav.rowAlignment = getXBOXTextureDataRowAlignment();
             swizzleTrav.texels = texels;
             swizzleTrav.dataSize = dataSize;
@@ -1026,16 +538,18 @@ struct xboxMipmapManager
         layerWidthOut = layerWidth;
         layerHeightOut = layerHeight;
 
-        dstRasterFormat = nativeTex->rasterFormat;
+        dstRasterFormat = texRasterFormat;
         dstColorOrder = nativeTex->colorOrder;
-        dstDepth = depth;
+        dstDepth = texDepth;
         dstRowAlignment = getXBOXTextureDataRowAlignment();
 
-        dstPaletteType = nativeTex->paletteType;
+        dstPaletteType = texPaletteType;
         dstPaletteData = nativeTex->palette;
         dstPaletteSize = nativeTex->paletteSize;
 
-        dstCompressionType = getDXTCompressionTypeFromXBOX( nativeTex->dxtCompression );
+        bool gotComprType = getDXTCompressionTypeFromXBOX( texCompressionType, dstCompressionType );
+
+        assert( gotComprType == true );
 
         hasAlpha = nativeTex->hasAlpha;
 
@@ -1059,19 +573,34 @@ struct xboxMipmapManager
     )
     {
         // Check whether the texture is swizzled.
-        bool isSwizzled = isXBOXTextureSwizzled( nativeTex );
+        eRasterFormat texRasterFormat = nativeTex->rasterFormat;
+        uint32 texDepth = nativeTex->depth;
+        ePaletteType texPaletteType = nativeTex->paletteType;
+        uint32 texCompressionType = nativeTex->dxtCompression;
+        
+        bool isSwizzled = isXBOXTextureSwizzled( texRasterFormat, texDepth, texPaletteType, texCompressionType );
 
         bool hasNewlyAllocated = false;
 
-        // Convert the texels into our appopriate format.
+        // Convert the texels into our appropriate format.
         {
+            eCompressionType rwCompressionType;
+            {
+                bool gotCompressionType = getDXTCompressionTypeFromXBOX( texCompressionType, rwCompressionType );
+
+                if ( !gotCompressionType )
+                {
+                    throw RwException( "invalid compression type on valid XBOX native texture" );
+                }
+            }
+
             bool hasChanged = ConvertMipmapLayerNative(
                 engineInterface,
                 width, height, layerWidth, layerHeight, srcTexels, dataSize,
                 rasterFormat, depth, rowAlignment, colorOrder, paletteType, paletteData, paletteSize, compressionType,
-                nativeTex->rasterFormat, nativeTex->depth, getXBOXTextureDataRowAlignment(), nativeTex->colorOrder,
-                nativeTex->paletteType, nativeTex->palette, nativeTex->paletteSize,
-                getDXTCompressionTypeFromXBOX( nativeTex->dxtCompression ),
+                texRasterFormat, texDepth, getXBOXTextureDataRowAlignment(), nativeTex->colorOrder,
+                texPaletteType, nativeTex->palette, nativeTex->paletteSize,
+                rwCompressionType,
                 false,
                 width, height,
                 srcTexels, dataSize
@@ -1087,7 +616,7 @@ struct xboxMipmapManager
 
             swizzleTrav.mipWidth = width;
             swizzleTrav.mipHeight = height;
-            swizzleTrav.depth = nativeTex->depth;
+            swizzleTrav.depth = texDepth;
             swizzleTrav.rowAlignment = getXBOXTextureDataRowAlignment();
             swizzleTrav.texels = srcTexels;
             swizzleTrav.dataSize = dataSize;
@@ -1191,29 +720,47 @@ void xboxNativeTextureTypeProvider::GetTextureFormatString( Interface *engineInt
 
     if ( xboxCompressionType != 0 )
     {
-        eCompressionType rwCompressionType = getDXTCompressionTypeFromXBOX( xboxCompressionType );
+        eCompressionType rwCompressionType;
 
-        if ( rwCompressionType == RWCOMPRESS_DXT1 )
+        bool hasKnownCompression = false;
+        
+        bool gotType = getDXTCompressionTypeFromXBOX( xboxCompressionType, rwCompressionType );
+
+        if ( gotType )
         {
-            formatString += " DXT1";
+            if ( rwCompressionType == RWCOMPRESS_DXT1 )
+            {
+                formatString += " DXT1";
+
+                hasKnownCompression = true;
+            }
+            else if ( rwCompressionType == RWCOMPRESS_DXT2 )
+            {
+                formatString += " DXT2";
+
+                hasKnownCompression = true;
+            }
+            else if ( rwCompressionType == RWCOMPRESS_DXT3 )
+            {
+                formatString += " DXT3";
+
+                hasKnownCompression = true;
+            }
+            else if ( rwCompressionType == RWCOMPRESS_DXT4 )
+            {
+                formatString += " DXT4";
+
+                hasKnownCompression = true;
+            }
+            else if ( rwCompressionType == RWCOMPRESS_DXT5 )
+            {
+                formatString += " DXT5";
+
+                hasKnownCompression = true;
+            }
         }
-        else if ( rwCompressionType == RWCOMPRESS_DXT2 )
-        {
-            formatString += " DXT2";
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT3 )
-        {
-            formatString += " DXT3";
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT4 )
-        {
-            formatString += " DXT4";
-        }
-        else if ( rwCompressionType == RWCOMPRESS_DXT5 )
-        {
-            formatString += " DXT5";
-        }
-        else
+        
+        if ( !hasKnownCompression )
         {
             formatString += "compressed (unk)";
         }

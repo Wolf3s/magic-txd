@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_ATC_MOBILE
 
@@ -83,7 +83,9 @@ void atcNativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture, 
                 platformTex->unk1 = metaHeader.unk1;
                 platformTex->unk2 = metaHeader.unk2;
 
+#ifdef _DEBUG
                 assert( metaHeader.unk1 == false );
+#endif
 
                 // Read the data sizes and keep track of how much we have read already.
                 uint32 validImageStreamSize = metaHeader.imageSectionStreamSize;
@@ -310,66 +312,82 @@ inline void DecompressATCMipmap(
     dstTexture.dwPitch = 0;
     dstTexture.format = dstRasterATITCFormat;
     dstTexture.dwDataSize = AMD_TC_CalculateBufferSize( &dstTexture );
-    dstTexture.pData = (AMD_TC_BYTE*)engineInterface->PixelAllocate( dstTexture.dwDataSize );
 
-    // Decompress, wazaaa!
-    AMD_TC_ERROR atcErrorCode = AMD_TC_ConvertTexture( &srcTexture, &dstTexture, NULL, NULL, NULL, NULL );
+    void *atcTexels = engineInterface->PixelAllocate( dstTexture.dwDataSize );
 
-    assert( atcErrorCode == AMD_TC_OK );
+    dstTexture.pData = (AMD_TC_BYTE*)atcTexels;
 
-    // Put the texels into a format we want.
-    void *dstTexels = dstTexture.pData;
+    if ( !dstTexture.pData )
+    {
+        throw RwException( "failed to allocate decompression surface buffer for AMDCompress decompression task" );
+    }
+
+    void *dstTexels = atcTexels;
     uint32 dstDataSize = dstTexture.dwDataSize;
 
-    uint32 atcRowAlignment = getATCToolTextureDataRowAlignment();
-
-    bool needsNewBuffer = shouldAllocateNewRasterBuffer( mipWidth, atcDepth, atcRowAlignment, targetDepth, targetRowAlignment );
-
-    if ( atcRasterFormat != targetRasterFormat || mipWidth != layerWidth || mipHeight != layerHeight || needsNewBuffer || atcColorOrder != targetColorOrder )
+    try
     {
-        void *atcTexels = dstTexels;
+        // Decompress, wazaaa!
+        AMD_TC_ERROR atcErrorCode = AMD_TC_ConvertTexture( &srcTexture, &dstTexture, NULL, NULL, NULL, NULL );
 
-        uint32 atcRowSize = getRasterDataRowSize( mipWidth, atcDepth, atcRowAlignment );
-
-        uint32 dstRowSize = getRasterDataRowSize( layerWidth, targetDepth, targetRowAlignment );
-
-        if ( mipWidth != layerWidth || mipHeight != layerHeight || needsNewBuffer )
+        if ( atcErrorCode != AMD_TC_OK )
         {
-            dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
-
-            dstTexels = engineInterface->PixelAllocate( dstDataSize );
+            throw RwException( "failed to decompress AMDCompress native texture surface data" );
         }
 
-        colorModelDispatcher <const void> fetchSrcDispatch( atcRasterFormat, atcColorOrder, atcDepth, NULL, 0, PALETTE_NONE );
-        colorModelDispatcher <void> putDispatch( targetRasterFormat, targetColorOrder, targetDepth, NULL, 0, PALETTE_NONE );
+        // Put the texels into a format we want.
+        uint32 atcRowAlignment = getATCToolTextureDataRowAlignment();
 
-        for ( uint32 y = 0; y < layerHeight; y++ )
+        bool needsNewBuffer = shouldAllocateNewRasterBuffer( mipWidth, atcDepth, atcRowAlignment, targetDepth, targetRowAlignment );
+
+        if ( atcRasterFormat != targetRasterFormat || mipWidth != layerWidth || mipHeight != layerHeight || needsNewBuffer || atcColorOrder != targetColorOrder )
         {
-            const void *srcRow = getConstTexelDataRow( atcTexels, atcRowSize, y );
-            void *dstRow = getTexelDataRow( dstTexels, dstRowSize, y );
+            uint32 atcRowSize = getRasterDataRowSize( mipWidth, atcDepth, atcRowAlignment );
 
-            for ( uint32 x = 0; x < layerWidth; x++ )
+            uint32 dstRowSize = getRasterDataRowSize( layerWidth, targetDepth, targetRowAlignment );
+
+            if ( mipWidth != layerWidth || mipHeight != layerHeight || needsNewBuffer )
             {
-                uint8 r, g, b, a;
+                dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
 
-                bool gotColor = fetchSrcDispatch.getRGBA( srcRow, x, r, g, b, a );
+                dstTexels = engineInterface->PixelAllocate( dstDataSize );
+            }
 
-                if ( !gotColor )
+            try
+            {
+                colorModelDispatcher fetchSrcDispatch( atcRasterFormat, atcColorOrder, atcDepth, NULL, 0, PALETTE_NONE );
+                colorModelDispatcher putDispatch( targetRasterFormat, targetColorOrder, targetDepth, NULL, 0, PALETTE_NONE );
+
+                copyTexelDataEx(
+                    atcTexels, dstTexels,
+                    fetchSrcDispatch, putDispatch,
+                    layerWidth, layerHeight,
+                    0, 0,
+                    0, 0,
+                    atcRowSize, dstRowSize
+                );
+            }
+            catch( ... )
+            {
+                if ( dstTexels != atcTexels )
                 {
-                    r = 0;
-                    g = 0;
-                    b = 0;
-                    a = 0;
+                    engineInterface->PixelFree( dstTexels );
                 }
-
-                putDispatch.setRGBA( dstRow, x, r, g, b, a );
+            
+                throw;
             }
         }
+    }
+    catch( ... )
+    {
+        engineInterface->PixelFree( atcTexels );
 
-        if ( dstTexels != atcTexels )
-        {
-            engineInterface->PixelFree( atcTexels );
-        }
+        throw;
+    }
+
+    if ( dstTexels != atcTexels )
+    {
+        engineInterface->PixelFree( atcTexels );
     }
 
     dstTexelsOut = dstTexels;
@@ -423,8 +441,8 @@ void atcNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
         newLayer.width = layerWidth;
         newLayer.height = layerHeight;
 
-        newLayer.mipWidth = layerWidth;
-        newLayer.mipHeight = layerHeight;
+        newLayer.layerWidth = layerWidth;
+        newLayer.layerHeight = layerHeight;
 
         // Decompress now.
         uint32 texDataSize = 0;
@@ -444,7 +462,7 @@ void atcNativeTextureTypeProvider::GetPixelDataFromTexture( Interface *engineInt
         newLayer.dataSize = texDataSize;
 
         // Store the layer.
-        pixelsOut.mipmaps[ n ] = newLayer;
+        pixelsOut.mipmaps[ n ] = std::move( newLayer );
     }
 
     // Give the raster format to the runtime.
@@ -497,31 +515,17 @@ inline void CompressMipmapToATC(
 
     try
     {
-        colorModelDispatcher <const void> fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
-        colorModelDispatcher <void> putDispatch( feedRasterFormat, feedColorOrder, feedDepth, NULL, 0, PALETTE_NONE );
+        colorModelDispatcher fetchDispatch( srcRasterFormat, srcColorOrder, srcDepth, srcPaletteData, srcPaletteSize, srcPaletteType );
+        colorModelDispatcher putDispatch( feedRasterFormat, feedColorOrder, feedDepth, NULL, 0, PALETTE_NONE );
 
-        for ( uint32 y = 0; y < mipHeight; y++ )
-        {
-            const void *srcRow = getConstTexelDataRow( srcTexels, srcLayerRowSize, y );
-            void *dstRow = getTexelDataRow( feedTexels, feedLayerTexRowSize, y );
-
-            for ( uint32 x = 0; x < mipWidth; x++ )
-            {
-                uint8 r, g, b, a;
-
-                bool gotColor = fetchDispatch.getRGBA( srcRow, x, r, g, b, a );
-
-                if ( !gotColor )
-                {
-                    r = 0;
-                    g = 0;
-                    b = 0;
-                    a = 0;
-                }
-
-                putDispatch.setRGBA( dstRow, x, r, g, b, a );
-            }
-        }
+        copyTexelDataEx(
+            srcTexels, feedTexels,
+            fetchDispatch, putDispatch,
+            mipWidth, mipHeight,
+            0, 0,
+            0, 0,
+            srcLayerRowSize, feedLayerTexRowSize
+        );
 
         // Determine the compressed texture dimensions.
         uint32 compressWidth = ALIGN_SIZE( mipWidth, 4u );
@@ -700,8 +704,8 @@ void atcNativeTextureTypeProvider::SetPixelDataToTexture( Interface *engineInter
             newLayer.width = compressWidth;
             newLayer.height = compressHeight;
 
-            newLayer.layerWidth = mipLayer.mipWidth;
-            newLayer.layerHeight = mipLayer.mipHeight;
+            newLayer.layerWidth = mipLayer.layerWidth;
+            newLayer.layerHeight = mipLayer.layerHeight;
 
             newLayer.dataSize = dstDataSize;
             newLayer.texels = dstTexels;

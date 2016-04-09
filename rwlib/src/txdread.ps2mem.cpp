@@ -1,4 +1,4 @@
-#include <StdInc.h>
+#include "StdInc.h"
 
 #ifdef RWLIB_INCLUDE_NATIVETEX_PLAYSTATION2
 
@@ -446,7 +446,7 @@ struct ps2GSMemoryLayoutManager
         {
             const uint32 *const *blockArrangement = layoutProps.blockArrangement;
 
-            const uint32 *row = (const uint32*)( blockArrangement + blockOffsetY * layoutProps.widthBlocksPerPage );
+            const uint32 *row = (const uint32*)( (const uint32*)blockArrangement + blockOffsetY * layoutProps.widthBlocksPerPage );
 
             blockIndex = row[ blockOffsetX ];
         }

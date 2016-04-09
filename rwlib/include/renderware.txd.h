@@ -45,56 +45,6 @@ enum eRasterStageAddressMode
     RWTEXADDRESS_BORDER
 };
 
-struct TextureBase;
-
-struct texFormatInfo
-{
-private:
-    uint32 filterMode : 8;
-    uint32 uAddressing : 4;
-    uint32 vAddressing : 4;
-    uint32 pad1 : 16;
-
-public:
-    void parse(TextureBase& theTexture) const;
-    void set(const TextureBase& inTex);
-
-    void writeToBlock(BlockProvider& outputProvider) const;
-    void readFromBlock(BlockProvider& inputProvider);
-};
-
-template <typename userType = endian::little_endian <uint32>>
-struct texFormatInfo_serialized
-{
-    userType info;
-
-    inline operator texFormatInfo ( void ) const
-    {
-        texFormatInfo formatOut;
-
-        *(uint32*)&formatOut = info;
-
-        return formatOut;
-    }
-
-    inline void operator = ( const texFormatInfo& right )
-    {
-        info = *(uint32*)&right;
-    }
-};
-
-struct wardrumFormatInfo
-{
-private:
-    endian::little_endian <uint32> filterMode;
-    endian::little_endian <uint32> uAddressing;
-    endian::little_endian <uint32> vAddressing;
-
-public:
-    void parse(TextureBase& theTexture) const;
-    void set(const TextureBase& inTex );
-};
-
 struct rasterSizeRules
 {
     inline rasterSizeRules( void )
@@ -118,8 +68,6 @@ struct rasterSizeRules
     void adjustDimensions( uint32 width, uint32 height, uint32& newWidth, uint32& newHeight ) const;
 };
 
-#include "renderware.txd.pixelformat.h"
-
 // This is our library-wide supported sample format enumeration.
 // Feel free to extend this. You must not serialize this anywhere,
 // since this type is version-agnostic.
@@ -141,6 +89,7 @@ enum eRasterFormat
     RASTER_LUM_ALPHA
 };
 
+// Remember to update this function whenever a new format emerges!
 inline bool canRasterFormatHaveAlpha(eRasterFormat rasterFormat)
 {
     if (rasterFormat == RASTER_1555 ||
@@ -163,11 +112,19 @@ enum ePaletteType
     PALETTE_4BIT_LSB    // same as 4BIT, but different addressing order
 };
 
+enum class eByteAddressingMode
+{
+    LEAST_SIGNIFICANT,
+    MOST_SIGNIFICANT
+};
+
 enum eColorOrdering
 {
     COLOR_RGBA,
     COLOR_BGRA,
-    COLOR_ABGR
+    COLOR_ABGR,
+    COLOR_ARGB,
+    COLOR_BARG
 };
 
 // utility to calculate palette item count.
@@ -208,174 +165,6 @@ typedef void* PlatformTexture;
 // if RASTER_PAL8, then only RASTER_8888 and RASTER_888
 // else 
 
-// Those are all sample types from RenderWare version 3.
-enum rwSerializedRasterFormat_3
-{
-    RWFORMAT3_UNKNOWN,
-    RWFORMAT3_1555,
-    RWFORMAT3_565,
-    RWFORMAT3_4444,
-    RWFORMAT3_LUM8,
-    RWFORMAT3_8888,
-    RWFORMAT3_888,
-    RWFORMAT3_16,
-    RWFORMAT3_24,
-    RWFORMAT3_32,
-    RWFORMAT3_555
-};
-
-// Useful routine to generate generic raster format flags.
-inline uint32 generateRasterFormatFlags( eRasterFormat rasterFormat, ePaletteType paletteType, bool hasMipmaps, bool autoMipmaps )
-{
-    uint32 rasterFlags = 0;
-
-    // bits 0..3 can be (alternatively) used for the raster type
-    // bits 4..8 are stored in the raster private flags.
-
-    // Map the raster format for RenderWare3.
-    rwSerializedRasterFormat_3 serFormat = RWFORMAT3_UNKNOWN;
-
-    if ( rasterFormat != RASTER_DEFAULT )
-    {
-        if ( rasterFormat == RASTER_1555 )
-        {
-            serFormat = RWFORMAT3_1555;
-        }
-        else if ( rasterFormat == RASTER_565 )
-        {
-            serFormat = RWFORMAT3_565;
-        }
-        else if ( rasterFormat == RASTER_4444 )
-        {
-            serFormat = RWFORMAT3_4444;
-        }
-        else if ( rasterFormat == RASTER_LUM )
-        {
-            serFormat = RWFORMAT3_LUM8;
-        }
-        else if ( rasterFormat == RASTER_8888 )
-        {
-            serFormat = RWFORMAT3_8888;
-        }
-        else if ( rasterFormat == RASTER_888 )
-        {
-            serFormat = RWFORMAT3_888;
-        }
-        else if ( rasterFormat == RASTER_16 )
-        {
-            serFormat = RWFORMAT3_16;
-        }
-        else if ( rasterFormat == RASTER_24 )
-        {
-            serFormat = RWFORMAT3_24;
-        }
-        else if ( rasterFormat == RASTER_32 )
-        {
-            serFormat = RWFORMAT3_32;
-        }
-        else if ( rasterFormat == RASTER_555 )
-        {
-            serFormat = RWFORMAT3_555;
-        }
-        // otherwise, well we failed.
-        // snap, we dont have a format!
-        // hopefully the implementation knows what it is doing!
-    }
-
-    rasterFlags |= ( (uint32)serFormat << 8 );
-
-    if ( paletteType == PALETTE_4BIT )
-    {
-        rasterFlags |= RASTER_PAL4;
-    }
-    else if ( paletteType == PALETTE_8BIT )
-    {
-        rasterFlags |= RASTER_PAL8;
-    }
-
-    if ( hasMipmaps )
-    {
-        rasterFlags |= RASTER_MIPMAP;
-    }
-
-    if ( autoMipmaps )
-    {
-        rasterFlags |= RASTER_AUTOMIPMAP;
-    }
-
-    return rasterFlags;
-}
-
-// Useful routine to read generic raster format flags.
-inline void readRasterFormatFlags( uint32 rasterFormatFlags, eRasterFormat& rasterFormat, ePaletteType& paletteType, bool& hasMipmaps, bool& autoMipmaps )
-{
-    rwSerializedRasterFormat_3 serFormat = (rwSerializedRasterFormat_3)( ( rasterFormatFlags & 0xF00 ) >> 8 );
-    
-    // Map the serialized format to our raster format.
-    // We should be backwards compatible to every RenderWare3 format.
-    eRasterFormat formatOut = RASTER_DEFAULT;
-
-    if ( serFormat == RWFORMAT3_1555 )
-    {
-        formatOut = RASTER_1555;
-    }
-    else if ( serFormat == RWFORMAT3_565 )
-    {
-        formatOut = RASTER_565;
-    }
-    else if ( serFormat == RWFORMAT3_4444 )
-    {
-        formatOut = RASTER_4444;
-    }
-    else if ( serFormat == RWFORMAT3_LUM8 )
-    {
-        formatOut = RASTER_LUM;
-    }
-    else if ( serFormat == RWFORMAT3_8888 )
-    {
-        formatOut = RASTER_8888;
-    }
-    else if ( serFormat == RWFORMAT3_888 )
-    {
-        formatOut = RASTER_888;
-    }
-    else if ( serFormat == RWFORMAT3_16 )
-    {
-        formatOut = RASTER_16;
-    }
-    else if ( serFormat == RWFORMAT3_24 )
-    {
-        formatOut = RASTER_24;
-    }
-    else if ( serFormat == RWFORMAT3_32 )
-    {
-        formatOut = RASTER_32;
-    }
-    else if ( serFormat == RWFORMAT3_555 )
-    {
-        formatOut = RASTER_555;
-    }
-    // anything else will be an unknown raster mapping.
-
-    rasterFormat = formatOut;
-
-    if ( ( rasterFormatFlags & RASTER_PAL4 ) != 0 )
-    {
-        paletteType = PALETTE_4BIT;
-    }
-    else if ( ( rasterFormatFlags & RASTER_PAL8 ) != 0 )
-    {
-        paletteType = PALETTE_8BIT;
-    }
-    else
-    {
-        paletteType = PALETTE_NONE;
-    }
-
-    hasMipmaps = ( rasterFormatFlags & RASTER_MIPMAP ) != 0;
-    autoMipmaps = ( rasterFormatFlags & RASTER_AUTOMIPMAP ) != 0;
-}
-
 enum eMipmapGenerationMode
 {
     MIPMAPGEN_DEFAULT,
@@ -409,6 +198,7 @@ struct Raster
         this->engineInterface = engineInterface;
         this->platformData = NULL;
         this->refCount = 1;
+        this->constRefCount = 0;
     }
 
     Raster( const Raster& right );
@@ -430,6 +220,12 @@ struct Raster
 
     void newNativeData( const char *typeName );
     void clearNativeData( void );
+
+    // Reference count for immutability across function calls.
+    // Can be used to depend on the native data across function calls.
+    void addConstRef( void );
+    void remConstRef( void );
+    bool isImmutable( void ) const;
 
     bool hasNativeDataOfType( const char *typeName ) const;
     const char* getNativeDataTypeName( void ) const;
@@ -461,12 +257,19 @@ struct Raster
     void clearMipmaps( void );
     void generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGenMode = MIPMAPGEN_DEFAULT );
 
+    RW_NOT_DIRECTLY_CONSTRUCTIBLE;
+
+    // GENERAL REMINDER: only the framework is allowed to access those fields directly!
+    // They are only this open because of code-management reasons!
+
     // Data members.
     Interface *engineInterface;
 
     PlatformTexture *platformData;
 
-    std::atomic <uint32> refCount;
+    std::atomic <uint32> refCount;          // general life-time reference count
+
+    std::atomic <uint32> constRefCount;     // if != 0, the native data is immutable
 };
 
 struct TexDictionary;
@@ -629,154 +432,6 @@ struct TexDictionary : public RwObject
     const char* GetRecommendedDriverPlatform( void ) const;
 };
 
-// Pixel capabilities are required for transporting data properly.
-struct pixelCapabilities
-{
-    inline pixelCapabilities( void )
-    {
-        this->supportsDXT1 = false;
-        this->supportsDXT2 = false;
-        this->supportsDXT3 = false;
-        this->supportsDXT4 = false;
-        this->supportsDXT5 = false;
-        this->supportsPalette = false;
-    }
-
-    bool supportsDXT1;
-    bool supportsDXT2;
-    bool supportsDXT3;
-    bool supportsDXT4;
-    bool supportsDXT5;
-    bool supportsPalette;
-};
-
-struct storageCapabilities
-{
-    inline storageCapabilities( void )
-    {
-        this->isCompressedFormat = false;
-    }
-
-    pixelCapabilities pixelCaps;
-
-    bool isCompressedFormat;    // if true then this texture does not store raw texel data.
-};
-
-struct pixelFormat
-{
-    inline pixelFormat( void )
-    {
-        this->rasterFormat = RASTER_DEFAULT;
-        this->depth = 0;
-        this->rowAlignment = 0;
-        this->colorOrder = COLOR_RGBA;
-        this->paletteType = PALETTE_NONE;
-        this->compressionType = RWCOMPRESS_NONE;
-    }
-
-    eRasterFormat rasterFormat;
-    uint32 depth;
-    uint32 rowAlignment;
-    eColorOrdering colorOrder;
-    ePaletteType paletteType;
-    eCompressionType compressionType;
-};
-
-struct pixelDataTraversal
-{
-    inline pixelDataTraversal( void )
-    {
-        this->isNewlyAllocated = false;
-        this->rasterFormat = RASTER_DEFAULT;
-        this->depth = 0;
-        this->rowAlignment = 0;
-        this->colorOrder = COLOR_RGBA;
-        this->paletteType = PALETTE_NONE;
-        this->paletteData = NULL;
-        this->paletteSize = 0;
-        this->compressionType = RWCOMPRESS_NONE;
-        this->hasAlpha = false;
-        this->autoMipmaps = false;
-        this->cubeTexture = false;
-        this->rasterType = 4;
-    }
-
-    void CloneFrom( Interface *engineInterface, const pixelDataTraversal& right );
-
-    void FreePixels( Interface *engineInterface );
-
-    inline void SetStandalone( void )
-    {
-        // Standalone pixels mean that they do not belong to any texture container anymore.
-        // If we are the only owner, we must make sure that we free them.
-        // This function was introduced to defeat a memory leak.
-        this->isNewlyAllocated = true;
-    }
-
-    inline void DetachPixels( void )
-    {
-        if ( this->isNewlyAllocated )
-        {
-            this->mipmaps.clear();
-            this->paletteData = NULL;
-
-            this->isNewlyAllocated = false;
-        }
-    }
-
-    // Mipmaps.
-    struct mipmapResource
-    {
-        inline mipmapResource( void )
-        {
-            // Debug fill the mipmap struct.
-            this->texels = NULL;
-            this->width = 0;
-            this->height = 0;
-            this->mipWidth = 0;
-            this->mipHeight = 0;
-            this->dataSize = 0;
-        }
-
-        void Free( Interface *engineInterface );
-
-        void *texels;
-        uint32 width, height;
-        uint32 mipWidth, mipHeight; // do not update these fields.
-
-        uint32 dataSize;
-    };
-
-    static void FreeMipmap( Interface *engineInterface, mipmapResource& mipData );
-
-    typedef std::vector <mipmapResource> mipmaps_t;
-
-    mipmaps_t mipmaps;
-
-    bool isNewlyAllocated;          // counts for all mipmap layers and palette data.
-    eRasterFormat rasterFormat;
-    uint32 depth;
-    uint32 rowAlignment;
-    eColorOrdering colorOrder;
-    ePaletteType paletteType;
-    void *paletteData;
-    uint32 paletteSize;
-    eCompressionType compressionType;
-
-    // More advanced properties.
-    bool hasAlpha;
-    bool autoMipmaps;
-    bool cubeTexture;
-    uint8 rasterType;
-};
-
-enum eTexNativeCompatibility
-{
-    RWTEXCOMPAT_NONE,
-    RWTEXCOMPAT_MAYBE,
-    RWTEXCOMPAT_ABSOLUTE
-};
-
 struct RwUnsupportedOperationException : public RwException
 {
     inline RwUnsupportedOperationException( const char *msg ) : RwException( msg )
@@ -791,36 +446,18 @@ struct RwUnsupportedOperationException : public RwException
 // Plugin methods.
 TexDictionary* CreateTexDictionary( Interface *engineInterface );
 TexDictionary* ToTexDictionary( Interface *engineInterface, RwObject *rwObj );
+const TexDictionary* ToConstTexDictionary( Interface *engineInterface, const RwObject *rwObj );
 
 TextureBase* CreateTexture( Interface *engineInterface, Raster *theRaster );
 TextureBase* ToTexture( Interface *engineInterface, RwObject *rwObj );
+const TextureBase* ToConstTexture( Interface *engineInterface, const RwObject *rwObj );
 
 typedef std::list <std::string> platformTypeNameList_t;
-
-struct rawMipmapLayer
-{
-    pixelDataTraversal::mipmapResource mipData;
-
-    eRasterFormat rasterFormat;
-    uint32 depth;
-    uint32 rowAlignment;
-    eColorOrdering colorOrder;
-    ePaletteType paletteType;
-    void *paletteData;
-    uint32 paletteSize;
-    eCompressionType compressionType;
-
-    bool hasAlpha;
-
-    bool isNewlyAllocated;
-};
 
 // Complex native texture API.
 bool ConvertRasterTo( Raster *theRaster, const char *nativeName );
 
 void* GetNativeTextureDriverInterface( Interface *engineInterface, const char *nativeName );
-
-const char* GetNativeTextureImageFormatExtension( Interface *engineInterface, const char *nativeName );
 
 platformTypeNameList_t GetAvailableNativeTextureTypes( Interface *engineInterface );
 
@@ -839,6 +476,7 @@ struct nativeRasterFormatInfo
 };
 
 bool GetNativeTextureFormatInfo( Interface *engineInterface, const char *nativeName, nativeRasterFormatInfo& infoOut );
+bool IsNativeTexture( Interface *engineInterface, const char *nativeName );
 
 // Format info helper API.
 const char* GetRasterFormatStandardName( eRasterFormat theFormat );

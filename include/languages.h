@@ -25,6 +25,10 @@ struct magicTextLocalizationItem abstract
 bool RegisterTextLocalizationItem( magicTextLocalizationItem *provider );
 bool UnregisterTextLocalizationItem( magicTextLocalizationItem *provider );
 
+typedef std::list <magicTextLocalizationItem*> localizations_t;
+
+localizations_t GetTextLocalizationItems( void );
+
 // Main Query function to request current localized text strings.
 QString getLanguageItemByKey( QString token, bool *found = NULL );
 

@@ -19,7 +19,8 @@ BEGIN_NATIVE_EXECUTIVE
 
 struct FiberStatus;
 
-typedef SIZE_T regType_t;
+// size_t logically is the machine word size.
+typedef size_t regType_t;
 typedef char xmmReg_t[16];
 
 struct Fiber
@@ -74,7 +75,7 @@ struct Fiber
     }
 };
 
-enum eFiberStatus : DWORD
+enum eFiberStatus : std::uint32_t
 {
     FIBER_RUNNING,
     FIBER_SUSPENDED,

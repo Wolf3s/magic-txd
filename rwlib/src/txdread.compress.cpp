@@ -1,10 +1,6 @@
 #include "StdInc.h"
 
-#include "txdread.nativetex.hxx"
-
-#include "txdread.natcompat.hxx"
-
-#include "txdread.rasterplg.hxx"
+#include "txdread.raster.hxx"
 
 namespace rw
 {
@@ -217,6 +213,9 @@ void Raster::compress( float quality )
 {
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
 
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
+
     // A pretty complicated algorithm that can be used to optimally compress rasters.
     // Currently this only supports DXT.
 
@@ -315,6 +314,9 @@ void Raster::compress( float quality )
 void Raster::compressCustom(eCompressionType targetCompressionType)
 {
     scoped_rwlock_writer <rwlock> rasterConsistency( GetRasterLock( this ) );
+
+    // Make sure we are mutable.
+    NativeCheckRasterMutable( this );
 
     PlatformTexture *platformTex = this->platformData;
 

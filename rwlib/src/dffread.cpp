@@ -1,8 +1,10 @@
 #include <cmath>
 
-#include <StdInc.h>
+#include "StdInc.h"
 
 #include "streamutil.hxx"
+
+#pragma warning(disable: 4267)
 
 namespace rw {
 

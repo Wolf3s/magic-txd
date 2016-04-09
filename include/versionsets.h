@@ -15,8 +15,9 @@ public:
         RWVS_PL_PSP,
         RWVS_PL_XBOX,
         RWVS_PL_MOBILE,
+        RWVS_PL_GAMECUBE,
 
-        RWVS_PL_NUM_OF_PLATFORMS = RWVS_PL_MOBILE
+        RWVS_PL_NUM_OF_PLATFORMS = RWVS_PL_GAMECUBE
     };
 
     enum eDataType {
@@ -30,8 +31,9 @@ public:
         RWVS_DT_UNCOMPRESSED_MOBILE,
         RWVS_DT_POWERVR,
         RWVS_DT_PSP,
+        RWVS_DT_GAMECUBE,
 
-        RWVS_DT_NUM_OF_TYPES = RWVS_DT_PSP
+        RWVS_DT_NUM_OF_TYPES = RWVS_DT_GAMECUBE
     };
 
     // translate name from settings file to id
@@ -46,6 +48,8 @@ public:
             return RWVS_PL_XBOX;
         if (name == "MOBILE")
             return RWVS_PL_MOBILE;
+        if (name == "GAMECUBE")
+            return RWVS_PL_GAMECUBE;
         return RWVS_PL_NOT_DEFINED;
     }
 
@@ -68,6 +72,8 @@ public:
             return RWVS_DT_POWERVR;
         if (name == "PSP")
             return RWVS_DT_PSP;
+        if (name == "GAMECUBE")
+            return RWVS_DT_GAMECUBE;
         return RWVS_DT_NOT_DEFINED;
     }
 
@@ -84,6 +90,8 @@ public:
             return "XBOX";
         case RWVS_PL_MOBILE:
             return "Mobile";
+        case RWVS_PL_GAMECUBE:
+            return "Gamecube";
         }
         return "Unknown";
     }
@@ -108,6 +116,8 @@ public:
             return "PowerVR";
         case RWVS_DT_PSP:
             return "PSP";
+        case RWVS_DT_GAMECUBE:
+            return "Gamecube";
         }
         return "Unknown";
     }
@@ -131,6 +141,8 @@ public:
             return RWVS_DT_POWERVR;
         if (name == "PSP")
             return RWVS_DT_PSP;
+        if (name == "Gamecube")
+            return RWVS_DT_GAMECUBE;
         return RWVS_DT_NOT_DEFINED;
     }
 

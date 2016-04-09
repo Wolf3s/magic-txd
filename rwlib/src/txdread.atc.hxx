@@ -4,6 +4,11 @@
 
 #include "txdread.d3d.genmip.hxx"
 
+#include "txdread.common.hxx"
+
+// AMDCompress does include windows.h
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <AMDCompress.h>
 
 #define PLATFORM_ATC    11

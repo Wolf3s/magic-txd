@@ -74,6 +74,30 @@ Modify.Fill            Fill
 Modify.Bckgr           Background
 Modify.Cancel          Cancel
 
+[Modify.Help.DXTNotice]
+You have selected DXT compression. DXT is a very efficient compression
+type for world textures. Textures stored in DXT use far less space, but
+they degrade the image quality significantly. It is NOT recommended to
+compress GUI textures.
+
+DXT1 is good for textures that use alpha for cut-out regions.
+DXT2/3 is good for textures with sharp alpha.
+DXT4/5 is good for textures with smooth alpha.
+If your image has no alpha, just pick DXT1.
+
+Be careful which textures you compress and which type you choose!
+[END]
+
+[Modify.Help.PALNotice]
+You have selected palette format. Images are palettized by selecting
+the most important colors and putting them into an array. The actual
+texture surface contains indices into the palette buffer, greatly
+decreasing the texture size.
+
+Note that palette format is legacy technology and is no longer supported
+by modern hardware.
+[END]
+
 # Render Props
 Main.SetupRP.Desc      Rendering Props
 Main.SetupRP.Filter    Filtering:
@@ -151,6 +175,7 @@ Main.About.Desc        About us
 Main.About.Credits     created by _AUTHOR_NAME_1 and _AUTHOR_NAME_2
 Main.About.ComUse1     This tool MUST NOT be used commercially without the explicit, written authorization of all third-parties that contributed to this tool. See the licenses for more information.
 Main.About.ComUse2     The _MAGIC_TXD_NAME team welcomes your support!
+Main.About.SpecThx     Special thanks to:
 
 # Tools
 Tools.Browse           Browse
@@ -175,6 +200,20 @@ Tools.MassExp.Cancel   Cancel
 Tools.MassBld.Desc     Mass Build
 Tools.MassBld.Build    Build
 Tools.MassBld.Cancel   Cancel
+Tools.MassBld.CloseOnCmplt  Close on completion
+Tools.MassBld.Cmprs    Compressed
+Tools.MassBld.DescQual Quality
+Tools.MassBld.DoPal    Palettized
+Tools.MassBld.DescPType    Type
+
+[Tools.MassBld.Welcome]
+Welcome to the Mass Build tool! This tool creates TXD files out of image
+files inside of a folder hierarchy. You can use INI files inside of those
+folders to specialize the building process. Try building some random folders
+and see the results!
+
+Wiki: http://www.gtamodding.com/wiki/Magic.TXD/Build_System/
+[END]
 
 # Mass convert
 Tools.MassCnv.Desc     Mass Conversion
@@ -191,3 +230,8 @@ New.Desc               Create new txd
 New.Name               Name
 New.Create             Create
 New.Cancel             Cancel
+
+# Helper runtime generics.
+Helper.Confirm         OK
+Helper.Title           Notice
+Helper.NotShowAgain    Do not show again

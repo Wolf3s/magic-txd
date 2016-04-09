@@ -2,6 +2,9 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="endian::little_endian &lt;*&gt;">
     <DisplayString>{*($T1*)data}</DisplayString>
+    <Expand>
+      <Item Name="Value">*($T1*)data</Item>
+    </Expand>
   </Type>
   <Type Name="endian::big_endian &lt;unsigned char&gt;">
     <DisplayString>{*(unsigned char*)data}</DisplayString>
@@ -41,8 +44,9 @@
         <Item Name="Direct3D 9" Condition='strcmp(platformName,"Direct3D9") == 0'>(rw::NativeTextureD3D9*)this->platformData</Item>
         <Item Name="Direct3D 8" Condition='strcmp(platformName,"Direct3D8") == 0'>(rw::NativeTextureD3D8*)this->platformData</Item>
         <Item Name="PlayStation 2" Condition='strcmp(platformName,"PlayStation2") == 0'>(rw::NativeTexturePS2*)this->platformData</Item>
+        <Item Name="PSP" Condition='strcmp(platformName,"PSP") == 0'>(rw::NativeTexturePSP*)this->platformData</Item>
         <Item Name='XBOX' Condition='strcmp(platformName,"XBOX") == 0'>(rw::NativeTextureXBOX*)this->platformData</Item>
-        <!-- <Item Name='Gamecube' Condition='strcmp(platformName,"Gamecube") == 0'>(rw::NativeTextureGC*)this->platformData</Item></!-->
+        <Item Name='Gamecube' Condition='strcmp(platformName,"Gamecube") == 0'>(rw::NativeTextureGC*)this->platformData</Item>
         <Item Name='PowerVR' Condition='strcmp(platformName,"PowerVR") == 0'>(rw::NativeTexturePVR*)this->platformData</Item>
         <Item Name='AMDCompress' Condition='strcmp(platformName,"AMDCompress") == 0'>(rw::NativeTextureATC*)this->platformData</Item>
         <Item Name='s3tc_mobile' Condition='strcmp(platformName,"s3tc_mobile") == 0'>(rw::NativeTextureMobileDXT*)this->platformData</Item>

@@ -7,45 +7,22 @@ namespace rw
 {
 
 // Internal raster plugins for consistency management.
-struct rasterConsistencyEnv
+struct _getRasterPluginFactStructoid
 {
-    struct dynamic_rwlock
+    AINLINE static rwMainRasterEnv_t::rasterFactory_t* getFactory( EngineInterface *engineInterface )
     {
-        inline void Initialize( Raster *ras )
+        rwMainRasterEnv_t *rasterEnv = rwMainRasterEnv_t::pluginRegister.GetPluginStruct( engineInterface );
+
+        if ( rasterEnv )
         {
-            CreatePlacedReadWriteLock( ras->engineInterface, this );
+            return &rasterEnv->rasterFactory;
         }
 
-        inline void Shutdown( Raster *ras )
-        {
-            ClosePlacedReadWriteLock( ras->engineInterface, (rwlock*)this );
-        }
-
-        inline void operator = ( const dynamic_rwlock& right )
-        {
-            // Nothing to do here.
-            return;
-        }
-    };
-
-    inline void Initialize( EngineInterface *intf )
-    {
-        size_t rwlock_struct_size = GetReadWriteLockStructSize( intf );
-
-        this->_rasterConsistencyPluginOffset =
-            intf->rasterPluginFactory.RegisterDependantStructPlugin <dynamic_rwlock> ( EngineInterface::rasterPluginFactory_t::ANONYMOUS_PLUGIN_ID, rwlock_struct_size );
+        return NULL;
     }
-
-    inline void Shutdown( EngineInterface *intf )
-    {
-        if ( EngineInterface::rasterPluginFactory_t::IsOffsetValid( this->_rasterConsistencyPluginOffset ) )
-        {
-            intf->rasterPluginFactory.UnregisterPlugin( this->_rasterConsistencyPluginOffset );
-        }
-    }
-
-    EngineInterface::rasterPluginFactory_t::pluginOffset_t _rasterConsistencyPluginOffset;
 };
+
+typedef factLockProviderEnv <rwMainRasterEnv_t::rasterFactory_t, _getRasterPluginFactStructoid> rasterConsistencyEnv;
 
 typedef PluginDependantStructRegister <rasterConsistencyEnv, RwInterfaceFactory_t> rasterConsistencyRegister_t;
 
@@ -57,7 +34,7 @@ inline rwlock* GetRasterLock( const rw::Raster *ras )
 
     if ( consisEnv )
     {
-        return (rwlock*)EngineInterface::rasterPluginFactory_t::RESOLVE_STRUCT <rwlock> ( ras, consisEnv->_rasterConsistencyPluginOffset );
+        return consisEnv->GetLock( ras );
     }
 
     return NULL;

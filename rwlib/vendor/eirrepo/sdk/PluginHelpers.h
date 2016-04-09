@@ -213,6 +213,7 @@ public:
     }
 };
 
+// Helper structure to register a factory type as extension into a factory type.
 template <typename whatFactory, typename intoFactory>
 struct PluginDependantFactoryRegister
 {
@@ -330,6 +331,126 @@ private:
     intoFactory *regFact;
 
     hostedPluginOffset_t offset;
+};
+
+template <typename typeSysType, typename factoryType, typename factPipelineType>
+struct TypeSystemFactoryTypeRegistration
+{
+    typedef typename typeSysType::systemPointer_t systemPointer_t;
+
+    inline void Initialize( systemPointer_t *sysPtr )
+    {
+        // Set up the type interface.
+        _typeInterface.sysPtr = sysPtr;
+
+        // Register the type.
+        typeInfoBase *typeInfo = NULL;
+
+        if ( factoryType *factPtr = factPipelineType::getFactory( sysPtr ) )
+        {
+            typeSysType& typeSys = factPipelineType::getTypeSystem( sysPtr );
+
+            const char *typeName = factPipelineType::getTypeName();
+
+            typeInfo =
+                typeSys.RegisterType( typeName, &this->_typeInterface );
+        }
+
+        this->registeredType = typeInfo;
+    }
+
+    inline void Shutdown( systemPointer_t *sysPtr )
+    {
+        // Delete the type.
+        if ( typeInfoBase *typeInfo = this->registeredType )
+        {
+            typeSysType& typeSys = factPipelineType::getTypeSystem( sysPtr );
+
+            typeSys.DeleteType( typeInfo );
+
+            this->registeredType = NULL;
+        }
+    }
+
+    typedef typename typeSysType::typeInfoBase typeInfoBase;
+
+    inline typeInfoBase* GetType( void )
+    {
+        return this->registeredType;
+    }
+
+private:
+    struct factLinkTypeInterface : public typeSysType::typeInterface
+    {
+        typedef typename factPipelineType::base_constructor base_constructor;
+        typedef typename factoryType::hostType_t hostType_t;
+
+        void Construct( void *mem, systemPointer_t *sysPtr, void *constr_params ) const override
+        {
+            base_constructor constr( sysPtr, constr_params );
+
+            factoryType *factPtr = factPipelineType::getFactory( sysPtr );
+
+            factPtr->ConstructPlacementEx( mem, constr );
+        }
+
+        void CopyConstruct( void *mem, const void *srcMem ) const override
+        {
+            factoryType *factPtr = factPipelineType::getFactory( sysPtr );
+
+            factPtr->ClonePlacement( mem, (const hostType_t*)srcMem );
+        }
+
+        void Destruct( void *mem ) const override
+        {
+            factoryType *factPtr = factPipelineType::getFactory( sysPtr );
+
+            factPtr->DestroyPlacement( (hostType_t*)mem );
+        }
+
+        size_t GetTypeSize( systemPointer_t *sysPtr, void *constr_params ) const override
+        {
+            factoryType *factPtr = factPipelineType::getFactory( sysPtr );
+
+            return factPtr->GetClassSize();
+        }
+
+        size_t GetTypeSizeByObject( systemPointer_t *sysPtr, const void *mem ) const override
+        {
+            factoryType *factPtr = factPipelineType::getFactory( sysPtr );
+
+            return factPtr->GetClassSize();
+        }
+
+        systemPointer_t *sysPtr;
+    };
+    factLinkTypeInterface _typeInterface;
+
+    typeInfoBase *registeredType;
+};
+
+namespace factRegPipes
+{
+
+// Factory registration pipeline with default base constructor.
+template <typename systemPointer_t, typename constrType>
+struct defconstr_fact_pipeline_base
+{
+    systemPointer_t *sysPtr;
+    void *constr_params;
+
+    AINLINE defconstr_fact_pipeline_base( systemPointer_t *sysPtr, void *constr_params )
+    {
+        this->sysPtr = sysPtr;
+        this->constr_params = constr_params;
+    }
+
+    AINLINE constrType* Construct( void *mem ) const
+    {
+        return new (mem) constrType( this->sysPtr, this->constr_params );
+    }
+};
+
 };
 
 #endif //_PLUGIN_HELPERS_

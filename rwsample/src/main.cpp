@@ -1,5 +1,7 @@
 #include <renderware.h>
 
+#include <rwframework.h>
+
 namespace rw
 {
     LibraryVersion app_version( void )
@@ -34,23 +36,6 @@ namespace rw
 
     int32 rwmain( Interface *engineInterface )
     {
-        // Quick lock test.
-        {
-            testLock = rw::CreateReadWriteLock( engineInterface );
-
-            testLock->enter_read();
-
-            thread_t thandle = rw::MakeThread( engineInterface, tentry, NULL );
-
-            rw::ResumeThread( engineInterface, thandle );
-
-            rw::CloseThread( engineInterface, thandle );
-
-            Sleep( 1000 );
-
-            testLock->enter_read();
-        }
-
         // Give information about the running application to the runtime.
         softwareMetaInfo metaInfo;
         metaInfo.applicationName = "RenderWare Sample";
@@ -64,14 +49,6 @@ namespace rw
 
         if ( !rwWindow )
             return -1;
-
-        {
-            rw::thread_t testThread = rw::MakeThread( engineInterface, tentryp, NULL );
-
-            rw::ResumeThread( engineInterface, testThread );
-
-            rw::CloseThread( engineInterface, testThread );
-        }
 
         // We hold an extra reference.
         AcquireObject( rwWindow );

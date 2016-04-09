@@ -138,8 +138,8 @@ inline bool virtualGetMipmapLayer(
     layerOut.mipData.width = mipWidth;
     layerOut.mipData.height = mipHeight;
 
-    layerOut.mipData.mipWidth = layerWidth;
-    layerOut.mipData.mipHeight = layerHeight;
+    layerOut.mipData.layerWidth = layerWidth;
+    layerOut.mipData.layerHeight = layerHeight;
 
     layerOut.mipData.texels = texels;
     layerOut.mipData.dataSize = dataSize;
@@ -202,8 +202,8 @@ inline bool virtualAddMipmapLayer(
             return false;
 
         // Make sure the mipmap layer dimensions match.
-        if ( layerWidth != layerIn.mipData.mipWidth ||
-             layerHeight != layerIn.mipData.mipHeight )
+        if ( layerWidth != layerIn.mipData.layerWidth ||
+             layerHeight != layerIn.mipData.layerHeight )
         {
             return false;
         }
@@ -232,7 +232,7 @@ inline bool virtualAddMipmapLayer(
             mipManager.Internalize(
                 engineInterface,
                 newLayer,
-                layerIn.mipData.width, layerIn.mipData.height, layerIn.mipData.mipWidth, layerIn.mipData.mipHeight, layerIn.mipData.texels, layerIn.mipData.dataSize,
+                layerIn.mipData.width, layerIn.mipData.height, layerIn.mipData.layerWidth, layerIn.mipData.layerHeight, layerIn.mipData.texels, layerIn.mipData.dataSize,
                 layerIn.rasterFormat, layerIn.colorOrder, layerIn.depth,
                 layerIn.rowAlignment,
                 layerIn.paletteType, layerIn.paletteData, layerIn.paletteSize,

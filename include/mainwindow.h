@@ -1,6 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+// DEBUG DEFINES.
+#ifdef _DEBUG
+#define _DEBUG_HELPER_TEXT
+#endif
+
 #include <qconfig.h>
 
 #include <QMainWindow>
@@ -51,6 +56,14 @@ inline QString ansi_to_qt( const std::string& str )
     return QString::fromLatin1( str.c_str(), str.size() );
 }
 
+// The editor may have items that depend on a certain theme.
+// We must be aware of theme changes!
+struct magicThemeAwareItem abstract
+{
+    // Called when the theme has changed.
+    virtual void updateTheme( MainWindow *mainWnd ) = 0;
+};
+
 #include "texinfoitem.h"
 #include "txdlog.h"
 #include "txdadddialog.h"
@@ -58,6 +71,7 @@ inline QString ansi_to_qt( const std::string& str )
 #include "guiserialization.h"
 #include "aboutdialog.h"
 #include "streamcompress.h"
+#include "helperruntime.h"
 
 #include "MagicExport.h"
 
@@ -90,13 +104,20 @@ private:
     void UpdateExportAccessibility(void);
     void UpdateAccessibility(void);
 
+    // Drag and drop support.
+    void dragEnterEvent( QDragEnterEvent *evt ) override;
+    void dragLeaveEvent( QDragLeaveEvent *evt ) override;
+    void dropEvent( QDropEvent *evt ) override;
+
 public:
-    void openTxdFile(QString fileName);
+    bool openTxdFile(QString fileName, bool silent = false);
     void setCurrentTXD(rw::TexDictionary *txdObj);
     rw::TexDictionary* getCurrentTXD(void)              { return this->currentTXD; }
     void updateTextureList(bool selectLastItemInList);
 
     void updateFriendlyIcons();
+
+    void adjustDimensionsByViewport();
 
 public:
     void updateWindowTitle(void);
@@ -121,7 +142,15 @@ public:
 
     const char* GetTXDPlatform(rw::TexDictionary *txd);
 
+    void launchDetails( void );
+
+    // Theme registration API.
+    void RegisterThemeItem( magicThemeAwareItem *item );
+    void UnregisterThemeItem( magicThemeAwareItem *item );
+
 private:
+    void DefaultTextureAddAndPrepare( rw::TextureBase *rwtex, const char *name, const char *maskName );
+
     void DoAddTexture(const TexAddDialog::texAddOperation& params);
 
     inline void setCurrentFilePath(const QString& newPath)
@@ -138,6 +167,8 @@ private:
 
         this->updateWindowTitle();
     }
+
+    void UpdateTheme( void );
 
 public slots:
     void onCreateNewTXD(bool checked);
@@ -173,7 +204,9 @@ public slots:
 private:
     QString requestValidImagePath(void);
 
-    public slots:
+    void spawnTextureAddDialog( QString imgPath );
+
+public slots:
     void onAddTexture(bool checked);
     void onReplaceTexture(bool checked);
     void onRemoveTexture(bool checked);
@@ -234,6 +267,9 @@ private:
     bool showFullImage;
     bool drawMipmapLayers;
     bool showBackground;
+
+    // Editor theme awareness.
+    std::vector <magicThemeAwareItem*> themeItems;
 
     QMenu *fileMenu;
     QMenu *editMenu;
@@ -298,6 +334,9 @@ private:
     std::list <TextureExportAction*> actionsExportItems;
     QAction *exportAllImages;
 
+    // REMEMBER TO DELETE EVERY WIDGET THAT DEPENDS ON MAINWINDOW INSIDE OF MAINWINDOW DESTRUCTOR.
+    // OTHERWISE THE EDITOR COULD CRASH.
+
 	TxdLog *txdLog; // log management class
     RwVersionDialog *verDlg; // txd version setup class
     TexNameWindow *texNameDlg; // dialog to change texture name
@@ -309,8 +348,8 @@ private:
 
     struct magf_extension
     {
-        D3DFORMAT d3dformat;
-        HMODULE loadedLibrary;
+        D3DFORMAT_SDK d3dformat;
+        void *loadedLibrary;
         void *handler;
     };
 
@@ -327,7 +366,6 @@ private:
         std::list <std::string> ext_array;
 
         bool isNativeFormat;
-        std::string nativeType;
     };
 
     typedef std::list <registered_image_format> imageFormats_t;
@@ -359,7 +397,9 @@ public:
     bool texaddViewportFill;
     bool texaddViewportScaled;
     bool texaddViewportBackground;
-    
+
+    bool isLaunchedForTheFirstTime;
+
     // Options.
     bool showLogOnWarning;
     bool showGameIcon;
