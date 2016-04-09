@@ -76,27 +76,9 @@ public:
         {
             QLocale::Language lang = QLocale::system().language();
 
-            switch( lang )
-            {
-            case QLocale::German:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "German" );
-                break;
-            case QLocale::English:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "English" );
-                break;
-            case QLocale::Ukrainian:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "Ukrainian" );
-                break;
-            case QLocale::Russian:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "Russian" );
-                break;
-            case QLocale::Croatian:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "Croatian" );
-                break;
-            case QLocale::Portuguese:
-                hasAcquiredLanguage = selectLanguageByLanguageName( "Portuguese" );
-                break;
-            }
+            QString langString = QLocale::languageToString( lang );
+
+            hasAcquiredLanguage = selectLanguageByLanguageName( std::move( langString ) );
         }
 
         if ( !hasAcquiredLanguage )
