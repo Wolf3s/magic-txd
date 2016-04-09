@@ -784,7 +784,7 @@ struct mainWindowHelpEnv
 {
     inline void Initialize( MainWindow *mainWnd )
     {
-        RegisterHelperWidget( mainWnd, "mgbld_welcome", eHelperTextType::DIALOG_WITH_TICK, "Tools.MassBld.Welcome" );
+        RegisterHelperWidget( mainWnd, "mgbld_welcome", eHelperTextType::DIALOG_WITH_TICK, "Tools.MassBld.Welcome", true );
     }
 
     inline void Shutdown( MainWindow *mainWnd )
