@@ -673,6 +673,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 2015|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 2013|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="..\..\src\mainwindow.safety.cpp" />
     <ClCompile Include="..\..\src\mainwindow.serialize.cpp" />
     <ClCompile Include="..\..\src\massbuild.cpp" />
     <ClCompile Include="..\..\src\massconvert.cpp" />

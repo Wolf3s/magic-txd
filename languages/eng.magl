@@ -177,6 +177,16 @@ Main.About.ComUse1     This tool MUST NOT be used commercially without the expli
 Main.About.ComUse2     The _MAGIC_TXD_NAME team welcomes your support!
 Main.About.SpecThx     Special thanks to:
 
+# Save changes
+[Main.SavChange.Warn]
+There are unsaved changes in the open TXD archive.
+Do you want to save them now?
+[END]
+Main.SavChange.Save    Save
+Main.SavChange.Ignore  Ignore
+Main.SavChange.Cancel  Cancel
+Main.SavChange.Title   Unsaved changes
+
 # Tools
 Tools.Browse           Browse
 Tools.BrwDesc          Browse Directory...

@@ -179,6 +179,16 @@ Main.About.ComUse1     Dieses Programm darf NICHT ohne Erlaubnis aller Parteien,
 Main.About.ComUse2     Das _MAGIC_TXD_NAME Team freut sich auf deine Zusammenarbeit!
 Main.About.SpecThx     Besonderen Dank an:
 
+# Save changes
+[Main.SavChange.Warn]
+Es befinden sich ungespeicherte Änderungen in dem offenen TXD Archiv.
+Möchtest du speichern?
+[END]
+Main.SavChange.Save    Speichern
+Main.SavChange.Ignore  Verwerfen
+Main.SavChange.Cancel  Abbrechen
+Main.SavChange.Title   Ungespeicherte Änderungen
+
 # Tools
 Tools.Browse           Stöbern
 Tools.BrwDesc          Zielordner auswählen...

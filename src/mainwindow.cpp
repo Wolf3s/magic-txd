@@ -1038,7 +1038,7 @@ void MainWindow::dropEvent( QDropEvent *evt )
                             else
                             {
                                 rw::streamConstructionFileParamW_t fileParam( widePath.c_str() );
-
+                                
                                 rw::Stream *imgStream = rwEngine->CreateStream( rw::RWSTREAMTYPE_FILE_W, rw::RWSTREAMMODE_READONLY, &fileParam );
 
                                 if ( imgStream )
@@ -1137,6 +1137,8 @@ void MainWindow::setCurrentTXD( rw::TexDictionary *txdObj )
 
         this->currentTXD = NULL;
 
+        this->ClearModifiedState();
+
         // Clear anything in the GUI that represented the previous TXD.
         this->textureListWidget->clear();
     }
@@ -1191,7 +1193,14 @@ void MainWindow::updateTextureList( bool selectLastItemInList )
 
 void MainWindow::updateWindowTitle( void )
 {
-    QString windowTitleString = tr( "Magic.TXD" );
+    QString windowTitleString;
+
+    if ( this->wasTXDModified )
+    {
+        windowTitleString += "* ";
+    }
+
+    windowTitleString += "Magic.TXD";
 
 #ifdef _M_AMD64
     windowTitleString += " x64";
@@ -1289,8 +1298,12 @@ void MainWindow::updateAllTextureMetaInfo( void )
 
 void MainWindow::onCreateNewTXD( bool checked )
 {
-    CreateTxdDialog *createDlg = new CreateTxdDialog(this);
-    createDlg->setVisible(true);
+    this->ModifiedStateBarrier( false,
+        [=]( void )
+    {
+        CreateTxdDialog *createDlg = new CreateTxdDialog(this);
+        createDlg->setVisible(true);
+    });
 }
 
 #include "tools/dirtools.h"
@@ -1428,36 +1441,44 @@ bool MainWindow::openTxdFile(QString fileName, bool silent)
 
 void MainWindow::onOpenFile( bool checked )
 {
-    QString fileName = QFileDialog::getOpenFileName( this, MAGIC_TEXT( "Main.Open.Desc" ), this->lastTXDOpenDir, tr( "RW Texture Archive (*.txd);;Any File (*.*)" ) );
-
-    if ( fileName.length() != 0 )
+    ModifiedStateBarrier( false,
+        [=]( void )
     {
-        // Store the new dir
-        this->lastTXDOpenDir = QFileInfo( fileName ).absoluteDir().absolutePath();
+        QString fileName = QFileDialog::getOpenFileName( this, MAGIC_TEXT( "Main.Open.Desc" ), this->lastTXDOpenDir, tr( "RW Texture Archive (*.txd);;Any File (*.*)" ) );
 
-        this->openTxdFile(fileName);
-    }
+        if ( fileName.length() != 0 )
+        {
+            // Store the new dir
+            this->lastTXDOpenDir = QFileInfo( fileName ).absoluteDir().absolutePath();
+
+            this->openTxdFile(fileName);
+        }
+    });
 }
 
 void MainWindow::onCloseCurrent( bool checked )
 {
-    this->currentSelectedTexture = NULL;
-    this->hasOpenedTXDFileInfo = false;
+    this->ModifiedStateBarrier( false,
+        [=]( void )
+    {
+        this->currentSelectedTexture = NULL;
+        this->hasOpenedTXDFileInfo = false;
 
-	clearViewImage();
+	    clearViewImage();
 
-    // Make sure we got no TXD active.
-    this->setCurrentTXD( NULL );
+        // Make sure we got no TXD active.
+        this->setCurrentTXD( NULL );
 
-    this->updateWindowTitle();
+        this->updateWindowTitle();
 
-    this->updateFriendlyIcons();
+        this->updateFriendlyIcons();
+    });
 }
 
 void MainWindow::onTextureItemChanged(QListWidgetItem *listItem, QListWidgetItem *prevTexInfoItem)
 {
     QListWidget *texListWidget = this->textureListWidget;
-
+    
     QWidget *listItemWidget = texListWidget->itemWidget( listItem );
 
     TexInfoWidget *texItem = dynamic_cast <TexInfoWidget*> ( listItemWidget );
@@ -1622,14 +1643,17 @@ void MainWindow::onSetupMipmapLayers( bool checked )
 
             // Fix texture filtering modes.
             texture->fixFiltering();
+
+            // Make sure we update the info.
+            this->updateTextureMetaInfo();
+
+            // Update the texture view.
+            this->updateTextureView();
+
+            // We have modified the TXD.
+            this->NotifyChange();
         }
     }
-
-    // Make sure we update the info.
-    this->updateTextureMetaInfo();
-
-    // Update the texture view.
-    this->updateTextureView();
 }
 
 void MainWindow::onClearMipmapLayers( bool checked )
@@ -1646,18 +1670,23 @@ void MainWindow::onClearMipmapLayers( bool checked )
 
             // Fix the filtering.
             texture->fixFiltering();
+
+            // Update the info.
+            this->updateTextureMetaInfo();
+
+            // Update the texture view.
+            this->updateTextureView();
+
+            // We have modified the TXD.
+            this->NotifyChange();
         }
     }
-
-    // Update the info.
-    this->updateTextureMetaInfo();
-
-    // Update the texture view.
-    this->updateTextureView();
 }
 
-void MainWindow::saveCurrentTXDAt( QString txdFullPath )
+bool MainWindow::saveCurrentTXDAt( QString txdFullPath )
 {
+    bool didSave = false;
+
     if ( rw::TexDictionary *currentTXD = this->currentTXD )
     {
         // We serialize what we have at the location we loaded the TXD from.
@@ -1676,6 +1705,12 @@ void MainWindow::saveCurrentTXDAt( QString txdFullPath )
 
                 // Success, so lets update our target filename.
                 this->setCurrentFilePath( txdFullPath );
+
+                // We are no longer modified.
+                this->ClearModifiedState();
+
+                // Tell the runtime about the success :)
+                didSave = true;
             }
             catch( rw::RwException& except )
             {
@@ -1686,10 +1721,14 @@ void MainWindow::saveCurrentTXDAt( QString txdFullPath )
             this->rwEngine->DeleteStream( newTXDStream );
         }
     }
+
+    return didSave;
 }
 
-void MainWindow::onRequestSaveTXD( bool checked )
+bool MainWindow::performSaveTXD( void )
 {
+    bool didSave = false;
+
     if ( this->currentTXD != NULL )
     {
         if ( this->hasOpenedTXDFileInfo )
@@ -1698,18 +1737,27 @@ void MainWindow::onRequestSaveTXD( bool checked )
 
             if ( txdFullPath.length() != 0 )
             {
-                this->saveCurrentTXDAt( txdFullPath );
+                didSave = this->saveCurrentTXDAt( txdFullPath );
             }
         }
         else
         {
-            this->onRequestSaveAsTXD( checked );
+            didSave = this->performSaveAsTXD();
         }
     }
+
+    return didSave;
 }
 
-void MainWindow::onRequestSaveAsTXD( bool checked )
+void MainWindow::onRequestSaveTXD( bool checked )
 {
+    this->performSaveTXD();
+}
+
+bool MainWindow::performSaveAsTXD( void )
+{
+    bool didSave = false;
+
     if ( this->currentTXD != NULL )
     {
         QString txdSavePath;
@@ -1728,9 +1776,16 @@ void MainWindow::onRequestSaveAsTXD( bool checked )
             // Save location.
             this->lastTXDSaveDir = QFileInfo( newSaveLocation ).absoluteDir().absolutePath();
 
-            this->saveCurrentTXDAt( newSaveLocation );
+            didSave = this->saveCurrentTXDAt( newSaveLocation );
         }
     }
+
+    return didSave;
+}
+
+void MainWindow::onRequestSaveAsTXD( bool checked )
+{
+    this->performSaveAsTXD();
 }
 
 static void serializeRaster( rw::Stream *outputStream, rw::Raster *texRaster, const char *method )
@@ -1757,6 +1812,9 @@ void MainWindow::DefaultTextureAddAndPrepare( rw::TextureBase *newTexture, const
 
     // Update the texture list.
     this->updateTextureList(true);
+
+    // We have modified the TXD.
+    this->NotifyChange();
 }
 
 void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
@@ -1774,6 +1832,8 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
 
         // Update the texture list.
         this->updateTextureList(true);
+
+        this->NotifyChange();
     }
     else if ( add_type == TexAddDialog::texAddOperation::ADD_RASTER )
     {
@@ -2018,6 +2078,9 @@ void MainWindow::onReplaceTexture( bool checked )
                 this->updateTextureMetaInfo();
 
                 this->updateTextureView();
+
+                // We have modified the TXD.
+                this->NotifyChange();
             };
 
             TexAddDialog::dialogCreateParams params;
@@ -2065,6 +2128,9 @@ void MainWindow::onRemoveTexture( bool checked )
             // We should also hide the friendly icons, since they only should show if a texture is selected.
             // this->hideFriendlyIcons();
         }
+
+        // We have modified the TXD.
+        this->NotifyChange();
     }
 }
 
@@ -2122,6 +2188,9 @@ void MainWindow::onManipulateTexture( bool checked )
 
             // Replace raster handle.
             tex->SetRaster( params.add_raster.raster );
+
+            // We have changed the TXD.
+            this->NotifyChange();
 
             // Update info.
             this->updateTextureMetaInfo();
@@ -2255,6 +2324,61 @@ void MainWindow::clearViewImage()
 	imageWidget->clear();
     imageWidget->setFixedSize(1, 1);
 	imageWidget->hide();
+}
+
+void MainWindow::NotifyChange( void )
+{
+    // Call this function if there has been a change in the currently open TXD.
+    if ( this->currentTXD == NULL )
+        return;
+
+    bool isTXDChanged = this->wasTXDModified;
+
+    if ( isTXDChanged )
+    {
+        // No need to notify twice.
+        return;
+    }
+
+    this->wasTXDModified = true;
+
+    // Update the editor title.
+    this->updateWindowTitle();
+}
+
+void MainWindow::ClearModifiedState( void )
+{
+    // Call this function if the change is not important anymore.
+    bool isTXDChanged = this->wasTXDModified;
+
+    if ( !isTXDChanged )
+        return;
+
+    this->wasTXDModified = false;
+
+    // Time to remove hints that the TXD was changed.
+    this->updateWindowTitle();
+}
+
+void MainWindow::closeEvent( QCloseEvent *evt )
+{
+    // Maybe we have to do some save changes before closing.
+    bool doClose = false;
+
+    ModifiedStateBarrier( true,
+        [&]( void )
+    {
+        doClose = true;
+    });
+
+    if ( doClose )
+    {
+        evt->accept();
+    }
+    else
+    {
+        evt->ignore();
+    }
 }
 
 // Set txd plaform when we open

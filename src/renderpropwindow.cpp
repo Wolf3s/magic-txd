@@ -232,6 +232,7 @@ void RenderPropWindow::OnRequestSet( bool checked )
         if ( rw::TextureBase *texHandle = texInfo->GetTextureHandle() )
         {
             // Just set the properties that we recognize.
+            bool hasChanged = false;
             {
                 rw::eRasterStageFilterMode filterMode;
 
@@ -240,6 +241,8 @@ void RenderPropWindow::OnRequestSet( bool checked )
                 if ( hasProp )
                 {
                     texHandle->SetFilterMode( filterMode );
+
+                    hasChanged = true;
                 }
             }
 
@@ -251,6 +254,8 @@ void RenderPropWindow::OnRequestSet( bool checked )
                 if ( hasProp )
                 {
                     texHandle->SetUAddressing( uaddrMode );
+
+                    hasChanged = true;
                 }
             }
 
@@ -262,7 +267,15 @@ void RenderPropWindow::OnRequestSet( bool checked )
                 if ( hasProp )
                 {
                     texHandle->SetVAddressing( vaddrMode );
+
+                    hasChanged = true;
                 }
+            }
+
+            if ( hasChanged )
+            {
+                // Well, we changed something.
+                mainWnd->NotifyChange();
             }
         }
     }

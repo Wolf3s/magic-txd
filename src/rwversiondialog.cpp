@@ -115,6 +115,9 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
 
             // The visuals of the texture _may_ have changed.
             this->mainWnd->updateTextureView();
+
+            // Remember that we changed stuff.
+            this->mainWnd->NotifyChange();
         }
 
         // Done. :)

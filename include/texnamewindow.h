@@ -87,6 +87,9 @@ public slots:
             {
                 texHandle->SetName( ansiTexName.c_str() );
 
+                // We have changed the TXD.
+                this->mainWnd->NotifyChange();
+
                 // Update the info item.
                 texInfo->updateInfo();
 
