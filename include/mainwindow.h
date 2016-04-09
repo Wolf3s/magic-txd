@@ -246,6 +246,11 @@ private:
 
     QFileInfo openedTXDFileInfo;
     bool hasOpenedTXDFileInfo;
+    
+    // We currently have a very primitive change-tracking system.
+    // If we made any action that could have modified the TXD, we remember that.
+    // Then if the user wants to discard the TXD, we ask if he wants to save it first.
+    bool wasTXDModified;
 
     QString newTxdName;
 

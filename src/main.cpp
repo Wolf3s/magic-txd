@@ -255,11 +255,6 @@ int main(int argc, char *argv[])
 
                 QStringList appargs = a.arguments();
 
-#ifdef _DEBUG
-                w->openTxdFile( "C:\\Users\\quire\\Desktop\\txd_collab\\output\\effectsPC.txd" );
-                w->adjustDimensionsByViewport();
-#endif
-
                 if (appargs.size() >= 2) {
                     QString txdFileToBeOpened = appargs.at(1);
                     if (!txdFileToBeOpened.isEmpty()) {
