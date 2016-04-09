@@ -160,6 +160,9 @@ public slots:
 
                         if ( success )
                         {
+                            // We have changed the TXD.
+                            this->mainWnd->NotifyChange();
+
                             // Since we succeeded, we should update the view and things.
                             this->mainWnd->updateTextureView();
 

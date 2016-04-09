@@ -128,7 +128,7 @@ public:
 
     void updateTextureViewport(void);
 
-    void saveCurrentTXDAt(QString location);
+    bool saveCurrentTXDAt(QString location);
 
     void clearViewImage(void);
 
@@ -169,6 +169,21 @@ private:
     }
 
     void UpdateTheme( void );
+
+public:
+    void NotifyChange( void );
+
+private:
+    void ClearModifiedState( void );
+
+    void closeEvent( QCloseEvent *evt ) override;
+
+    typedef std::function <void (void)> modifiedEndCallback_t;
+
+    void ModifiedStateBarrier( bool blocking, modifiedEndCallback_t cb );
+
+    bool performSaveTXD( void );
+    bool performSaveAsTXD( void );
 
 public slots:
     void onCreateNewTXD(bool checked);

@@ -44,6 +44,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\progresslogedit.cpp" />
     <ClCompile Include="..\..\src\helperruntime.cpp" />
+    <ClCompile Include="..\..\src\mainwindow.safety.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../../include/styles.h">
