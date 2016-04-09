@@ -27,7 +27,7 @@ TexNameWindow::TexNameWindow( MainWindow *mainWnd, TexInfoWidget *texInfo ) : QD
 
     texture_name_validator *texNameValidator = new texture_name_validator( this );
 
-    this->texNameEdit = new QLineEdit(curTexName);
+    this->texNameEdit = new MagicLineEdit(curTexName);
     this->texNameEdit->setValidator( texNameValidator );
     layout.top->addWidget(this->texNameEdit);
     this->texNameEdit->setMaxLength(32);

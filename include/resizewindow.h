@@ -57,14 +57,14 @@ struct TexResizeWindow : public QDialog, public magicTextLocalizationItem
         // We only want to accept unsigned integers.
         QIntValidator *dimensionValidator = new QIntValidator( 1, ( rasterRules.maximum ? rasterRules.maxVal : 4096 ), this );
 
-        QLineEdit *widthEdit = new QLineEdit( ansi_to_qt( std::to_string( curWidth ) ) );
+        MagicLineEdit *widthEdit = new MagicLineEdit( ansi_to_qt( std::to_string( curWidth ) ) );
         widthEdit->setValidator( dimensionValidator );
 
         this->widthEdit = widthEdit;
 
         connect( widthEdit, &QLineEdit::textChanged, this, &TexResizeWindow::OnChangeDimensionProperty );
 
-        QLineEdit *heightEdit = new QLineEdit( ansi_to_qt( std::to_string( curHeight ) ) );
+        MagicLineEdit *heightEdit = new MagicLineEdit( ansi_to_qt( std::to_string( curHeight ) ) );
         heightEdit->setValidator( dimensionValidator );
 
         this->heightEdit = heightEdit;
@@ -262,6 +262,6 @@ private:
     TexInfoWidget *texInfo;
 
     QPushButton *buttonSet;
-    QLineEdit *widthEdit;
-    QLineEdit *heightEdit;
+    MagicLineEdit *widthEdit;
+    MagicLineEdit *heightEdit;
 };

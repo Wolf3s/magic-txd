@@ -15,6 +15,8 @@
 
 #include "rwimageimporter.h"
 
+#include "qtutils.h"
+
 class MainWindow;
 
 class TexAddDialog : public QDialog
@@ -146,8 +148,8 @@ private:
     bool hasConfidentPlatform;
     bool wantsGoodPlatformSetting;
 
-    QLineEdit *textureNameEdit;
-    QLineEdit *textureMaskNameEdit;
+    MagicLineEdit *textureNameEdit;
+    MagicLineEdit *textureMaskNameEdit;
     QWidget *platformSelectWidget;
 
     QFormLayout *platformPropForm;

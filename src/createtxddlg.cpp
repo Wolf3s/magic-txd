@@ -21,7 +21,7 @@ CreateTxdDialog::CreateTxdDialog(MainWindow *mainWnd) : QDialog(mainWnd), versio
     QHBoxLayout *nameLayout = new QHBoxLayout;
     QLabel *nameLabel = CreateLabelL("New.Name");
     nameLabel->setObjectName("label25px");
-    QLineEdit *nameEdit = new QLineEdit();
+    MagicLineEdit *nameEdit = new MagicLineEdit();
 
     connect(nameEdit, &QLineEdit::textChanged, this, &CreateTxdDialog::OnUpdateTxdName);
 

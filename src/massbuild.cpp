@@ -240,7 +240,7 @@ MassBuildWindow::MassBuildWindow( MainWindow *mainWnd ) : QDialog( mainWnd )
 
         editGroup->addWidget( CreateLabelL( "Tools.MassBld.DescQual" ) );
 
-        QLineEdit *editCompressionQuality = new QLineEdit();
+        MagicLineEdit *editCompressionQuality = new MagicLineEdit();
 
         // Set the current compression quality into it.
         {

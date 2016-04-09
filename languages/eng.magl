@@ -9,6 +9,13 @@ Main.TexInfo.Level     level
 Main.TexInfo.Levels    levels
 Main.TexInfo.NoTex     No Texture
 Main.TexInfo.Invalid   invalid
+Main.Undo              Undo
+Main.Redo              Redo
+Main.Cut               Cut
+Main.Copy              Copy
+Main.Paste             Paste
+Main.Delete            Delete
+Main.SelectA           SelectA
 
 # main menu            
 Main.File              File

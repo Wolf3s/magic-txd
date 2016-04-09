@@ -37,14 +37,14 @@ private:
 
     MainWindow *mainWnd;
 
-    QLineEdit *editGameRoot;
-    QLineEdit *editOutputRoot;
+    MagicLineEdit *editGameRoot;
+    MagicLineEdit *editOutputRoot;
     QComboBox *selPlatformBox;
     QComboBox *selGameBox;
     QCheckBox *propGenMipmaps;
-    QLineEdit *propGenMipmapsMax;
+    MagicLineEdit *propGenMipmapsMax;
     QCheckBox *propCompressTextures;
-    QLineEdit *editCompressionQuality;
+    MagicLineEdit *editCompressionQuality;
     QCheckBox *propPalettizeTextures;
     QComboBox *selectPaletteType;
     QCheckBox *propCloseAfterComplete;

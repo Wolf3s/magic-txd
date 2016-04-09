@@ -14,6 +14,13 @@ Main.TexInfo.Lvl3        уровня
 Main.TexInfo.Lvl4        уровня
 Main.TexInfo.NoTex       Нет текстуры
 Main.TexInfo.Invalid     без данных
+Main.Undo                Отмена
+Main.Redo                Повтор
+Main.Cut                 Вырезать
+Main.Copy                Копировать
+Main.Paste               Вставить
+Main.Delete              Удалить
+Main.SelectA             Выбрать всё
 
 # main menu
 Main.File                Файл

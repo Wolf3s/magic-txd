@@ -30,7 +30,7 @@ private:
 
     TexInfoWidget *texInfo;
 
-    QLineEdit *texNameEdit;
+    MagicLineEdit *texNameEdit;
 
     QPushButton *buttonSet;
 };

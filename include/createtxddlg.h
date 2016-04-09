@@ -43,6 +43,6 @@ public slots:
 
     MainWindow *mainWnd;
 
-    QLineEdit *txdName;
+    MagicLineEdit *txdName;
     QPushButton *applyButton;
 };

@@ -41,13 +41,13 @@ private:
     void serialize( void );
 
     // Widget pointers.
-    QLineEdit *editGameRoot;
-    QLineEdit *editOutputRoot;
+    MagicLineEdit *editGameRoot;
+    MagicLineEdit *editOutputRoot;
     QComboBox *selPlatformBox;
     QComboBox *selGameBox;
     QCheckBox *propClearMipmaps;
     QCheckBox *propGenMipmaps;
-    QLineEdit *propGenMipmapsMax;
+    MagicLineEdit *propGenMipmapsMax;
     QCheckBox *propImproveFiltering;
     QCheckBox *propCompressTextures;
     QCheckBox *propReconstructIMG;

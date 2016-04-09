@@ -64,7 +64,7 @@ struct VersionSetSelection abstract : public QObject
 	    versionLabel->setObjectName("label25px");
 
 	    QHBoxLayout *versionNumbersLayout = new QHBoxLayout;
-	    QLineEdit *versionLine1 = new QLineEdit;
+        MagicLineEdit *versionLine1 = new MagicLineEdit;
 
 	    versionLine1->setInputMask("0.00.00.00");
         versionLine1->setFixedWidth(80);
@@ -79,7 +79,7 @@ struct VersionSetSelection abstract : public QObject
 
 	    QLabel *buildLabel = CreateFixedWidthLabelL( "Main.SetupTV.Build", 25 );
 	    buildLabel->setObjectName("label25px");
-	    QLineEdit *buildLine = new QLineEdit;
+        MagicLineEdit *buildLine = new MagicLineEdit;
 	    buildLine->setInputMask(">HHHH");
         buildLine->clear();
 	    buildLine->setFixedWidth(60);
@@ -368,8 +368,8 @@ public:
     QComboBox *platSelectBox;
     QComboBox *dataTypeSelectBox;
 
-    QLineEdit *versionLineEdit;
-    QLineEdit *buildLineEdit;
+    MagicLineEdit *versionLineEdit;
+    MagicLineEdit *buildLineEdit;
 
 private:
     QLayout *rootLayout;

@@ -66,3 +66,54 @@ QWidget *CreateLine(QWidget *Parent) {
     line->setObjectName("hLineBackground");
     return line;
 }
+
+void MagicLineEdit::contextMenuEvent(QContextMenuEvent *e)
+{
+    QMenu *menu = QLineEdit::createStandardContextMenu();
+    if (menu == NULL)
+        return QLineEdit::contextMenuEvent(e);
+
+    QList<QAction*> actions = menu->actions();
+
+    foreach(QAction *action, actions)
+    {
+        QString actionText = action->text();
+        if (actionText.contains("Undo"))
+        {
+            actionText.replace("Undo", MAGIC_TEXT("Main.Undo"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Redo"))
+        {
+            actionText.replace("Redo", MAGIC_TEXT("Main.Redo"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Cu&t"))
+        {
+            actionText.replace("Cu&t", MAGIC_TEXT("Main.Cut"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Copy"))
+        {
+            actionText.replace("Copy", MAGIC_TEXT("Main.Copy"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Paste"))
+        {
+            actionText.replace("Paste", MAGIC_TEXT("Main.Paste"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Delete"))
+        {
+            actionText.replace("Delete", MAGIC_TEXT("Main.Delete"));
+            action->setText(actionText);
+        }
+        else if (actionText.contains("Select All"))
+        {
+            actionText.replace("Select All", MAGIC_TEXT("Main.SelectA"));
+            action->setText(actionText);
+        }
+    }
+
+    menu->exec(e->globalPos());
+}

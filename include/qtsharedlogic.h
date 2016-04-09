@@ -4,6 +4,7 @@
 #include <QLineEdit>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include "qtutils.h"
 
 #include "languages.h"
 
@@ -13,7 +14,7 @@ namespace qtshared
 {
     struct PathBrowseButton : public QPushButton, public simpleLocalizationItem
     {
-        inline PathBrowseButton( QLineEdit *lineEdit ) : QPushButton(), simpleLocalizationItem( "Tools.Browse" )
+        inline PathBrowseButton(MagicLineEdit *lineEdit ) : QPushButton(), simpleLocalizationItem( "Tools.Browse" )
         {
             this->theEdit = lineEdit;
 
@@ -48,14 +49,14 @@ namespace qtshared
         }
 
     private:
-        QLineEdit *theEdit;
+        MagicLineEdit *theEdit;
     };
 
-    inline QLayout* createPathSelectGroup( QString begStr, QLineEdit*& editOut )
+    inline QLayout* createPathSelectGroup( QString begStr, MagicLineEdit*& editOut )
     {
         QHBoxLayout *pathRow = new QHBoxLayout();
 
-        QLineEdit *pathEdit = new QLineEdit( begStr );
+        MagicLineEdit *pathEdit = new MagicLineEdit( begStr );
 
         pathRow->addWidget( pathEdit );
 
@@ -68,7 +69,7 @@ namespace qtshared
         return pathRow;
     }
     
-    inline QLayout* createMipmapGenerationGroup( QObject *parent, bool isEnabled, int curMipMax, QCheckBox*& propGenMipmapsOut, QLineEdit*& editMaxMipLevelOut )
+    inline QLayout* createMipmapGenerationGroup( QObject *parent, bool isEnabled, int curMipMax, QCheckBox*& propGenMipmapsOut, MagicLineEdit*& editMaxMipLevelOut )
     {
         QHBoxLayout *genMipGroup = new QHBoxLayout();
 
@@ -86,7 +87,7 @@ namespace qtshared
 
         mipMaxLevelGroup->addWidget( CreateLabelL( "Tools.MaxMips" ), 0, Qt::AlignRight );
 
-        QLineEdit *maxMipLevelEdit = new QLineEdit( QString( "%1" ).arg( curMipMax ) );
+        MagicLineEdit *maxMipLevelEdit = new MagicLineEdit( QString( "%1" ).arg( curMipMax ) );
 
         QIntValidator *maxMipLevelVal = new QIntValidator( 0, 32, parent );
 
@@ -103,7 +104,7 @@ namespace qtshared
         return genMipGroup;
     }
 
-    inline QLayout* createGameRootInputOutputForm( const std::wstring& curGameRoot, const std::wstring& curOutputRoot, QLineEdit*& editGameRootOut, QLineEdit*& editOutputRootOut )
+    inline QLayout* createGameRootInputOutputForm( const std::wstring& curGameRoot, const std::wstring& curOutputRoot, MagicLineEdit*& editGameRootOut, MagicLineEdit*& editOutputRootOut )
     {
         QFormLayout *basicPathForm = new QFormLayout();
 

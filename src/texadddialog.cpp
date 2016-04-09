@@ -26,7 +26,7 @@ inline QString calculateImageBaseName(QString fileName)
 
 void TexAddDialog::SetCurrentPlatform( QString name )
 {
-    if ( QLineEdit *editBox = dynamic_cast <QLineEdit*> ( this->platformSelectWidget ) )
+    if (MagicLineEdit *editBox = dynamic_cast <MagicLineEdit*> ( this->platformSelectWidget ) )
     {
         editBox->setText( std::move( name ) );
     }
@@ -40,7 +40,7 @@ QString TexAddDialog::GetCurrentPlatform(void)
 {
     QString currentPlatform;
 
-    if (QLineEdit *editBox = dynamic_cast <QLineEdit*> (this->platformSelectWidget))
+    if (MagicLineEdit *editBox = dynamic_cast <MagicLineEdit*> (this->platformSelectWidget))
     {
         currentPlatform = editBox->text();
     }
@@ -624,7 +624,7 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
             texture_name_validator *texNameValid = new texture_name_validator( this );
 
             QFormLayout *leftTopLayout = new QFormLayout();
-            QLineEdit *texNameEdit = new QLineEdit(textureBaseName);
+            MagicLineEdit *texNameEdit = new MagicLineEdit(textureBaseName);
             texNameEdit->setMaxLength(_recommendedPlatformMaxName);
             //texNameEdit->setFixedWidth(LEFTPANELADDDIALOGWIDTH);
             texNameEdit->setFixedHeight(texNameEdit->sizeHint().height());
@@ -633,7 +633,7 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
             leftTopLayout->addRow(CreateLabelL("Modify.TexName"), texNameEdit);
             if (_enableMaskName)
             {
-                QLineEdit *texMaskNameEdit = new QLineEdit(textureMaskName);
+                MagicLineEdit *texMaskNameEdit = new MagicLineEdit(textureMaskName);
                 //texMaskNameEdit->setFixedWidth(LEFTPANELADDDIALOGWIDTH);
                 texMaskNameEdit->setFixedHeight(texMaskNameEdit->sizeHint().height());
                 texMaskNameEdit->setMaxLength(_recommendedPlatformMaxName);
@@ -670,7 +670,7 @@ TexAddDialog::TexAddDialog(MainWindow *mainWnd, const dialogCreateParams& create
             else
             {
                 // We do not want to allow editing.
-                QLineEdit *platformDisplayEdit = new QLineEdit();
+                MagicLineEdit *platformDisplayEdit = new MagicLineEdit();
                 //platformDisplayEdit->setFixedWidth(LEFTPANELADDDIALOGWIDTH);
                 platformDisplayEdit->setDisabled(true);
 

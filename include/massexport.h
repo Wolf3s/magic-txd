@@ -31,8 +31,8 @@ private:
 
     MainWindow *mainWnd;
 
-    QLineEdit *editGameRoot;
-    QLineEdit *editOutputRoot;
+    MagicLineEdit *editGameRoot;
+    MagicLineEdit *editOutputRoot;
     QComboBox *boxRecomImageFormat;
     QRadioButton *optionExportPlain;
     QRadioButton *optionExportTXDName;

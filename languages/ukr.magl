@@ -12,6 +12,13 @@ Main.TexInfo.Lvl3        ріаня
 Main.TexInfo.Lvl4        рівня
 Main.TexInfo.NoTex       Без текстури
 Main.TexInfo.Invalid     без даних
+Main.Undo                Відміна
+Main.Redo                Повтор
+Main.Cut                 Вирізати
+Main.Copy                Копіювати
+Main.Paste               Вставити
+Main.Delete              Видалити
+Main.SelectA             Виділити все
 
 # main menu
 Main.File                Файл

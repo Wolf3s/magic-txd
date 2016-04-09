@@ -4,6 +4,9 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPushButton>
+#include <QLineEdit>
+#include <QMenu>
+#include <QContextMenuEvent>
 
 void SetupWindowSize(QWidget *widget, unsigned int baseWidth, unsigned int baseHeight, unsigned int minWidth, unsigned int minHeight);
 
@@ -39,4 +42,11 @@ template <typename TopLayoutType> struct MagicLayout {
         root->addWidget(CreateLine());
         root->addWidget(bottomWidget);
     }
+};
+
+class MagicLineEdit : public QLineEdit {
+    void contextMenuEvent(QContextMenuEvent *e);
+public:
+    MagicLineEdit(QString str) : QLineEdit(str){}
+    MagicLineEdit(){}
 };
