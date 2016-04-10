@@ -9,13 +9,13 @@ Main.TexInfo.Level     nível
 Main.TexInfo.Levels    níveis
 Main.TexInfo.NoTex     Nenhuma Textura
 Main.TexInfo.Invalid   inválido
-Main.Undo              Undo
-Main.Redo              Redo
-Main.Cut               Cut
-Main.Copy              Copy
-Main.Paste             Paste
-Main.Delete            Delete
-Main.SelectA           Select all
+Main.Undo              Desfazer
+Main.Redo              Refazer
+Main.Cut               Recortar
+Main.Copy              Copiar
+Main.Paste             Colar
+Main.Delete            Excluir
+Main.SelectA           Selecionar tudo
 
 # main menu            
 Main.File              Arquivo
@@ -126,17 +126,17 @@ Main.SetupTV.Custom    Customizado
 
 # Options
 Main.Options.Desc      Opções do _MAGIC_TXD_NAME
-Main.Options.MainTab   !NT Main
-Main.Options.ShowLog   Mostrar log quando houver erros
+Main.Options.MainTab   Básico
+Main.Options.ShowLog   Mostrar log quando houver avisos
 Main.Options.DispIcn   Mostrar ícone do jogo
-Main.Options.AdvTab    !NT Advanced
-Main.Options.SerSpc    !NT Deserialize without blocklengths
-Main.Options.WarnLvl   !NT Warning level
-Main.Options.WDisabled !NT disabled
-Main.Options.WLow      !NT low
-Main.Options.WMedium   !NT medium
-Main.Options.WHigh     !NT high
-Main.Options.WAll      !NT all
+Main.Options.AdvTab    Avançado
+Main.Options.SerSpc    Desserializar sem o tamanho dos blocos
+Main.Options.WarnLvl   Avisos
+Main.Options.WDisabled Desativado
+Main.Options.WLow      Nível Baixo
+Main.Options.WMedium   Nível Médio
+Main.Options.WHigh     Nível Alto
+Main.Options.WAll      Todos
 Main.Options.Accept    Aceitar
 Main.Options.Cancel    Cancelar
 
