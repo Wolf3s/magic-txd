@@ -15,6 +15,8 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
     // This will be a fairly complicated dialog.
     MagicLayout<QVBoxLayout> layout( this );
 
+    layout.top->setContentsMargins( 5, 5, 5, 5 );
+
     QTabWidget *optTabs = new QTabWidget();
 
     this->optTabs = optTabs;
@@ -26,7 +28,7 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     this->mainTabIndex = optTabs->addTab( mainTab, "" );
 
-    mainTab->setObjectName( "optionsTabWidget" );
+    mainTab->setObjectName( "optionsMainTabWidget" );
 
     QVBoxLayout *mainTabLayout = new QVBoxLayout();
 
@@ -75,7 +77,7 @@ OptionsDialog::OptionsDialog( MainWindow *mainWnd ) : QDialog( mainWnd )
 
     this->rwTabIndex = optTabs->addTab( advTab, "" );
 
-    advTab->setObjectName( "optionsTabWidget" );
+    advTab->setObjectName( "optionsAdvTabWidget" );
 
     QVBoxLayout *advTabLayout = new QVBoxLayout();
 

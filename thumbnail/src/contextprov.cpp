@@ -1135,6 +1135,8 @@ IFACEMETHODIMP RenderWareContextHandlerProvider::QueryContextMenu(
                         // Fill it with entries of platforms that we can target.
                         rw::platformTypeNameList_t availPlatforms = rw::GetAvailableNativeTextureTypes( rwEngine );
 
+                        availPlatforms.reverse();
+
                         UINT cur_index = 0;
 
                         for ( const std::string& name : availPlatforms )
