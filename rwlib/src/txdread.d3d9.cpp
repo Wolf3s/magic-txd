@@ -406,6 +406,10 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                 uint32 dxtType = 0;
                 bool isDXTCompressed = IsDXTCompressionType( colorComprType, dxtType );
 
+                // Decide if we have a "known" format.
+                // We must verify data sizes of such known formats.
+                bool isKnownFormat = ( d3dRasterFormatLink || isDXTCompressed );
+
                 bool hasDamagedMipmaps = false;
 
                 for (uint32 i = 0; i < maybeMipmapCount; i++)
@@ -453,7 +457,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                     // We can only do that if we know about its format.
                     bool isValidMipmap = true;
 
-                    if ( d3dRasterFormatLink == true )
+                    if ( isKnownFormat )
                     {
                         uint32 actualDataSize = 0;
 

@@ -541,6 +541,12 @@ AINLINE CFileTranslator* CFileSystemNative::GenCreateSystemMinimumAccessPoint( c
         tree.pop_back();
     }
 
+    // Try creating in the root itself.
+    if ( CFileTranslator *rootTrans = CreateTranslator( root ) )
+    {
+        return rootTrans;
+    }
+
     // Try creating the translator starting from the root.
     size_t n = 0;
 

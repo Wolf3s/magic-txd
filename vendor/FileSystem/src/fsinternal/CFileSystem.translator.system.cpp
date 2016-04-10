@@ -300,6 +300,7 @@ bool CSystemFileTranslator::GenExists( const charType *path ) const
     if ( !GetFullPath( path, true, output ) )
         return false;
 
+#if 0
     // The C API cannot cope with trailing slashes
     size_t outSize = output.size();
 
@@ -307,6 +308,7 @@ bool CSystemFileTranslator::GenExists( const charType *path ) const
     {
         output.resize( outSize );
     }
+#endif
     
     struct stat tmp;
 
