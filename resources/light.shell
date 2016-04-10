@@ -496,3 +496,31 @@ QLabel#labelSpecThx
 {
     font-size: 14px;
 }
+
+QTabWidget::pane {
+    border: 2px solid #d8d8d8;
+	background: #ffffff;
+}
+
+QTabBar::tab {
+    font-family:"Segoe UI Light";
+	font-size: 20px;
+	color: #080025;
+    background: #f0f0f0;
+    border: 2px solid #d8d8d8;
+	border-bottom: 0px;
+	height: 30px;
+	width: 160px;
+}
+
+QTabBar::tab:selected {
+    background: #ffffff;
+}
+
+QTabBar::tab:hover:!selected {
+    background-color: rgba(16, 59, 219, 20);
+}
+
+QTabBar::tab:first {
+    border-right: 0px;
+}

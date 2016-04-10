@@ -20,7 +20,7 @@ Main.Cut                 Вырезать
 Main.Copy                Копировать
 Main.Paste               Вставить
 Main.Delete              Удалить
-Main.SelectA             Выбрать всё
+Main.SelectA             Выделить Всё
 
 # main menu
 Main.File                Файл
@@ -129,17 +129,17 @@ Main.SetupTV.Custom      Свой
 
 # Options
 Main.Options.Desc        Настройки _MAGIC_TXD_NAME
-Main.Options.MainTab     !NT Main
+Main.Options.MainTab     Основные
 Main.Options.ShowLog     Открыть лог при предупреждениях
 Main.Options.DispIcn     Показывать значок игры
-Main.Options.AdvTab      !NT Advanced
-Main.Options.SerSpc      !NT Deserialize without blocklengths
-Main.Options.WarnLvl     !NT Warning level
-Main.Options.WDisabled   !NT disabled
-Main.Options.WLow        !NT low
-Main.Options.WMedium     !NT medium
-Main.Options.WHigh       !NT high
-Main.Options.WAll        !NT all
+Main.Options.AdvTab      Расширенные
+Main.Options.SerSpc      Игнорировать размеры секций в TXD
+Main.Options.WarnLvl     Уровень предупреждений
+Main.Options.WDisabled   отключить все
+Main.Options.WLow        низкий
+Main.Options.WMedium     средний
+Main.Options.WHigh       высокий
+Main.Options.WAll        показать все
 Main.Options.Accept      Принять
 Main.Options.Cancel      Отмена
 

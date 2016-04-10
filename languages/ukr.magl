@@ -127,17 +127,17 @@ Main.SetupTV.Custom      Свій
 
 # Options
 Main.Options.Desc        Налаштування _MAGIC_TXD_NAME
-Main.Options.MainTab     !NT Main
+Main.Options.MainTab     Загальні
 Main.Options.ShowLog     Відкрити лог при попередженнях
 Main.Options.DispIcn     Показувати значок гри
-Main.Options.AdvTab      !NT Advanced
-Main.Options.SerSpc      !NT Deserialize without blocklengths
-Main.Options.WarnLvl     !NT Warning level
-Main.Options.WDisabled   !NT disabled
-Main.Options.WLow        !NT low
-Main.Options.WMedium     !NT medium
-Main.Options.WHigh       !NT high
-Main.Options.WAll        !NT all
+Main.Options.AdvTab      Розширені
+Main.Options.SerSpc      Ігнорувати розмір секцій TXD
+Main.Options.WarnLvl     Рівень попереджень
+Main.Options.WDisabled   відключити всі
+Main.Options.WLow        низький
+Main.Options.WMedium     середній
+Main.Options.WHigh       високий
+Main.Options.WAll        показати всі
 Main.Options.Accept      Прийняти
 Main.Options.Cancel      Скасувати
 
