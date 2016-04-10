@@ -274,12 +274,14 @@ struct jpegImagingExtension : public imagingFormatExtension
         if ( currentByteCount <= num_skip_bytes )
         {
             srcman->bytes_in_buffer = 0;
+            srcman->next_input_byte = NULL;
 
             leftBytes = ( num_skip_bytes - currentByteCount );
         }
         else
         {
             srcman->bytes_in_buffer -= num_skip_bytes;
+            srcman->next_input_byte += num_skip_bytes;
 
             leftBytes = 0;
         }
@@ -293,8 +295,8 @@ struct jpegImagingExtension : public imagingFormatExtension
 
     static boolean resync_to_restart( j_decompress_ptr cinfo, int desired )
     {
-        // What?
-        return 0;
+        // Use default.
+        return jpeg_resync_to_restart( cinfo, desired );
     }
 
     static void term_source( j_decompress_ptr cinfo )
