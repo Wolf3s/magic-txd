@@ -368,6 +368,60 @@ struct tiffImagingExtension : public imagingFormatExtension
         return;
     }
 
+    inline static std::string va_to_string( const char *fmt, va_list argPtr )
+    {
+        int reqBufCount = _vsnprintf( NULL, 0, fmt, argPtr );
+
+        if ( reqBufCount < 0 )
+        {
+            throw RwException( "libtiff format string encoding error" );
+        }
+
+        std::string msgOut;
+        msgOut.resize( reqBufCount );
+
+        // Actually process things now.
+        _vsnprintf( (char*)msgOut.c_str(), reqBufCount, fmt, argPtr );
+
+        return msgOut;
+    }
+
+    inline static std::string create_tiff_error_string( const char *whatType, const char *module, const char *fmt, va_list argPtr )
+    {
+        std::string full_msg( "libtiff " + std::string( whatType ) );
+
+        if ( module )
+        {
+            full_msg += " (module: " + std::string( module ) + "): ";
+        }
+        else
+        {
+            full_msg += ": ";
+        }
+
+        full_msg += va_to_string( fmt, argPtr );
+
+        return full_msg;
+    }
+
+    static void TIFFWarningHandlerExt( thandle_t ioptr, const char *module, const char *fmt, va_list argPtr )
+    {
+        tiff_io_struct *io_struct = (tiff_io_struct *)ioptr;
+
+        std::string message = create_tiff_error_string( "warning", module, fmt, argPtr );
+
+        io_struct->engineInterface->PushWarning( std::move( message ) );
+    }
+
+    static void TIFFErrorHandlerExt( thandle_t ioptr, const char *module, const char *fmt, va_list argPtr )
+    {
+        tiff_io_struct *io_struct = (tiff_io_struct *)ioptr;
+
+        std::string message = create_tiff_error_string( "error", module, fmt, argPtr );
+
+        throw RwException( std::move( message ) );
+    }
+
     enum eTIFF_ParseMode
     {
         TPARSEMODE_GRAYSCALE,
@@ -1393,6 +1447,12 @@ static PluginDependantStructRegister <tiffImagingExtension, RwInterfaceFactory_t
 void registerTIFFImagingExtension( void )
 {
 #ifdef RWLIB_INCLUDE_TIFF_IMAGING
+    // Set up the libtiff library, because it uses global shit.
+    TIFFSetErrorHandler( NULL );
+    TIFFSetErrorHandlerExt( tiffImagingExtension::TIFFErrorHandlerExt );
+    TIFFSetWarningHandler( NULL );
+    TIFFSetWarningHandlerExt( tiffImagingExtension::TIFFWarningHandlerExt );
+
     // Register the TIFF imaging environment.
     tiffExtensionStore.RegisterPlugin( engineFactory );
 #endif //RWLIB_INCLUDE_TIFF_IMAGING
