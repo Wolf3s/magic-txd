@@ -688,6 +688,8 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         rwEngine->SetPaletteRuntime( cfg.c_palRuntimeType );
         rwEngine->SetDXTRuntime( cfg.c_dxtRuntimeType );
 
+        // We inherit certain properties from Magic.TXD, so we do not want to set them here anymore.
+#if 0
         rwEngine->SetDXTPackedDecompression( cfg.c_dxtPackedDecompression );
 
         rwEngine->SetFixIncompatibleRasters( cfg.c_fixIncompatibleRasters );
@@ -697,6 +699,7 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         rwEngine->SetWarningLevel( cfg.c_warningLevel );
 
         rwEngine->SetIgnoreSecureWarnings( cfg.c_ignoreSecureWarnings );
+#endif
 
         // Output some debug info.
         this->OnMessage(
@@ -824,11 +827,13 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
 
         const char *strPalRuntimeType = "unknown";
 
-        if ( cfg.c_palRuntimeType == rw::PALRUNTIME_NATIVE )
+        rw::ePaletteRuntimeType actualPalRuntimeType = rwEngine->GetPaletteRuntime();
+
+        if ( actualPalRuntimeType == rw::PALRUNTIME_NATIVE )
         {
             strPalRuntimeType = "native";
         }
-        else if ( cfg.c_palRuntimeType == rw::PALRUNTIME_PNGQUANT )
+        else if ( actualPalRuntimeType == rw::PALRUNTIME_PNGQUANT )
         {
             strPalRuntimeType = "pngquant";
         }
@@ -837,13 +842,15 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
             std::string( "* palRuntimeType: " ) + strPalRuntimeType + "\n"
         );
 
+        rw::eDXTCompressionMethod actualDXTRuntimeType = rwEngine->GetDXTRuntime();
+
         const char *strDXTRuntimeType = "unknown";
 
-        if ( cfg.c_dxtRuntimeType == rw::DXTRUNTIME_NATIVE )
+        if ( actualDXTRuntimeType == rw::DXTRUNTIME_NATIVE )
         {
             strDXTRuntimeType = "native";
         }
-        else if ( cfg.c_dxtRuntimeType == rw::DXTRUNTIME_SQUISH )
+        else if ( actualDXTRuntimeType == rw::DXTRUNTIME_SQUISH )
         {
             strDXTRuntimeType = "squish";
         }
@@ -853,11 +860,11 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         );
 
         this->OnMessage(
-            std::string( "* warningLevel: " ) + std::to_string( cfg.c_warningLevel ) + "\n"
+            std::string( "* warningLevel: " ) + std::to_string( rwEngine->GetWarningLevel() ) + "\n"
         );
 
         this->OnMessage(
-            std::string( "* ignoreSecureWarnings: " ) + ( cfg.c_ignoreSecureWarnings ? "true" : "false" ) + "\n"
+            std::string( "* ignoreSecureWarnings: " ) + ( rwEngine->GetIgnoreSecureWarnings() ? "true" : "false" ) + "\n"
         );
 
         this->OnMessage(
@@ -865,11 +872,11 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         );
 
         this->OnMessage(
-            std::string( "* fixIncompatibleRasters: " ) + ( cfg.c_fixIncompatibleRasters ? "true" : "false" ) + "\n"
+            std::string( "* fixIncompatibleRasters: " ) + ( rwEngine->GetFixIncompatibleRasters() ? "true" : "false" ) + "\n"
         );
 
         this->OnMessage(
-            std::string( "* dxtPackedDecompression: " ) + ( cfg.c_dxtPackedDecompression ? "true" : "false" ) + "\n"
+            std::string( "* dxtPackedDecompression: " ) + ( rwEngine->GetDXTPackedDecompression() ? "true" : "false" ) + "\n"
         );
 
         this->OnMessage(
@@ -877,7 +884,7 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
         );
 
         this->OnMessage(
-            std::string( "* ignoreSerializationRegions: " ) + ( cfg.c_ignoreSerializationRegions ? "true" : "false" ) + "\n"
+            std::string( "* ignoreSerializationRegions: " ) + ( rwEngine->GetIgnoreSerializationBlockRegions() ? "true" : "false" ) + "\n"
         );
 
         // Finish with a newline.

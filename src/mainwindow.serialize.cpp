@@ -33,6 +33,19 @@ struct mainWindowSerializationEnv : public magicSerializationProvider
         bool texaddViewportBackground;
     };
 
+    // We want to serialize RW config too.
+    struct rwengine_cfg_struct
+    {
+        bool metaDataTagging;
+        endian::little_endian <rw::int32> warning_level;
+        bool ignoreSecureWarnings;
+        bool fixIncompatibleRasters;
+        bool compatTransformNativeImaging;
+        bool preferPackedSampleExport;
+        bool dxtPackedDecompression;
+        bool ignoreBlockSerializationRegions;
+    };
+
     void Load( MainWindow *mainwnd, rw::BlockProvider& mtxdConfig ) override
     {
         // last directory we were in to save TXD file.
@@ -116,6 +129,38 @@ struct mainWindowSerializationEnv : public magicSerializationProvider
             logGeomBlock.LeaveContext();
         }
 
+        // Read RenderWare settings.
+        {
+            rw::Interface *rwEngine = mainwnd->rwEngine;
+
+            rw::BlockProvider rwsettingsBlock( &mtxdConfig );
+
+            rwsettingsBlock.EnterContext();
+
+            try
+            {
+                rwengine_cfg_struct rwcfg;
+                rwsettingsBlock.readStruct( rwcfg );
+
+                rwEngine->SetMetaDataTagging( rwcfg.metaDataTagging );
+                rwEngine->SetWarningLevel( rwcfg.warning_level );
+                rwEngine->SetIgnoreSecureWarnings( rwcfg.ignoreSecureWarnings );
+                rwEngine->SetFixIncompatibleRasters( rwcfg.fixIncompatibleRasters );
+                rwEngine->SetCompatTransformNativeImaging( rwcfg.compatTransformNativeImaging );
+                rwEngine->SetPreferPackedSampleExport( rwcfg.preferPackedSampleExport );
+                rwEngine->SetDXTPackedDecompression( rwcfg.dxtPackedDecompression );
+                rwEngine->SetIgnoreSerializationBlockRegions( rwcfg.ignoreBlockSerializationRegions );
+            }
+            catch( ... )
+            {
+                rwsettingsBlock.LeaveContext();
+
+                throw;
+            }
+
+            rwsettingsBlock.LeaveContext();
+        }
+
         // If we had valid configuration, we are not for the first time.
         mainwnd->isLaunchedForTheFirstTime = false;
     }
@@ -173,6 +218,39 @@ struct mainWindowSerializationEnv : public magicSerializationProvider
             }
 
             logGeomBlock.LeaveContext();
+        }
+
+        // RW engine properties.
+        // Actually write those safely.
+        {
+            rw::Interface *rwEngine = mainwnd->rwEngine;
+
+            rw::BlockProvider rwsettingsBlock( &mtxdConfig );
+            
+            rwsettingsBlock.EnterContext();
+
+            try
+            {
+                rwengine_cfg_struct engineCfg;
+                engineCfg.metaDataTagging = rwEngine->GetMetaDataTagging();
+                engineCfg.warning_level = rwEngine->GetWarningLevel();
+                engineCfg.ignoreSecureWarnings = rwEngine->GetIgnoreSecureWarnings();
+                engineCfg.fixIncompatibleRasters = rwEngine->GetFixIncompatibleRasters();
+                engineCfg.compatTransformNativeImaging = rwEngine->GetCompatTransformNativeImaging();
+                engineCfg.preferPackedSampleExport = rwEngine->GetPreferPackedSampleExport();
+                engineCfg.dxtPackedDecompression = rwEngine->GetDXTPackedDecompression();
+                engineCfg.ignoreBlockSerializationRegions = rwEngine->GetIgnoreSerializationBlockRegions();
+
+                rwsettingsBlock.writeStruct( engineCfg );
+            }
+            catch( ... )
+            {
+                rwsettingsBlock.LeaveContext();
+
+                throw;
+            }
+
+            rwsettingsBlock.LeaveContext();
         }
     }
 };

@@ -95,10 +95,10 @@ para as texturas do mundo. Texturas em DXT usam muito menos espaço, mas a quali
 da imagem é degradada significativamente. NÃO é recomendado comprimir texturas da
 interface de usuário.
 
-DXT1 é bom para texturas que usam alpha somente para delimitar sua área visível.
-DXT2/3 é bom para texturas em que o alpha tem arestas pontudas.
-DXT4/5 é bom para texturas com alpha suave.
-Se a imagem não tem alpha, use DXT1.
+DXT1 é bom para texturas que usam alfa somente para delimitar sua área visível.
+DXT2/3 é bom para texturas em que as transições alfa são agudas.
+DXT4/5 é bom para texturas em que as transições alfa são suaves.
+Se a imagem não tem alfa, use DXT1.
 
 Seja cuidadoso com quais texturas você comprime e com qual tipo de compressão.
 [END]
@@ -126,8 +126,17 @@ Main.SetupTV.Custom    Customizado
 
 # Options
 Main.Options.Desc      Opções do _MAGIC_TXD_NAME
+Main.Options.MainTab   !NT Main
 Main.Options.ShowLog   Mostrar log quando houver erros
 Main.Options.DispIcn   Mostrar ícone do jogo
+Main.Options.AdvTab    !NT Advanced
+Main.Options.SerSpc    !NT Deserialize without blocklengths
+Main.Options.WarnLvl   !NT Warning level
+Main.Options.WDisabled !NT disabled
+Main.Options.WLow      !NT low
+Main.Options.WMedium   !NT medium
+Main.Options.WHigh     !NT high
+Main.Options.WAll      !NT all
 Main.Options.Accept    Aceitar
 Main.Options.Cancel    Cancelar
 
@@ -186,13 +195,13 @@ Main.About.SpecThx     Agradecimentos à
 
 # Save changes
 [Main.SavChange.Warn]
-There are unsaved changes in the open TXD archive.
-Do you want to save them now?
+Há alterações não salvas no arquivo TXD aberto.
+Você deseja salvá-las agora?
 [END]
-Main.SavChange.Save    Save
-Main.SavChange.Ignore  Ignore
-Main.SavChange.Cancel  Cancel
-Main.SavChange.Title   Unsaved changes
+Main.SavChange.Save    Salvar
+Main.SavChange.Ignore  Ignorar
+Main.SavChange.Cancel  Cancelar
+Main.SavChange.Title   Alterações não salvas
 
 # Tools
 Tools.Browse           Procurar

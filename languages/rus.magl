@@ -129,8 +129,17 @@ Main.SetupTV.Custom      Свой
 
 # Options
 Main.Options.Desc        Настройки _MAGIC_TXD_NAME
+Main.Options.MainTab     !NT Main
 Main.Options.ShowLog     Открыть лог при предупреждениях
 Main.Options.DispIcn     Показывать значок игры
+Main.Options.AdvTab      !NT Advanced
+Main.Options.SerSpc      !NT Deserialize without blocklengths
+Main.Options.WarnLvl     !NT Warning level
+Main.Options.WDisabled   !NT disabled
+Main.Options.WLow        !NT low
+Main.Options.WMedium     !NT medium
+Main.Options.WHigh       !NT high
+Main.Options.WAll        !NT all
 Main.Options.Accept      Принять
 Main.Options.Cancel      Отмена
 

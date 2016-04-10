@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     try
     {
         // Set some typical engine properties.
+        // The MainWindow will override these.
         rwEngine->SetIgnoreSerializationBlockRegions( true );
         rwEngine->SetIgnoreSecureWarnings( false );
 

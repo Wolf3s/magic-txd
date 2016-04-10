@@ -128,8 +128,19 @@ Main.SetupTV.Custom    Anders
 
 # Options
 Main.Options.Desc      _MAGIC_TXD_NAME Einstellungen
+Main.Options.MainTab   Haupt
 Main.Options.ShowLog   Zeige das Protokol bei einer Warnung
 Main.Options.DispIcn   Stelle Spielsymbole dar
+Main.Options.AdvTab    Fortgeschritten
+Main.Options.SerSpc    Datenverarbeitung ohne Blocklängen
+Main.Options.WarnLvl   Warnstufe
+Main.Options.WDisabled aus
+Main.Options.WLow      gering
+Main.Options.WMedium   mitte
+Main.Options.WHigh     hoch
+Main.Options.WAll      alles
+Main.Options.Accept    Accept
+Main.Options.Cancel    Cancel
 Main.Options.Accept    Annehmen
 Main.Options.Cancel    Verwerfen
 

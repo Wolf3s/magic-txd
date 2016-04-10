@@ -126,8 +126,17 @@ Main.SetupTV.Custom    Custom
 
 # Options
 Main.Options.Desc      _MAGIC_TXD_NAME Options
+Main.Options.MainTab   Main
 Main.Options.ShowLog   Show TXD log on warning
 Main.Options.DispIcn   Display game icon
+Main.Options.AdvTab    Advanced
+Main.Options.SerSpc    Deserialize without blocklengths
+Main.Options.WarnLvl   Warning level
+Main.Options.WDisabled disabled
+Main.Options.WLow      low
+Main.Options.WMedium   medium
+Main.Options.WHigh     high
+Main.Options.WAll      all
 Main.Options.Accept    Accept
 Main.Options.Cancel    Cancel
 

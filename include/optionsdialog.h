@@ -2,6 +2,7 @@
 
 #include <QDialog>
 #include <QComboBox>
+#include <qtabwidget.h>
 
 struct OptionsDialog : public QDialog, public magicTextLocalizationItem
 {
@@ -20,9 +21,18 @@ private:
 
     MainWindow *mainWnd;
 
+    QTabWidget *optTabs;
+    int mainTabIndex;
+    int rwTabIndex;
+
+    // Main tab.
     QCheckBox *optionShowLogOnWarning;
     QCheckBox *optionShowGameIcon;
 
     QComboBox *languageBox;
     QLabel *languageAuthorLabel;
+
+    // Advanced tab.
+    QCheckBox *optionDeserWithoutBlocklengths;
+    QComboBox *selectWarningLevel;
 };

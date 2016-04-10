@@ -1004,14 +1004,19 @@ void MainWindow::dropEvent( QDropEvent *evt )
             {
                 std::wstring widePath = qtPath.toStdWString();
 
+                filePath extention;
+
+                filePath nameItem = FileSystem::GetFileNameItem( widePath.c_str(), false, NULL, &extention );
+
                 bool hasHandledFile = false;
 
                 // We should ignore any RW error.
                 try
                 {
                     // * TXD file?
+                    if ( extention.equals( L"TXD", false ) )
                     {
-                        bool loadedTXD = this->openTxdFile( qtPath, true );
+                        bool loadedTXD = this->openTxdFile( qtPath, false );
 
                         if ( loadedTXD )
                         {
@@ -1024,10 +1029,6 @@ void MainWindow::dropEvent( QDropEvent *evt )
                         // * image file?
                         if ( rw::TexDictionary *txd = this->currentTXD )
                         {
-                            filePath extention;
-
-                            filePath nameItem = FileSystem::GetFileNameItem( widePath.c_str(), false, NULL, &extention );
-
                             if ( isSingleFile )
                             {
                                 // Should verify if this is even an image file candidate.
