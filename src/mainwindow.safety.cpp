@@ -73,6 +73,20 @@ void MainWindow::ModifiedStateBarrier( bool blocking, modifiedEndCallback_t cb )
             setWindowTitle( MAGIC_TEXT( "Main.SavChange.Title" ) );
         }
 
+        inline void terminate( void )
+        {
+            MainWindow::modifiedEndCallback_t stack_postCallback = std::move( this->postCallback );
+
+            // Need to set ourselves invisible already, because Qt is event based and it wont quit here.
+            this->setVisible( false );
+
+            // Destroy ourselves.
+            this->close();
+
+            // Since we saved, we can just perform the callback now.
+            stack_postCallback();
+        }
+
     private:
         void onRequestSave( bool checked )
         {
@@ -81,11 +95,7 @@ void MainWindow::ModifiedStateBarrier( bool blocking, modifiedEndCallback_t cb )
 
             if ( didSave )
             {
-                // Since we saved, we can just perform the callback now.
-                this->postCallback();
-
-                // Alright, we are done.
-                this->close();
+                terminate();
             }
         }
 
@@ -94,10 +104,7 @@ void MainWindow::ModifiedStateBarrier( bool blocking, modifiedEndCallback_t cb )
             // The user probably does not care anymore.
             this->mainWnd->ClearModifiedState();
 
-            // Nothing should be saved.
-            this->postCallback();
-
-            this->close();
+            terminate();
         }
 
         void onRequestCancel( bool checked )
