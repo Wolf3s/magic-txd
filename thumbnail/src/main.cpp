@@ -270,7 +270,7 @@ STDAPI DllRegisterServer(void)
     // Register the thumbnail handler.
     hr = RegisterInprocServer(szModule, CLSID_RenderWareThumbnailProvider, 
         L"rwthumb.RenderWareThumbnailProvider Class", 
-        L"Free");
+        L"Apartment");
 
     if ( SUCCEEDED(hr) )
     {

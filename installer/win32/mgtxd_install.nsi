@@ -190,6 +190,10 @@ SectionEnd
 !define MGTXD_TXD_ASSOC "${APPNAME}.txd"
 
 Section "Associate .txd files" ASSOC_TXD_ID
+    # KILL previous UserChoice config.
+    DeleteRegKey HKCU SOFTWARE\Microsoft\Windows\Roaming\OpenWith\FileExts\.TXD
+    DeleteRegKey HKCU Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.TXD
+
     # Write some registry settings for .TXD files.
     WriteRegStr HKCR "${TXD_ASSOC_KEY}" "" "${MGTXD_TXD_ASSOC}"
     WriteRegStr HKCR "${TXD_ASSOC_KEY}" "Content Type" "image/dict"
@@ -268,6 +272,7 @@ uninstmain:
     RMDIR /r $INSTDIR\resources
     RMDIR /r $INSTDIR\data
     RMDIR /r $INSTDIR\licenses
+    RMDIR /r $INSTDIR\languages
     RMDIR /r /REBOOTOK $INSTDIR\formats
     RMDIR /r /REBOOTOK $INSTDIR\formats_x64
     Delete /REBOOTOK $INSTDIR\PVRTexLib.dll

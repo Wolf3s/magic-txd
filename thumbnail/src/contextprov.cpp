@@ -14,8 +14,11 @@ RenderWareContextHandlerProvider::RenderWareContextHandlerProvider( void ) : ref
     
     module_refCount++;
 
+    int cx_icon = GetSystemMetrics( SM_CXMENUCHECK );
+    int cy_icon = GetSystemMetrics( SM_CYMENUCHECK );
+
     this->rwlogo_bitmap =
-        (HBITMAP)LoadImageW( module_instance, MAKEINTRESOURCEW(IDB_RWLOGO), IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_LOADTRANSPARENT );
+        (HBITMAP)LoadImageW( module_instance, MAKEINTRESOURCEW(IDB_RWLOGO), IMAGE_BITMAP, cx_icon, cy_icon, LR_DEFAULTSIZE | LR_LOADTRANSPARENT );
 }
 
 RenderWareContextHandlerProvider::~RenderWareContextHandlerProvider( void )
