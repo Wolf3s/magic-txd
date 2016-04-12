@@ -131,15 +131,33 @@ CIMGArchiveTranslatorHandle* imgExtension::NewArchive( CFileTranslator *srcRoot,
 CIMGArchiveTranslatorHandle* imgExtension::NewArchive( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version )
 { return GenNewArchive( this, srcRoot, srcPath, version ); }
 
+template <typename charType>
+inline const charType* GetOpenArchiveFileMode( bool writeAccess )
+{
+    static_assert( false, "fixme: unsupported character type for generic IMG open routine" );
+}
+
+template <>
+inline const char* GetOpenArchiveFileMode <char> ( bool writeAccess )
+{
+    return ( writeAccess ? "rb+" : "rb" );
+}
+
+template <>
+inline const wchar_t* GetOpenArchiveFileMode <wchar_t> ( bool writeAccess )
+{
+    return ( writeAccess ? L"rb+" : L"rb" );
+}
+
 template <typename charType, typename constructionHandler>
-static inline CIMGArchiveTranslatorHandle* GenOpenArchiveTemplate( imgExtension *env, CFileTranslator *srcRoot, const charType *srcPath, constructionHandler constr )
+static inline CIMGArchiveTranslatorHandle* GenOpenArchiveTemplate( imgExtension *env, CFileTranslator *srcRoot, const charType *srcPath, bool writeAccess, constructionHandler constr )
 {
     CIMGArchiveTranslatorHandle *transOut = NULL;
         
     bool hasValidArchive = false;
     eIMGArchiveVersion theVersion;
 
-    CFile *contentFile = srcRoot->Open( srcPath, GetReadWriteMode <charType> ( false ), FILE_FLAG_WRITESHARE );
+    CFile *contentFile = srcRoot->Open( srcPath, GetOpenArchiveFileMode <charType> ( false ), FILE_FLAG_WRITESHARE );
 
     if ( !contentFile )
     {
@@ -228,15 +246,15 @@ static inline CIMGArchiveTranslatorHandle* GenOpenArchiveTemplate( imgExtension 
 }
 
 template <typename charType>
-static inline CIMGArchiveTranslatorHandle* GenOpenArchive( imgExtension *env, CFileTranslator *srcRoot, const charType *srcPath )
+static inline CIMGArchiveTranslatorHandle* GenOpenArchive( imgExtension *env, CFileTranslator *srcRoot, const charType *srcPath, bool writeAccess )
 {
-    return GenOpenArchiveTemplate( env, srcRoot, srcPath, _regularIMGConstructor );
+    return GenOpenArchiveTemplate( env, srcRoot, srcPath, writeAccess, _regularIMGConstructor );
 }
 
-CIMGArchiveTranslatorHandle* imgExtension::OpenArchive( CFileTranslator *srcRoot, const char *srcPath )
-{ return GenOpenArchive( this, srcRoot, srcPath ); }
-CIMGArchiveTranslatorHandle* imgExtension::OpenArchive( CFileTranslator *srcRoot, const wchar_t *srcPath )
-{ return GenOpenArchive( this, srcRoot, srcPath ); }
+CIMGArchiveTranslatorHandle* imgExtension::OpenArchive( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess )
+{ return GenOpenArchive( this, srcRoot, srcPath, writeAccess ); }
+CIMGArchiveTranslatorHandle* imgExtension::OpenArchive( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess )
+{ return GenOpenArchive( this, srcRoot, srcPath, writeAccess ); }
 
 CFileTranslator* imgExtension::GetTempRoot( void )
 {
@@ -244,21 +262,21 @@ CFileTranslator* imgExtension::GetTempRoot( void )
 }
 
 template <typename charType>
-static inline CIMGArchiveTranslatorHandle* GenOpenIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath )
+static inline CIMGArchiveTranslatorHandle* GenOpenIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath, bool writeAccess )
 {
     imgExtension *imgExt = imgExtension::Get( sys );
 
     if ( imgExt )
     {
-        return imgExt->OpenArchive( srcRoot, srcPath );
+        return imgExt->OpenArchive( srcRoot, srcPath, writeAccess );
     }
     return NULL;
 }
 
-CIMGArchiveTranslatorHandle* CFileSystem::OpenIMGArchive( CFileTranslator *srcRoot, const char *srcPath )
-{ return GenOpenIMGArchive( this, srcRoot, srcPath ); }
-CIMGArchiveTranslatorHandle* CFileSystem::OpenIMGArchive( CFileTranslator *srcRoot, const wchar_t *srcPath )
-{ return GenOpenIMGArchive( this, srcRoot, srcPath ); }
+CIMGArchiveTranslatorHandle* CFileSystem::OpenIMGArchive( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess )
+{ return GenOpenIMGArchive( this, srcRoot, srcPath, writeAccess ); }
+CIMGArchiveTranslatorHandle* CFileSystem::OpenIMGArchive( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess )
+{ return GenOpenIMGArchive( this, srcRoot, srcPath, writeAccess ); }
 
 template <typename charType>
 static inline CIMGArchiveTranslatorHandle* GenCreateIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath, eIMGArchiveVersion version )
@@ -307,7 +325,7 @@ static AINLINE CIMGArchiveTranslator* _lzoCompressedIMGConstructor( imgExtension
 }
 
 template <typename charType>
-static inline CIMGArchiveTranslatorHandle* GenOpenCompressedIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath )
+static inline CIMGArchiveTranslatorHandle* GenOpenCompressedIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath, bool writeAccess )
 {
     CIMGArchiveTranslatorHandle *archiveHandle = NULL;
     {
@@ -316,17 +334,17 @@ static inline CIMGArchiveTranslatorHandle* GenOpenCompressedIMGArchive( CFileSys
         if ( imgExt )
         {
             // Create a translator specifically with the LZO compression algorithm.
-            archiveHandle = GenOpenArchiveTemplate( imgExt, srcRoot, srcPath, _lzoCompressedIMGConstructor );
+            archiveHandle = GenOpenArchiveTemplate( imgExt, srcRoot, srcPath, writeAccess, _lzoCompressedIMGConstructor );
         }
     }
 
     return archiveHandle;
 }
 
-CIMGArchiveTranslatorHandle* CFileSystem::OpenCompressedIMGArchive( CFileTranslator *srcRoot, const char *srcPath )
-{ return GenOpenCompressedIMGArchive( this, srcRoot, srcPath ); }
-CIMGArchiveTranslatorHandle* CFileSystem::OpenCompressedIMGArchive( CFileTranslator *srcRoot, const wchar_t *srcPath )
-{ return GenOpenCompressedIMGArchive( this, srcRoot, srcPath ); }
+CIMGArchiveTranslatorHandle* CFileSystem::OpenCompressedIMGArchive( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess )
+{ return GenOpenCompressedIMGArchive( this, srcRoot, srcPath, writeAccess ); }
+CIMGArchiveTranslatorHandle* CFileSystem::OpenCompressedIMGArchive( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess )
+{ return GenOpenCompressedIMGArchive( this, srcRoot, srcPath, writeAccess ); }
 
 template <typename charType>
 static inline CIMGArchiveTranslatorHandle* GenCreateCompressedIMGArchive( CFileSystem *sys, CFileTranslator *srcRoot, const charType *srcPath, eIMGArchiveVersion version )

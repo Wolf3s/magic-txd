@@ -234,18 +234,44 @@ inline bool ParseStringToVersion( const char *string, rw::LibraryVersion& verOut
     return false;
 }
 
-inline void PutVersionOnObjectFromConfig( rw::RwObject *rwObj, const ConfigNode& cfgNode )
+inline void PutVersionOnObject( rw::RwObject *rwObj, rwkind::eTargetPlatform gui_targetPlatform, rwkind::eTargetGame gui_targetGame, const ConfigNode& cfgNode )
 {
-    std::string strVer;
+    // We want to get the actual version to put on this object.
+    // This can come from the GUI or the .ini configuration.
+    rw::LibraryVersion reqObjVer;
+    bool hasVersion = false;
 
-    if ( cfgNode.GetString( "rwver", strVer ) )
+    if ( !hasVersion )
     {
-        rw::LibraryVersion version;
+        std::string strVer;
 
-        if ( ParseStringToVersion( strVer.c_str(), version ) )
+        if ( cfgNode.GetString( "rwver", strVer ) )
         {
-            rwObj->SetEngineVersion( version );
+            if ( ParseStringToVersion( strVer.c_str(), reqObjVer ) )
+            {
+                // We got a version.
+                hasVersion = true;
+            }
         }
+    }
+
+    // If we failed to get the version from ini config, we get it from GUI.
+    if ( !hasVersion )
+    {
+        const char *_unusedVerName;
+
+        bool gotGUIVersion = rwkind::GetTargetVersionFromPlatformAndGame( gui_targetPlatform, gui_targetGame, reqObjVer, _unusedVerName );
+        
+        if ( gotGUIVersion )
+        {
+            hasVersion = true;
+        }
+    }
+
+    // We should always get a version here.
+    if ( hasVersion )
+    {
+        rwObj->SetEngineVersion( reqObjVer );
     }
 }
 
@@ -263,7 +289,7 @@ void BuildSingleTexture(
         try
         {
             // Put the texture into a correct version.
-            PutVersionOnObjectFromConfig( imgTex, cfgParent );
+            PutVersionOnObject( imgTex, config.targetPlatform, config.targetGame, cfgParent );
 
             // Give the texture a name based on the original filename.
             filePath texName = FileSystem::GetFileNameItem( texturePath, false );
@@ -826,7 +852,7 @@ void BuildTXDArchives(
                         texDict->SetEngineVersion( firstTex->GetEngineVersion() );
 
                         // Maybe the config has a better version.
-                        PutVersionOnObjectFromConfig( texDict, txdConfigNode );
+                        PutVersionOnObject( texDict, config.targetPlatform, config.targetGame, txdConfigNode );
 
                         // Now write it to disk.
                         // We want to write it with the same name as the directory had.

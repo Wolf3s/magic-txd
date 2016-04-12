@@ -204,12 +204,12 @@
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_NO_DEBUG;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -221,7 +221,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupport.lib;qwindows.lib;qtmain.lib;Ws2_32.lib;qtpcre.lib;qtfreetype.lib;Qt5Core.lib;Qt5Widgets.lib;Qt5Gui.lib;qtharfbuzzng.lib;rwtools_$(PlatformToolset).lib;libfs_$(PlatformToolset).lib;gtaconfig_$(PlatformToolset).lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2015\x86\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2015\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2015\x86\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2015\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -232,7 +232,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -264,12 +265,12 @@
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_NO_DEBUG;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -281,7 +282,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupport.lib;qwindows.lib;qtmain.lib;Ws2_32.lib;qtpcre.lib;qtfreetype.lib;Qt5Core.lib;Qt5Widgets.lib;Qt5Gui.lib;qtharfbuzzng.lib;rwtools_$(PlatformToolset)_x64.lib;libfs_$(PlatformToolset)_x64.lib;gtaconfig_$(PlatformToolset)_x64.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2015\x64\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2015\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2015\x64\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2015\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -292,7 +293,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -324,12 +326,12 @@
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_NO_DEBUG;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -341,7 +343,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupport.lib;qwindows.lib;qtmain.lib;Ws2_32.lib;qtpcre.lib;qtfreetype.lib;Qt5Core.lib;Qt5Widgets.lib;Qt5Gui.lib;qtharfbuzzng.lib;rwtools_$(PlatformToolset).lib;libfs_$(PlatformToolset).lib;gtaconfig_$(PlatformToolset).lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2013\x86\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2013\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2013\x86\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2013\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -352,7 +354,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -384,12 +387,12 @@
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_NO_DEBUG;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -401,7 +404,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupport.lib;qwindows.lib;qtmain.lib;Ws2_32.lib;qtpcre.lib;qtfreetype.lib;Qt5Core.lib;Qt5Widgets.lib;Qt5Gui.lib;qtharfbuzzng.lib;rwtools_$(PlatformToolset)_x64.lib;libfs_$(PlatformToolset)_x64.lib;gtaconfig_$(PlatformToolset)_x64.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2013\x64\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2013\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2013\x64\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2013\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -412,7 +415,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -443,20 +447,20 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>mainwindow.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupportd.lib;qwindowsd.lib;qtmaind.lib;Ws2_32.lib;qtpcred.lib;qtfreetyped.lib;Qt5Cored.lib;Qt5Widgetsd.lib;Qt5Guid.lib;qtharfbuzzngd.lib;rwtools_d_$(PlatformToolset).lib;libfs_d_$(PlatformToolset).lib;gtaconfig_d_$(PlatformToolset).lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2015\x86\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2015\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2015\x86\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2015\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -466,7 +470,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -496,20 +501,20 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>mainwindow.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupportd.lib;qwindowsd.lib;qtmaind.lib;Ws2_32.lib;qtpcred.lib;qtfreetyped.lib;Qt5Cored.lib;Qt5Widgetsd.lib;Qt5Guid.lib;qtharfbuzzngd.lib;rwtools_d_$(PlatformToolset)_x64.lib;libfs_d_$(PlatformToolset)_x64.lib;gtaconfig_d_$(PlatformToolset)_x64.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2015\x64\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2015\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2015\x64\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2015\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -519,7 +524,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -549,20 +555,20 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>mainwindow.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupportd.lib;qwindowsd.lib;qtmaind.lib;Ws2_32.lib;qtpcred.lib;qtfreetyped.lib;Qt5Cored.lib;Qt5Widgetsd.lib;Qt5Guid.lib;qtharfbuzzngd.lib;rwtools_d_$(PlatformToolset).lib;libfs_d_$(PlatformToolset).lib;gtaconfig_d_$(PlatformToolset).lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2013\x86\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2013\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2013\x86\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2013\x86\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -572,7 +578,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>
@@ -602,20 +609,20 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;WIN32;QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <WarningLevel>Level1</WarningLevel>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
-      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.5/include/QtWidgets/;../../vendor/Qt5.5/include/;../../vendor/Qt5.5/include/QtCore/;../../vendor/Qt5.5/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include/;../../vendor/FileSystem/src/;../../vendor/Qt5.6/include/QtWidgets/;../../vendor/Qt5.6/include/;../../vendor/Qt5.6/include/QtCore/;../../vendor/Qt5.6/include/QtGUI/;../../rwlib/include/;../../rwlib/vendor/eirrepo/;../../magic_api/;../../vendor/gtaconfig/include/;../../rwlib/vendor/NativeExecutive/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>mainwindow.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalDependencies>kernel32.lib;shell32.lib;user32.lib;gdi32.lib;advapi32.lib;glu32.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5PlatformSupportd.lib;qwindowsd.lib;qtmaind.lib;Ws2_32.lib;qtpcred.lib;qtfreetyped.lib;Qt5Cored.lib;Qt5Widgetsd.lib;Qt5Guid.lib;qtharfbuzzngd.lib;rwtools_d_$(PlatformToolset)_x64.lib;libfs_d_$(PlatformToolset)_x64.lib;gtaconfig_d_$(PlatformToolset)_x64.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.5\lib\vs2013\x64\plugins\platforms;..\..\vendor\Qt5.5\lib\vs2013\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\vendor\gtaconfig\lib;..\..\vendor\FileSystem\lib;..\..\vendor\Qt5.6\lib\vs2013\x64\plugins\platforms;..\..\vendor\Qt5.6\lib\vs2013\x64\;..\..\rwlib\output\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -625,7 +632,8 @@
       <SubSystem>Windows</SubSystem>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCMTD</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>$(OutDir)$(TargetName)_2013.pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(OutDir)$(TargetName)_2013.pgd</ProfileGuidedDatabase>
       <Version>1</Version>

@@ -129,6 +129,74 @@ enum D3DFORMAT : rw::uint32
 namespace rw
 {
 
+// We ought to know about those bit depths.
+inline bool getD3DFORMATBitDepth( D3DFORMAT dwFourCC, uint32& depthOut )
+{
+    switch( dwFourCC )
+    {
+    case D3DFMT_R8G8B8:             depthOut = 24; break;
+    case D3DFMT_A8R8G8B8:           depthOut = 32; break;
+    case D3DFMT_X8R8G8B8:           depthOut = 32; break;
+    case D3DFMT_R5G6B5:             depthOut = 16; break;
+    case D3DFMT_X1R5G5B5:           depthOut = 16; break;
+    case D3DFMT_A1R5G5B5:           depthOut = 16; break;
+    case D3DFMT_A4R4G4B4:           depthOut = 16; break;
+    case D3DFMT_R3G3B2:             depthOut = 8; break;
+    case D3DFMT_A8:                 depthOut = 8; break;
+    case D3DFMT_A8R3G3B2:           depthOut = 16; break;
+    case D3DFMT_X4R4G4B4:           depthOut = 16; break;
+    case D3DFMT_A2B10G10R10:        depthOut = 32; break;
+    case D3DFMT_A8B8G8R8:           depthOut = 32; break;
+    case D3DFMT_X8B8G8R8:           depthOut = 32; break;
+    case D3DFMT_G16R16:             depthOut = 32; break;
+    case D3DFMT_A2R10G10B10:        depthOut = 32; break;
+    case D3DFMT_A16B16G16R16:       depthOut = 64; break;
+    case D3DFMT_A8P8:               depthOut = 16; break;
+    case D3DFMT_P8:                 depthOut = 8; break;
+    case D3DFMT_L8:                 depthOut = 8; break;
+    case D3DFMT_A8L8:               depthOut = 16; break;
+    case D3DFMT_A4L4:               depthOut = 8; break;
+    case D3DFMT_V8U8:               depthOut = 16; break;
+    case D3DFMT_L6V5U5:             depthOut = 16; break;
+    case D3DFMT_X8L8V8U8:           depthOut = 32; break;
+    case D3DFMT_Q8W8V8U8:           depthOut = 32; break;
+    case D3DFMT_V16U16:             depthOut = 32; break;
+    case D3DFMT_A2W10V10U10:        depthOut = 32; break;
+    case D3DFMT_UYVY:               depthOut = 8; break;
+    case D3DFMT_R8G8_B8G8:          depthOut = 16; break;
+    case D3DFMT_YUY2:               depthOut = 8; break;
+    case D3DFMT_G8R8_G8B8:          depthOut = 16; break;
+    case D3DFMT_DXT1:               depthOut = 4; break;
+    case D3DFMT_DXT2:               depthOut = 8; break;
+    case D3DFMT_DXT3:               depthOut = 8; break;
+    case D3DFMT_DXT4:               depthOut = 8; break;
+    case D3DFMT_DXT5:               depthOut = 8; break;
+    case D3DFMT_D16_LOCKABLE:       depthOut = 16; break;
+    case D3DFMT_D32:                depthOut = 32; break;
+    case D3DFMT_D15S1:              depthOut = 16; break;
+    case D3DFMT_D24S8:              depthOut = 32; break;
+    case D3DFMT_D24X8:              depthOut = 32; break;
+    case D3DFMT_D24X4S4:            depthOut = 32; break;
+    case D3DFMT_D16:                depthOut = 16; break;
+    case D3DFMT_D32F_LOCKABLE:      depthOut = 32; break;
+    case D3DFMT_D24FS8:             depthOut = 32; break;
+    case D3DFMT_L16:                depthOut = 16; break;
+    case D3DFMT_INDEX16:            depthOut = 16; break;
+    case D3DFMT_INDEX32:            depthOut = 32; break;
+    case D3DFMT_Q16W16V16U16:       depthOut = 64; break;
+    case D3DFMT_R16F:               depthOut = 16; break;
+    case D3DFMT_G16R16F:            depthOut = 32; break;
+    case D3DFMT_A16B16G16R16F:      depthOut = 64; break;
+    case D3DFMT_R32F:               depthOut = 32; break;
+    case D3DFMT_G32R32F:            depthOut = 64; break;
+    case D3DFMT_A32B32G32R32F:      depthOut = 128; break;
+    case D3DFMT_CxV8U8:             depthOut = 16; break;
+    default: return false;
+    }
+
+    return true;
+}
+
 inline uint32 getD3DTextureDataRowAlignment( void )
 {
     // We somehow always align our texture data rows by DWORD.

@@ -99,11 +99,11 @@ private:
 
                     if ( info->use_compressed_img_archives )
                     {
-                        srcIMGRoot = fileSystem->OpenCompressedIMGArchive( info->discHandle, relPathFromRoot );
+                        srcIMGRoot = fileSystem->OpenCompressedIMGArchive( info->discHandle, relPathFromRoot, false );
                     }
                     else
                     {
-                        srcIMGRoot = fileSystem->OpenIMGArchive( info->discHandle, relPathFromRoot );
+                        srcIMGRoot = fileSystem->OpenIMGArchive( info->discHandle, relPathFromRoot, false );
                     }
 
                     if ( srcIMGRoot )

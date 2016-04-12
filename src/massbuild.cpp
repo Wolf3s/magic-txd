@@ -368,7 +368,7 @@ void MassBuildWindow::serialize( void )
     env->config.outputRoot = this->editOutputRoot->text().toStdWString();
 
     platformToNaturalList.getCurrent( this->selPlatformBox, env->config.targetPlatform );
-    gameToNaturalList.getCurrent( this->selPlatformBox, env->config.targetGame );
+    gameToNaturalList.getCurrent( this->selGameBox, env->config.targetGame );
 
     env->config.generateMipmaps = this->propGenMipmaps->isChecked();
     env->config.curMipMaxLevel = this->propGenMipmapsMax->text().toInt();

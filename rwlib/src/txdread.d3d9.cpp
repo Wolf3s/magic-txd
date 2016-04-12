@@ -68,9 +68,11 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                 // Deconstruct the format flags.
                 bool hasMipmaps = false;    // TODO: actually use this flag.
+                ePaletteType texPaletteType;
 
-                readRasterFormatFlags( metaHeader.rasterFormat, platformTex->rasterFormat, platformTex->paletteType, hasMipmaps, platformTex->autoMipmaps );
+                readRasterFormatFlags( metaHeader.rasterFormat, platformTex->rasterFormat, texPaletteType, hasMipmaps, platformTex->autoMipmaps );
 
+                platformTex->paletteType = texPaletteType;  // that the texture has a palette is a constant property, it can throw exceptions tho.
                 platformTex->hasAlpha = false;
 
                 // Read the D3DFORMAT field.
@@ -78,10 +80,15 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                 platformTex->d3dFormat = d3dFormat;
 
-                uint32 depth = metaHeader.depth;
+                bool doTrustDepthValue = false;
+
+                uint32 header_depth = metaHeader.depth;         // We do not trust this depth value at all, so we have to verify it first.
                 uint32 maybeMipmapCount = metaHeader.mipmapCount;
 
-                platformTex->depth = depth;
+                if ( maybeMipmapCount == 0 )
+                {
+                    throw RwException( "texture " + theTexture->GetName() + " has a mipmap count field of zero" );
+                }
 
                 platformTex->rasterType = metaHeader.rasterType;
 
@@ -121,35 +128,19 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                     if (actualCompression != platformTex->colorComprType)
                     {
-                        engineInterface->PushWarning( "texture " + theTexture->GetName() + " has invalid compression parameters (ignoring)" );
+                        engineInterface->PushObjWarningVerb( theTexture, "has invalid compression parameters (ignoring)" );
 
                         platformTex->colorComprType = actualCompression;
                     }
                 }
-                // - Verify depth.
+                // - Verify that there is no conflict.
                 {
-                    bool hasInvalidDepth = false;
+                    bool hasPalette = ( texPaletteType != PALETTE_NONE );
+                    bool hasCompression = ( platformTex->colorComprType != RWCOMPRESS_NONE );
 
-                    if (platformTex->paletteType == PALETTE_4BIT)
+                    if ( hasPalette && hasCompression )
                     {
-                        if (depth != 4 && depth != 8)
-                        {
-                            hasInvalidDepth = true;
-                        }
-                    }
-                    else if (platformTex->paletteType == PALETTE_8BIT)
-                    {
-                        if (depth != 8)
-                        {
-                            hasInvalidDepth = true;
-                        }
-                    }
-
-                    if (hasInvalidDepth == true)
-                    {
-                        throw RwException( "texture " + theTexture->GetName() + " has an invalid depth" );
-
-                        // We cannot fix an invalid depth.
+                        throw RwException( "texture " + theTexture->GetName() + " has an ambiguous format: identified as both palette and compression (impossible)" );
                     }
                 }
                 // - Verify raster format.
@@ -172,8 +163,36 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
 
                     // Do special logic for palettized textures.
                     // (thank you DK22Pac)
-                    if (platformTex->paletteType != PALETTE_NONE)
+                    if (texPaletteType != PALETTE_NONE)
                     {
+                        // Verify that we have a valid bit depth.
+                        bool hasValidPaletteBitDepth = false;
+
+                        if (texPaletteType == PALETTE_4BIT)
+                        {
+                            if (header_depth == 4 || header_depth == 8)
+                            {
+                                hasValidPaletteBitDepth = true;
+                            }
+                        }
+                        else if (texPaletteType == PALETTE_8BIT)
+                        {
+                            if (header_depth == 8)
+                            {
+                                hasValidPaletteBitDepth = true;
+                            }
+                        }
+
+                        if ( !hasValidPaletteBitDepth )
+                        {
+                            throw RwException( "texture " + theTexture->GetName() + " has an invalid palette bit depth (either 4bit or 8bit is supported)" );
+                        }
+
+                        // We now do trust this depth value.
+                        platformTex->depth = header_depth;
+
+                        doTrustDepthValue = true;
+
                         // This overrides the D3DFORMAT field.
                         // We are forced to use the eRasterFormat property.
                         isD3DFORMATImportant = false;
@@ -213,6 +232,45 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                             d3dFormat, platformTex->hasAlpha,
                             d3dRasterFormat, colorOrder, isVirtualFormat
                         );
+
+                        // If we have a direct format link, we can verify the bit depth!
+                        // This means we actually do have a bit depth anyway, for anything else
+                        // its a very shallow bet.
+                        if ( isValidFormat )
+                        {
+                            uint32 d3dFormatDepth;
+
+                            bool hasBitDepth = getD3DFORMATBitDepth( d3dFormat, d3dFormatDepth );
+
+                            if ( !hasBitDepth )
+                            {
+                                throw RwException( "fatal error: failed to resolve internal bit depth for texture " + theTexture->GetName() );
+                            }
+
+                            // If the bit depth is incorrect, we could notify the user, because the tool has not done a great job.
+                            // But since the engine does not care about bit depth anyway, we spare this useless warning, at least for Magic.TXD :p
+                            if ( header_depth != d3dFormatDepth )
+                            {
+                                if ( engineWarningLevel >= 5 )
+                                {
+                                    engineInterface->PushObjWarningVerb( theTexture, "has an invalid color depth value (ignoring" );
+                                }
+
+                                // We do want to fix it.
+                                header_depth = d3dFormatDepth;
+                            }
+
+                            // We can finally trust the depth value ;)
+                            platformTex->depth = header_depth;
+
+                            doTrustDepthValue = true;
+                        }
+                        else
+                        {
+                            // There is no depth value that we can determine.
+                            // Maybe we add plugin support for depth values in the future.
+                            platformTex->depth = 0;
+                        }
 
                         if ( isVirtualFormat )
                         {
@@ -288,8 +346,10 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                         {
                             d3dRasterFormatLink = true;
 
+                            assert( doTrustDepthValue == true );
+
                             // Decide whether the raster format is supported by the RW3 specification of D3D9.
-                            isSupportedByRW3 = isRasterFormatOriginalRWCompatible( d3dRasterFormat, colorOrder, depth, platformTex->paletteType );
+                            isSupportedByRW3 = isRasterFormatOriginalRWCompatible( d3dRasterFormat, colorOrder, header_depth, texPaletteType );
                         }
                     }
                     else
@@ -315,7 +375,19 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                             {
                                 if ( isRasterFormatRequired || !engineIgnoreSecureWarnings )
                                 {
-                                    if ( engineWarningLevel >= 3 )
+                                    // Decide about the minimum warning level.
+                                    int minWarningLevel;
+
+                                    if ( isSupportedByRW3 )
+                                    {
+                                        minWarningLevel = 3;
+                                    }
+                                    else
+                                    {
+                                        minWarningLevel = 4;
+                                    }
+
+                                    if ( engineWarningLevel >= minWarningLevel )
                                     {
                                         engineInterface->PushWarning( "texture " + theTexture->GetName() + " has an invalid raster format (ignoring)" );
                                     }
@@ -352,7 +424,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                     platformTex->anonymousFormatLink = usedFormatHandler;
                 }
 
-                if (platformTex->paletteType != PALETTE_NONE)
+                if (texPaletteType != PALETTE_NONE)
                 {
                     // We kind assume we have a valid D3D raster format link here.
                     if ( d3dRasterFormatLink == false )
@@ -361,7 +433,7 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                         throw RwException( "texture " + theTexture->GetName() + " is a palette texture but has no Direct3D raster format link" );
                     }
 
-                    uint32 reqPalItemCount = getD3DPaletteCount( platformTex->paletteType );
+                    uint32 reqPalItemCount = getD3DPaletteCount( texPaletteType );
 
                     uint32 palDepth = Bitmap::getRasterFormatDepth( platformTex->rasterFormat );
 
@@ -469,7 +541,9 @@ void d3d9NativeTextureTypeProvider::DeserializeTexture( TextureBase *theTexture,
                         }
                         else
                         {
-                            uint32 rowSize = getD3DRasterDataRowSize( texWidth, depth );
+                            assert( doTrustDepthValue == true );
+
+                            uint32 rowSize = getD3DRasterDataRowSize( texWidth, header_depth );
 
                             actualDataSize = getRasterDataSizeByRowSize(rowSize, texHeight);
                         }

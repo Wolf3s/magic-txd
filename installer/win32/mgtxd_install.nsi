@@ -237,8 +237,30 @@ Function .onInit
     ReadRegStr $0 HKLM ${COMPONENT_REG_PATH} "InstallDir"
     
     ${If} $0 != ""
-        MessageBox MB_ICONINFORMATION|MB_OK "Setup has detected through the registry that Magic.TXD has already been installed at $\"$0$\".$\n$\n Please uninstall Magic.TXD before installing it again."
+        MessageBox MB_ICONINFORMATION|MB_YESNO "Setup has detected through the registry that Magic.TXD has already been installed at $\"$0$\".$\nSetup cannot continue unless the old version is uninstalled.$\n$\nWould you like to uninstall now?" /SD IDYES IDNO quitInstall
+        
+        # The user agreed to uninstall, so we run the uninstaller.
+        # If the uninstaller suceeded, we continue setup.
+        # Otherwise we show an error and quit.
+        StrCpy $1 "$0\uinst.exe"
+        
+        ExecWait "$1 _?=$0" $1
+        
+        ${If} $1 != 0
+            MessageBox MB_ICONSTOP|MB_OK "Failed to uninstall Magic.TXD. Please try uninstalling Magic.TXD again and running this installer afterward,"
+            Quit
+        ${EndIf}
+        
+        # Clean up after the uninstaller.
+        # It could not complete a few steps.
+        Delete "$0\uinst.exe"
+        RMDIR "$0"
+        
+        # We were successful, so continue installation :)
+        goto proceedInstall
+quitInstall:
         Quit
+proceedInstall:
     ${EndIf}
     
     StrCpy $DoStartMenu "false"
@@ -257,6 +279,15 @@ Function un.onInit
     ${EndIf}
 FunctionEnd
 
+!macro IS_SHELL_RUNNING
+    System::Call 'Kernel32::WaitForSingleObject( i r3, i 0 ) i.R2'
+    StrCpy $0 0
+    ${If} $R2 == 258
+        # Shell is active.
+        StrCpy $0 1
+    ${EndIf}
+!macroend
+
 Section un.defUninst
     ; Unregister file association if present.
     DeleteRegKey HKCR "${MGTXD_TXD_ASSOC}"
@@ -266,7 +297,48 @@ Section un.defUninst
     
     ; Unregister shell extension.
     ExecWait 'regsvr32.exe /u /s "$INSTDIR\rwshell.dll"'
+    
+    ; To properly unregister the shell extension we must restart the shell.
+    ; We have to do this in the shell DLL that we travel with.
+    StrCpy $2 0
+    
+    MessageBox MB_ICONQUESTION|MB_YESNO "Would you like to close Explorer shell to unregister the shell extension?$\nClosing the shell causes all Explorer windows to be lost." /SD IDYES IDNO dontCloseExplorer
+    StrCpy $2 1
+dontCloseExplorer:
+
+    # So maybe the user agreed to it.
+    ${If} $2 == 1
+        ReadRegDWORD $6 HKLM "Software\Microsoft\Windows NT\CurrentVersion\WinLogon" "AutoRestartShell"
+        WriteRegDWORD HKLM "Software\Microsoft\Windows NT\CurrentVersion\WinLogon" "AutoRestartShell" 0
+    
+        # Close that bitch.
+        FindWindow $0 "Shell_TrayWnd"
+        System::Call 'User32::GetWindowThreadProcessId( i r0, *i .r1 )'
+        System::Call 'Kernel32::OpenProcess( i 1048576, i 0, i r1 ) i.r3'
+        SendMessage $0 0x5B4 0 0
+        # SendMessage $0 WM_QUIT 0 0
+        
+        # We should wait until that friggin shell is dead.
+waitSomeMoreForShellTermination:
+        !insertmacro IS_SHELL_RUNNING
+        StrCmp $0 0 proceedAfterShellTerm
+        Sleep 1000
+        goto waitSomeMoreForShellTermination
+proceedAfterShellTerm:
+        System::Call 'Kernel32::CloseHandle( i r3 )'
+    ${EndIf}
+    
     Delete /REBOOTOK $INSTDIR\rwshell.dll
+    
+    ${If} $2 == 1
+        ; Restart the shell again, for the user :)
+        ReadEnvStr $0 SYSTEMROOT
+        Exec "$0\explorer.exe"
+        
+        Sleep 1500
+        
+        WriteRegDWORD HKLM "Software\Microsoft\Windows NT\CurrentVersion\WinLogon" "AutoRestartShell" $6
+    ${EndIf}
 
 uninstmain:
     RMDIR /r $INSTDIR\resources

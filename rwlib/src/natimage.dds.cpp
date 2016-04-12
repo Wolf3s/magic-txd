@@ -163,73 +163,6 @@ struct dds_header
     endian::little_endian <uint32> dwCaps4;
     endian::little_endian <uint32> dwReserved2;
 
-    static inline bool getBitDepth( uint32 dwFourCC, uint32& depthOut )
-    {
-        switch( dwFourCC )
-        {
-        case D3DFMT_R8G8B8:             depthOut = 24; break;
-        case D3DFMT_A8R8G8B8:           depthOut = 32; break;
-        case D3DFMT_X8R8G8B8:           depthOut = 32; break;
-        case D3DFMT_R5G6B5:             depthOut = 16; break;
-        case D3DFMT_X1R5G5B5:           depthOut = 16; break;
-        case D3DFMT_A1R5G5B5:           depthOut = 16; break;
-        case D3DFMT_A4R4G4B4:           depthOut = 16; break;
-        case D3DFMT_R3G3B2:             depthOut = 8; break;
-        case D3DFMT_A8:                 depthOut = 8; break;
-        case D3DFMT_A8R3G3B2:           depthOut = 16; break;
-        case D3DFMT_X4R4G4B4:           depthOut = 16; break;
-        case D3DFMT_A2B10G10R10:        depthOut = 32; break;
-        case D3DFMT_A8B8G8R8:           depthOut = 32; break;
-        case D3DFMT_X8B8G8R8:           depthOut = 32; break;
-        case D3DFMT_G16R16:             depthOut = 32; break;
-        case D3DFMT_A2R10G10B10:        depthOut = 32; break;
-        case D3DFMT_A16B16G16R16:       depthOut = 64; break;
-        case D3DFMT_A8P8:               depthOut = 16; break;
-        case D3DFMT_P8:                 depthOut = 8; break;
-        case D3DFMT_L8:                 depthOut = 8; break;
-        case D3DFMT_A8L8:               depthOut = 16; break;
-        case D3DFMT_A4L4:               depthOut = 8; break;
-        case D3DFMT_V8U8:               depthOut = 16; break;
-        case D3DFMT_L6V5U5:             depthOut = 16; break;
-        case D3DFMT_X8L8V8U8:           depthOut = 32; break;
-        case D3DFMT_Q8W8V8U8:           depthOut = 32; break;
-        case D3DFMT_V16U16:             depthOut = 32; break;
-        case D3DFMT_A2W10V10U10:        depthOut = 32; break;
-        case D3DFMT_UYVY:               depthOut = 8; break;
-        case D3DFMT_R8G8_B8G8:          depthOut = 16; break;
-        case D3DFMT_YUY2:               depthOut = 8; break;
-        case D3DFMT_G8R8_G8B8:          depthOut = 16; break;
-        case D3DFMT_DXT1:               depthOut = 4; break;
-        case D3DFMT_DXT2:               depthOut = 8; break;
-        case D3DFMT_DXT3:               depthOut = 8; break;
-        case D3DFMT_DXT4:               depthOut = 8; break;
-        case D3DFMT_DXT5:               depthOut = 8; break;
-        case D3DFMT_D16_LOCKABLE:       depthOut = 16; break;
-        case D3DFMT_D32:                depthOut = 32; break;
-        case D3DFMT_D15S1:              depthOut = 16; break;
-        case D3DFMT_D24S8:              depthOut = 32; break;
-        case D3DFMT_D24X8:              depthOut = 32; break;
-        case D3DFMT_D24X4S4:            depthOut = 32; break;
-        case D3DFMT_D16:                depthOut = 16; break;
-        case D3DFMT_D32F_LOCKABLE:      depthOut = 32; break;
-        case D3DFMT_D24FS8:             depthOut = 32; break;
-        case D3DFMT_L16:                depthOut = 16; break;
-        case D3DFMT_INDEX16:            depthOut = 16; break;
-        case D3DFMT_INDEX32:            depthOut = 32; break;
-        case D3DFMT_Q16W16V16U16:       depthOut = 64; break;
-        case D3DFMT_R16F:               depthOut = 16; break;
-        case D3DFMT_G16R16F:            depthOut = 32; break;
-        case D3DFMT_A16B16G16R16F:      depthOut = 64; break;
-        case D3DFMT_R32F:               depthOut = 32; break;
-        case D3DFMT_G32R32F:            depthOut = 64; break;
-        case D3DFMT_A32B32G32R32F:      depthOut = 128; break;
-        case D3DFMT_CxV8U8:             depthOut = 16; break;
-        default: return false;
-        }
-
-        return true;
-    }
-
     static inline bool calculateSurfaceDimensions( uint32 dwFourCC, uint32 layerWidth, uint32 layerHeight, uint32& mipWidthOut, uint32& mipHeightOut )
     {
         // Per recommendation of MSDN, we calculate the stride ourselves.
@@ -1164,6 +1097,9 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             dds_compressionType = getFrameworkCompressionTypeFromD3DFORMAT( dds_d3dFormat );
 
             bool isVirtualMapping = false;
+
+            // TODO: fix the virtual raster format decision here, because its decided wrong as DDS surfaces
+            // do not come with an explicit alpha flag: we have to calculate the actual alpha flag before this!
             
             bool hasRepresentingFormat = getRasterFormatFromD3DFormat(
                 dds_d3dFormat, dds_hasAlphaChannel || formatType == eDDSPixelFormatType::FMT_ALPHA,
@@ -2342,7 +2278,7 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
                 bool hasFormatPitch = dds_header::doesFormatSupportPitch( dds_d3dFormat );
 
                 // Formats that support pitch are automatically raw-sample types.
-                bool gotDepth = dds_header::getBitDepth( dds_d3dFormat, dds_bitDepth );
+                bool gotDepth = getD3DFORMATBitDepth( dds_d3dFormat, dds_bitDepth );
 
                 // We make sure just in case, so check for depth aswell.
                 if ( gotDepth && hasFormatPitch )
@@ -2578,7 +2514,7 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             // We get it from the D3DFORMAT field.
             // This is not exactly a D3DFORMAT field, but the flow of time
             // has made some really retarded things.
-            bool couldGet = dds_header::getBitDepth( fourCC, bitDepth_out );
+            bool couldGet = getD3DFORMATBitDepth( (D3DFORMAT)fourCC, bitDepth_out );
 
             if ( couldGet )
             {
