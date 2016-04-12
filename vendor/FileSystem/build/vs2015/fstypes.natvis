@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="filePath">
+    <DisplayString>{*this->strData}</DisplayString>
+    <Expand HideRawView="true">
+      <ExpandedItem>this->strData</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="filePath::wideStringProvider">
+    <DisplayString>{this->strData.stringData}</DisplayString>
+    <Expand>
+      <Item Name="[cp_count]">this->strData.stringLength</Item>
+      <ArrayItems>
+        <Size>this->strData.stringLength</Size>
+        <LowerBound>0</LowerBound>
+        <ValuePointer>this->strData.stringData</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="filePath::ansiStringProvider">
+    <DisplayString>{this->strData.stringData}</DisplayString>
+    <Expand>
+      <Item Name="[cp_count]">this->strData.stringLength</Item>
+      <ArrayItems>
+        <Size>this->strData.stringLength</Size>
+        <LowerBound>0</LowerBound>
+        <ValuePointer>this->strData.stringData</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>
