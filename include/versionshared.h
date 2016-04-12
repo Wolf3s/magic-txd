@@ -244,6 +244,8 @@ private slots:
     {
         if (newIndex >= 0)
         {
+            rw::Interface *rwEngine = this->mainWnd->GetEngine();
+
             QComboBox *platSelectBox = this->platSelectBox;
 
             if (newIndex == 0) { // Custom
@@ -256,15 +258,23 @@ private slots:
 
                 dataTypeSelectBox->clear();
 
+                int current_data_index = 0;
+
                 for (int i = 1; i <= RwVersionSets::RWVS_DT_NUM_OF_TYPES; i++)
                 {
                     const char *dataName = RwVersionSets::dataNameFromId( (RwVersionSets::eDataType)i );
 
-                    dataTypeSelectBox->addItem(dataName);
-
-                    if (lastDataTypeName == dataName)
+                    // Only show the item if we actually support it.
+                    if ( rw::IsNativeTexture( rwEngine, dataName ) )
                     {
-                        dataTypeSelectBox->setCurrentIndex(i - 1);
+                        dataTypeSelectBox->addItem(dataName);
+
+                        if (lastDataTypeName == dataName)
+                        {
+                            dataTypeSelectBox->setCurrentIndex(current_data_index);
+                        }
+
+                        current_data_index++;
                     }
                 }
 
@@ -288,14 +298,9 @@ private slots:
                         )
                    );
                 }
-                if (selectedSet.availablePlatforms.size() < 2)
-                {
-                    this->platSelectBox->setDisabled(true);
-                }
-                else
-                {
-                    this->platSelectBox->setDisabled(false);
-                }
+
+                this->platSelectBox->setDisabled( platformCount < 2 );
+
                 //this->OnChangeSelecteedPlatform( 0 );
             }
         }
@@ -309,6 +314,8 @@ private slots:
     {
         if (newIndex >= 0)
         {
+            rw::Interface *rwEngine = this->mainWnd->GetEngine();
+
             this->dataTypeSelectBox->clear();
 
             unsigned int set = this->gameSelectBox->currentIndex();
@@ -318,16 +325,27 @@ private slots:
 
             const size_t dataTypeCount = platformOfSet.availableDataTypes.size();
 
+            size_t nativeItemCount = 0;
+
             for (size_t i = 0; i < dataTypeCount; i++)
             {
-                this->dataTypeSelectBox->addItem(
-                    RwVersionSets::dataNameFromId(platformOfSet.availableDataTypes[i])
-                );
+                const char *nativeName =
+                    RwVersionSets::dataNameFromId(platformOfSet.availableDataTypes[i]);
+
+                // We must actually support the native texture to allow the user to target it.
+                if ( rw::IsNativeTexture( rwEngine, nativeName ) )
+                {
+                    this->dataTypeSelectBox->addItem(
+                        nativeName
+                    );
+
+                    nativeItemCount++;
+                }
             }
-            if (platformOfSet.availableDataTypes.size() < 2)
-                this->dataTypeSelectBox->setDisabled(true);
-            else
-                this->dataTypeSelectBox->setDisabled(false);
+
+            // If we have just a single item or none in the data type select, there is no point
+            // in letting the user play around with it.
+            this->dataTypeSelectBox->setDisabled( nativeItemCount < 2 );
 
             std::string verString = rwVersionToString( platformOfSet.version );
             std::string buildString;

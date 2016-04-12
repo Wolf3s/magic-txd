@@ -101,14 +101,8 @@ VAR DoStartMenu
 !define REDIST32_120 "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x86.exe"
 !define REDIST64_120 "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
 
-!define REDIST32_120_KEY "SOFTWARE\Wow6432Node\Microsoft\DevDiv\vc\Servicing\12.0\RuntimeMinimum"
+!define REDIST32_120_KEY "SOFTWARE\Microsoft\DevDiv\vc\Servicing\12.0\RuntimeMinimum"
 !define REDIST64_120_KEY "SOFTWARE\Microsoft\DevDiv\vc\Servicing\12.0\RuntimeMinimum"
-
-!define REDIST32_140 "https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x86.exe"
-!define REDIST64_140 "https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x64.exe"
-
-!define REDIST32_140_KEY "SOFTWARE\Wow6432Node\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
-!define REDIST64_140_KEY "SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
 
 !macro INSTALL_REDIST name friendlyname url32 url64 key32 key64
     # Check whether the user has to install a redistributable and which.
@@ -153,7 +147,6 @@ VAR DoStartMenu
 Section "-Magic.TXD core"
     # Install all required redistributables.
     !insertmacro INSTALL_REDIST "vcredist_2013.exe" "VS2013" ${REDIST32_120} ${REDIST64_120} ${REDIST32_120_KEY} ${REDIST64_120_KEY}
-    !insertmacro INSTALL_REDIST "vcredist_2015.exe" "VS2015" ${REDIST32_140} ${REDIST64_140} ${REDIST32_140_KEY} ${REDIST64_140_KEY}
 
     # Install the main program.
     setOutPath $INSTDIR
@@ -302,7 +295,7 @@ Section un.defUninst
     ; We have to do this in the shell DLL that we travel with.
     StrCpy $2 0
     
-    MessageBox MB_ICONQUESTION|MB_YESNO "Would you like to close Explorer shell to unregister the shell extension?$\nClosing the shell causes all Explorer windows to be lost." /SD IDYES IDNO dontCloseExplorer
+    MessageBox MB_ICONQUESTION|MB_YESNO "Would you like to close Explorer shell to unregister the shell extension?$\nClosing the shell causes all Explorer windows to be lost.$\n$\nIt is RECOMMENDED to click no (only for experienced users)." /SD IDYES IDNO dontCloseExplorer
     StrCpy $2 1
 dontCloseExplorer:
 
