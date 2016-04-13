@@ -289,53 +289,96 @@ void Interface::DeserializeExtensions( RwObject *rwObj, BlockProvider& inputProv
     // Deserialize the blocks.
     BlockProvider extensionBlock( &inputProvider );
 
-    extensionBlock.EnterContext();
-
+    // We can actually ignore reading extension data if it is not present.
+    // Really.
     try
     {
-        if ( extensionBlock.getBlockID() == CHUNK_EXTENSION )
+        extensionBlock.EnterContext();
+
+        try
         {
-            int64 end = extensionBlock.getBlockLength();
-            end += extensionBlock.tell();
-            
-            while ( extensionBlock.tell() < end )
+            if ( extensionBlock.getBlockID() == CHUNK_EXTENSION )
             {
-                BlockProvider subExtensionBlock( &extensionBlock, false );
-
-                subExtensionBlock.EnterContext();
-
-                try
+                int64 end = extensionBlock.getBlockLength();
+                end += extensionBlock.tell();
+            
+                while ( extensionBlock.tell() < end )
                 {
-                    // If we have the plugin, deserialize it.
-                    // Otherwise we just skip the block.
-                    if ( extStore != NULL )
+                    BlockProvider subExtensionBlock( &extensionBlock, false );
+
+                    subExtensionBlock.EnterContext();
+
+                    try
                     {
-                        extStore->ParseExtension( this, subExtensionBlock );
+                        // If we have the plugin, deserialize it.
+                        // Otherwise we just skip the block.
+                        if ( extStore != NULL )
+                        {
+                            extStore->ParseExtension( this, subExtensionBlock );
+                        }
                     }
-                }
-                catch( ... )
-                {
+                    catch( ... )
+                    {
+                        subExtensionBlock.LeaveContext();
+
+                        throw;
+                    }
+
                     subExtensionBlock.LeaveContext();
-
-                    throw;
                 }
-
-                subExtensionBlock.LeaveContext();
             }
+            else
+            {
+                this->PushWarning( "could not find extension block; ignoring" );
+            }
+        }
+        catch( ... )
+        {
+            extensionBlock.LeaveContext();
+
+            throw;
+        }
+
+        extensionBlock.LeaveContext();
+    }
+    catch( rw::RwException& )
+    {
+        // Decide whether we can ignore an extension read failure.
+        // This is actually the first time where block-reading philosophy is taken.
+        // If we are reading using block-lengths, we can safely ignore any error-case because the file-system is able
+        // to recover. If we are not, then we allow ignoring if we are in the root-block space, because extension
+        // blocks are usually at the end of everything.
+        // This philosophy might need changing in the future.
+        bool allowIgnore = false;
+
+        if ( inputProvider.doesIgnoreBlockRegions() == false )
+        {
+            // Safe.
+            allowIgnore = true;
         }
         else
         {
-            this->PushWarning( "could not find extension block; ignoring" );
+            // Check if we are in root block space.
+            if ( inputProvider.hasParent() == false )
+            {
+                // We can ignore here too.
+                // This is really risky, anyway.
+                allowIgnore = true;
+            }
+        }
+
+        if ( allowIgnore )
+        {
+            this->PushWarning( "error while reading RenderWare object extension storage (ignoring)" );
+
+            // Just go ahead. Has to be safe to leave out extensions anyway.
+        }
+        else
+        {
+            // We must report this error.
+            throw;
         }
     }
-    catch( ... )
-    {
-        extensionBlock.LeaveContext();
-
-        throw;
-    }
-
-    extensionBlock.LeaveContext();
 }
 
 void registerObjectExtensionsPlugins( void )

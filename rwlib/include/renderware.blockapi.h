@@ -134,6 +134,11 @@ public:
         return this->ignoreBlockRegions;
     }
 
+    inline bool hasParent( void ) const
+    {
+        return ( this->parent != NULL );
+    }
+
     // Helper functions.
     template <typename structType>
     inline void writeStruct( const structType& theStruct )      { this->write( &theStruct, sizeof( theStruct ) ); }
