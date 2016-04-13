@@ -21,7 +21,7 @@ Main.SelectA           Seleccionar todo
 Main.File              Archivo
 Main.Edit              Editar
 Main.Tools             Herramientas
-Main.Export            Explorar
+Main.Export            Exportar
 Main.View              Ver
 Main.Info              Información
 
@@ -72,7 +72,7 @@ Modify.Plat            Plataforma:
 Modify.RasFmt          Formato de pixeles:
 Modify.Origin          Original
 Modify.RawRas          Estándar
-Modify.Comp            Comprimido
+Modify.Comp            Compresión
 Modify.Pal             Paleta
 Modify.PixFmt          Formato de pixel:
 Modify.GenML           Generar mipmaps
@@ -126,7 +126,7 @@ Main.SetupTV.Custom    Personalizado
 # Options
 Main.Options.Desc      Opciones de _MAGIC_TXD_NAME
 Main.Options.MainTab   Inicio
-Main.Options.ShowLog   Mostrar registro TXD con notificaciones
+Main.Options.ShowLog   Mostrar registro TXD en alerta
 Main.Options.DispIcn   Mostrar icono del juego
 Main.Options.AdvTab    Avanzado
 Main.Options.SerSpc    Deserializar sin longitudes del bloque
@@ -189,7 +189,7 @@ Main.Edit.Add.Desc     Importar textura...
 Main.About.Desc        Sobre nosotros
 Main.About.Credits     Creado por _AUTHOR_NAME_1 y _AUTHOR_NAME_2
 Main.About.ComUse1     Esta herramienta no debe utilizarse para fines comerciales sin la autorización explícita y por escrito de todos los terceros que contribuyeron a esta herramienta. Ver las licencias para más información.
-Main.About.ComUse2     ¡El equipo de _MAGIC_TXD_NAME espera expectativas de su contribución!
+Main.About.ComUse2     ¡El equipo de _MAGIC_TXD_NAME agradece vuestro apoyo!
 Main.About.SpecThx     Agradecimientos especiales a
 
 # Save changes
