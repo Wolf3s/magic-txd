@@ -60,6 +60,14 @@ bool imageImportMethods::impMeth_loadTexChunk( rw::Stream *chunkStream, loadActi
                     // Good to go!
                     return true;
                 }
+                else
+                {
+                    rwEngine->PushWarning( "parsed texture image contains no raster" );
+                }
+            }
+            else
+            {
+                rwEngine->PushWarning( std::string( "tried parsing a texture, got " ) + rwEngine->GetObjectTypeName( rwObj ) + " instead" );
             }
         }
         catch( ... )

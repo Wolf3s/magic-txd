@@ -102,6 +102,13 @@ struct pngImagingExtension : public imagingFormatExtension
                 return false;
             }
 
+            // If we have reached the IEND chunk, we are officially done with the image.
+            // Anything beyond it we do not care about.
+            if ( header.type == 0x49454E44 )
+            {
+                return true;
+            }
+
             // I guess that chunk is alright. Try the next one.
         }
 
