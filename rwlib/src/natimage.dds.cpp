@@ -2386,6 +2386,7 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
 
             // At this point we have a D3DFORMAT linked to a RW raster format.
             // Now we can get the DDS mapping for it!
+            // We can also have a palette format, in which case we do not really have a D3DFORMAT.
 
             eDDSPixelFormatType formatType;
             uint32 dds_redMask = 0;
@@ -2395,20 +2396,39 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
             uint32 dds_fourCC = 0;
 
             // Check for a special mapping first that is most compatible.
-            bool hasCompatMapping =
-                getDDSMappingFromD3DFormat(
-                    dds_d3dFormat,
-                    formatType,
-                    dds_redMask, dds_greenMask, dds_blueMask, dds_alphaMask, dds_fourCC
-                );
-
-            if ( !hasCompatMapping )
+            if ( srcPaletteType != PALETTE_NONE )
             {
-                // We can map this format in a special post-D3D8 format.
-                // Fuck (absolute) legacy-support anyway.
-                formatType = eDDSPixelFormatType::FMT_FOURCC;
+                // Since we travel in palette data, we need a special mapping.
+                if ( srcPaletteType == PALETTE_4BIT )
+                {
+                    formatType = eDDSPixelFormatType::FMT_PAL4;
+                }
+                else if ( srcPaletteType == PALETTE_8BIT )
+                {
+                    formatType = eDDSPixelFormatType::FMT_PAL8;
+                }
+                else
+                {
+                    throw RwException( "invalid destination palette type for DDS native image texel acquisition" );
+                }
+            }
+            else
+            {
+                bool hasCompatMapping =
+                    getDDSMappingFromD3DFormat(
+                        dds_d3dFormat,
+                        formatType,
+                        dds_redMask, dds_greenMask, dds_blueMask, dds_alphaMask, dds_fourCC
+                    );
 
-                dds_fourCC = (uint32)dds_d3dFormat;
+                if ( !hasCompatMapping )
+                {
+                    // We can map this format in a special post-D3D8 format.
+                    // Fuck (absolute) legacy-support anyway.
+                    formatType = eDDSPixelFormatType::FMT_FOURCC;
+
+                    dds_fourCC = (uint32)dds_d3dFormat;
+                }
             }
 
             // Decide whether the data has an alpha channel.
@@ -3262,7 +3282,7 @@ struct ddsNativeImageFormatTypeManager : public nativeImageTypeManager
         // Pixel information.
         header.ddspf.dwSize = sizeof( header.ddspf );
         header.ddspf.dwFlags = pixelFormatFlags;
-        header.ddspf.dwFourCC = fourCC;
+        header.ddspf.dwFourCC = ( formatType == eDDSPixelFormatType::FMT_FOURCC ? fourCC : 0 );
         header.ddspf.dwRGBBitCount = ( doWriteUsingLinearSize == false ? bitDepth : 0 );
         header.ddspf.dwRBitMask = ddsImage->pf_redMask;
         header.ddspf.dwGBitMask = ddsImage->pf_greenMask;

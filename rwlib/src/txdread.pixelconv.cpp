@@ -536,46 +536,33 @@ bool ConvertMipmapLayerNative(
             if ( srcPaletteData == dstPaletteData )
             {
                 // Fix the indice, if necessary.
-                if ( srcDepth != dstDepth || srcPaletteType != dstPaletteType )
+                uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstDepth, dstRowAlignment );
+
+                dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
+
+                newtexels = engineInterface->PixelAllocate( dstDataSize );
+
+                if ( !newtexels )
                 {
-                    uint32 dstRowSize = getRasterDataRowSize( mipWidth, dstDepth, dstRowAlignment );
-
-                    dstDataSize = getRasterDataSizeByRowSize( dstRowSize, mipHeight );
-
-                    newtexels = engineInterface->PixelAllocate( dstDataSize );
-
-                    if ( !newtexels )
-                    {
-                        throw RwException( "failed to allocate palette texel buffer in texel conversion" );
-                    }
-
-                    try
-                    {
-                        // Convert the depth.
-                        ConvertPaletteDepth(
-                            srcTexels, newtexels,
-                            mipWidth, mipHeight,
-                            srcPaletteType, dstPaletteType, srcPaletteSize,
-                            srcDepth, dstDepth,
-                            srcRowAlignment, dstRowAlignment
-                        );
-                    }
-                    catch( ... )
-                    {
-                        engineInterface->PixelFree( newtexels );
-
-                        throw;
-                    }
+                    throw RwException( "failed to allocate palette texel buffer in texel conversion" );
                 }
-                else
+
+                try
                 {
-                    dstDataSize = srcDataSize;
+                    // Convert the depth.
+                    ConvertPaletteDepth(
+                        srcTexels, newtexels,
+                        mipWidth, mipHeight,
+                        srcPaletteType, dstPaletteType, srcPaletteSize,
+                        srcDepth, dstDepth,
+                        srcRowAlignment, dstRowAlignment
+                    );
+                }
+                catch( ... )
+                {
+                    engineInterface->PixelFree( newtexels );
 
-                    newtexels = engineInterface->PixelAllocate( dstDataSize );
-
-                    // We just copy.
-                    // At least that aint throwing exceptions.
-                    memcpy( newtexels, srcTexels, dstDataSize );
+                    throw;
                 }
             }
             else

@@ -924,60 +924,68 @@ struct tiffImagingExtension : public imagingFormatExtension
 
                             try
                             {
-                                if ( parseMode == TPARSEMODE_GRAYSCALE || parseMode == TPARSEMODE_FULLCOLOR )
+                                // We read item by item and transform the items into the destination buffer.
+                                for ( uint32 row = 0; row < image_length; row++ )
                                 {
-                                    // We read item by item and transform the items into the destination buffer.
-                                    for ( uint32 row = 0; row < image_length; row++ )
+                                    int error = TIFFReadScanline( tif, scanlineBuf, row );
+
+                                    if ( error != 1 )
                                     {
-                                        int error = TIFFReadScanline( tif, scanlineBuf, row );
+                                        throw RwException( "failed to read TIFF scanline" );
+                                    }
 
-                                        if ( error != 1 )
+                                    // Convert it over to our buffer.
+                                    void *dstRowData = getTexelDataRow( dstTexels, dstRowSize, row );
+
+                                    for ( uint32 col = 0; col < image_width; col++ )
+                                    {
+                                        if ( parseMode == TPARSEMODE_GRAYSCALE )
                                         {
-                                            throw RwException( "failed to read TIFF scanline" );
+                                            uint8 lum, alpha;
+
+                                            bool hasColor = read_tiff_grayscale( scanlineBuf, col, photometric_type, bits_per_sample, tiff_has_alpha_channel, lum, alpha );
+
+                                            if ( !hasColor )
+                                            {
+                                                lum = 0;
+                                                alpha = 0;
+                                            }
+
+                                            putDispatch.setLuminance( dstRowData, col, lum, alpha );
                                         }
-
-                                        // Convert it over to our buffer.
-                                        void *dstRowData = getTexelDataRow( dstTexels, dstRowSize, row );
-
-                                        for ( uint32 col = 0; col < image_width; col++ )
+                                        else if ( parseMode == TPARSEMODE_FULLCOLOR )
                                         {
-                                            if ( parseMode == TPARSEMODE_GRAYSCALE )
+                                            uint8 r, g, b, a;
+
+                                            bool hasColor = read_tiff_color( scanlineBuf, col, photometric_type, bits_per_sample, tiff_has_alpha_channel, r, g, b, a );
+
+                                            if ( !hasColor )
                                             {
-                                                uint8 lum, alpha;
-
-                                                bool hasColor = read_tiff_grayscale( scanlineBuf, col, photometric_type, bits_per_sample, tiff_has_alpha_channel, lum, alpha );
-
-                                                if ( !hasColor )
-                                                {
-                                                    lum = 0;
-                                                    alpha = 0;
-                                                }
-
-                                                putDispatch.setLuminance( dstRowData, col, lum, alpha );
+                                                r = 0;
+                                                g = 0;
+                                                b = 0;
+                                                a = 0;
                                             }
-                                            else if ( parseMode == TPARSEMODE_FULLCOLOR )
-                                            {
-                                                uint8 r, g, b, a;
 
-                                                bool hasColor = read_tiff_color( scanlineBuf, col, photometric_type, bits_per_sample, tiff_has_alpha_channel, r, g, b, a );
+                                            putDispatch.setRGBA( dstRowData, col, r, g, b, a );
+                                        }
+                                        else if ( parseMode == TPARSEMODE_PALETTE )
+                                        {
+                                            // Simple palette item copy.
+                                            assert( num_extra_samples == 0 );
 
-                                                if ( !hasColor )
-                                                {
-                                                    r = 0;
-                                                    g = 0;
-                                                    b = 0;
-                                                    a = 0;
-                                                }
-
-                                                putDispatch.setRGBA( dstRowData, col, r, g, b, a );
-                                            }
+                                            copyPaletteItemGeneric(
+                                                scanlineBuf, dstRowData,
+                                                col, bits_per_sample, dstPaletteType,
+                                                col, dstDepth, dstPaletteType,
+                                                dstPaletteSize
+                                            );
+                                        }
+                                        else
+                                        {
+                                            assert( 0 );
                                         }
                                     }
-                                }
-                                else if ( parseMode == TPARSEMODE_PALETTE )
-                                {
-                                    // do we actually need this?
-                                    throw RwException( "deferred palette copy not implemented yet." );
                                 }
                             }
                             catch( ... )
