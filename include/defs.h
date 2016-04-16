@@ -1,5 +1,5 @@
 // Update this string if there is a new version release :)
-#define MTXD_VERSION_STRING     "alpha"
+#define MTXD_VERSION_STRING     "1.0"
 
 #define FONT_SIZE_BUTTON 20
 
