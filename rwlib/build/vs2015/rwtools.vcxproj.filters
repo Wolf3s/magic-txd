@@ -342,6 +342,7 @@
     <ClCompile Include="..\..\src\txdread.raster.utils.cpp" />
     <ClCompile Include="..\..\src\natimage.dds.cpp" />
     <ClCompile Include="..\..\src\natimage.pvr.cpp" />
+    <ClCompile Include="..\..\src\txdread.fmttest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="rwtools.natvis">

@@ -554,11 +554,12 @@ public:
     }
 
 private:
+    template <typename colorNumberType>
     AINLINE static bool gcbrowsetexelrgba(
         const void *texelSource, uint32 colorIndex, eGCNativeTextureFormat internalFormat, eGCPixelFormat palettePixelFormat,
         eColorOrdering colorOrder,
         uint32 itemDepth, ePaletteType paletteType, const void *paletteData, uint32 maxpalette,
-        uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut
+        colorNumberType& redOut, colorNumberType& greenOut, colorNumberType& blueOut, colorNumberType& alphaOut
     )
     {
         bool hasColor = false;
@@ -569,7 +570,7 @@ private:
 
         bool couldResolveSource = false;
 
-        uint8 prered, pregreen, preblue, prealpha;
+        colorNumberType prered, pregreen, preblue, prealpha;
 
         if (paletteType != PALETTE_NONE)
         {
@@ -629,10 +630,10 @@ private:
 
             pixel_t srcData = *( (const endian::big_endian <pixel_t>*)realTexelSource + realColorIndex );
 
-            prered = scalecolor( srcData.r, 31, 255 );
-            pregreen = scalecolor( srcData.g, 63, 255 );
-            preblue = scalecolor( srcData.b, 31, 255 );
-            prealpha = 0xFF;
+            destscalecolor( srcData.r, 31, prered );
+            destscalecolor( srcData.g, 63, pregreen );
+            destscalecolor( srcData.b, 31, preblue );
+            prealpha = color_defaults <colorNumberType>::one;
 
             hasColor = true;
         }
@@ -642,17 +643,17 @@ private:
 
             if ( !srcData.hasNoAlpha )
             {
-                prered = scalecolor( srcData.with_alpha.r, 15, 255 );
-                pregreen = scalecolor( srcData.with_alpha.g, 15, 255 );
-                preblue = scalecolor( srcData.with_alpha.b, 15, 255 );
-                prealpha = scalecolor( srcData.with_alpha.a, 7, 255 );
+                destscalecolor( srcData.with_alpha.r, 15, prered );
+                destscalecolor( srcData.with_alpha.g, 15, pregreen );
+                destscalecolor( srcData.with_alpha.b, 15, preblue );
+                destscalecolor( srcData.with_alpha.a, 7, prealpha );
             }
             else
             {
-                prered = scalecolor( srcData.no_alpha.r, 31, 255 );
-                pregreen = scalecolor( srcData.no_alpha.g, 31, 255 );
-                preblue = scalecolor( srcData.no_alpha.b, 31, 255 );
-                prealpha = 255;
+                destscalecolor( srcData.no_alpha.r, 31, prered );
+                destscalecolor( srcData.no_alpha.g, 31, pregreen );
+                destscalecolor( srcData.no_alpha.b, 31, preblue );
+                prealpha = color_defaults <colorNumberType>::one;
             }
 
             hasColor = true;
@@ -669,10 +670,10 @@ private:
 
             const pixel_t *srcData = (const pixel_t*)realTexelSource + realColorIndex;
 
-            prered = srcData->r;
-            pregreen = srcData->g;
-            preblue = srcData->b;
-            prealpha = srcData->a;
+            destscalecolorn( srcData->r, prered );
+            destscalecolorn( srcData->g, pregreen );
+            destscalecolorn( srcData->b, preblue );
+            destscalecolorn( srcData->a, prealpha );
 
             hasColor = true;
         }
@@ -703,15 +704,16 @@ private:
         return hasColor;
     }
 
+    template <typename colorNumberType>
     AINLINE static bool gcputtexelrgba(
         void *dstTexels, uint32 colorIndex, eGCNativeTextureFormat internalFormat,
         eColorOrdering colorOrder,
-        uint8 red, uint8 green, uint8 blue, uint8 alpha
+        colorNumberType red, colorNumberType green, colorNumberType blue, colorNumberType alpha
     )
     {
         bool didSet = false;
 
-        uint8 actualRed, actualGreen, actualBlue, actualAlpha;
+        colorNumberType actualRed, actualGreen, actualBlue, actualAlpha;
 
         if ( colorOrder == COLOR_RGBA )
         {
@@ -743,9 +745,9 @@ private:
             };
 
             pixel_t dstPixel;
-            dstPixel.r = scalecolor( actualRed, 255, 31 );
-            dstPixel.g = scalecolor( actualGreen, 255, 63 );
-            dstPixel.b = scalecolor( actualBlue, 255, 31 );
+            dstPixel.r = putscalecolor <uint8> ( actualRed, 31 );
+            dstPixel.g = putscalecolor <uint8> ( actualGreen, 63 );
+            dstPixel.b = putscalecolor <uint8> ( actualBlue, 31 );
 
             *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstPixel;
 
@@ -759,16 +761,16 @@ private:
 
             if ( hasNoAlpha )
             {
-                dstPixel.no_alpha.r = scalecolor( actualRed, 255, 31 );
-                dstPixel.no_alpha.g = scalecolor( actualGreen, 255, 31 );
-                dstPixel.no_alpha.b = scalecolor( actualBlue, 255, 31 );
+                dstPixel.no_alpha.r = putscalecolor <uint8> ( actualRed, 31 );
+                dstPixel.no_alpha.g = putscalecolor <uint8> ( actualGreen, 31 );
+                dstPixel.no_alpha.b = putscalecolor <uint8> ( actualBlue, 31 );
             }
             else
             {
-                dstPixel.with_alpha.a = scalecolor( actualAlpha, 255, 7 );
-                dstPixel.with_alpha.r = scalecolor( actualRed, 255, 15 );
-                dstPixel.with_alpha.g = scalecolor( actualGreen, 255, 15 );
-                dstPixel.with_alpha.b = scalecolor( actualBlue, 255, 15 );
+                dstPixel.with_alpha.a = putscalecolor <uint8> ( actualAlpha, 7 );
+                dstPixel.with_alpha.r = putscalecolor <uint8> ( actualRed, 15 );
+                dstPixel.with_alpha.g = putscalecolor <uint8> ( actualGreen, 15 );
+                dstPixel.with_alpha.b = putscalecolor <uint8> ( actualBlue, 15 );
             }
 
             dstPixel.hasNoAlpha = hasNoAlpha;
@@ -785,10 +787,10 @@ private:
             };
 
             pixel_t dstPixel;
-            dstPixel.r = actualRed;
-            dstPixel.g = actualGreen;
-            dstPixel.b = actualBlue;
-            dstPixel.a = actualAlpha;
+            destscalecolorn( actualRed, dstPixel.r );
+            destscalecolorn( actualGreen, dstPixel.g );
+            destscalecolorn( actualBlue, dstPixel.b );
+            destscalecolorn( actualAlpha, dstPixel.a );
 
             *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstPixel;
 
@@ -799,7 +801,8 @@ private:
     }
 
 public:
-    AINLINE bool getRGBA( const void *texelSource, uint32 colorIndex, uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut ) const
+    template <typename colorNumberType>
+    AINLINE bool getRGBA( const void *texelSource, uint32 colorIndex, colorNumberType& redOut, colorNumberType& greenOut, colorNumberType& blueOut, colorNumberType& alphaOut ) const
     {
         eColorModel ourModel = this->usedColorModel;
 
@@ -817,7 +820,7 @@ public:
         }
         else if ( ourModel == COLORMODEL_LUMINANCE )
         {
-            uint8 lum;
+            colorNumberType lum;
 
             hasColor =
                 this->getLuminance( texelSource, colorIndex, lum, alphaOut );
@@ -833,7 +836,8 @@ public:
         return hasColor;
     }
 
-    AINLINE bool setRGBA( void *dstTexels, uint32 colorIndex, uint8 red, uint8 green, uint8 blue, uint8 alpha )
+    template <typename colorNumberType>
+    AINLINE bool setRGBA( void *dstTexels, uint32 colorIndex, colorNumberType red, colorNumberType green, colorNumberType blue, colorNumberType alpha )
     {
         eColorModel ourModel = this->usedColorModel;
 
@@ -849,7 +853,7 @@ public:
         }
         else if ( ourModel == COLORMODEL_LUMINANCE )
         {
-            uint8 lum = rgb2lum( red, green, blue );
+            colorNumberType lum = rgb2lum( red, green, blue );
 
             this->setLuminance( dstTexels, colorIndex, lum, alpha );
         }
@@ -858,10 +862,11 @@ public:
     }
 
 private:
+    template <typename colorNumberType>
     AINLINE static bool gcbrowsetexellum( 
         const void *texelSource, uint32 colorIndex, eGCNativeTextureFormat internalFormat, eGCPixelFormat palettePixelFormat,
         uint32 itemDepth, ePaletteType paletteType, const void *paletteData, uint32 maxpalette,
-        uint8& lumOut, uint8& alphaOut
+        colorNumberType& lumOut, colorNumberType& alphaOut
     )
     {
         bool hasColor = false;
@@ -872,7 +877,7 @@ private:
 
         bool couldResolveSource = false;
 
-        uint8 prelum, prealpha;
+        colorNumberType prelum, prealpha;
 
         if (paletteType != PALETTE_NONE)
         {
@@ -928,8 +933,8 @@ private:
             uint8 lum_unscaled;
             srcData->getvalue( realColorIndex, lum_unscaled );
 
-            prelum = scalecolor( lum_unscaled, 15, 255 );
-            prealpha = 0xFF;
+            destscalecolor( lum_unscaled, 15, prelum );
+            prealpha = color_defaults <colorNumberType>::one;
 
             hasColor = true;
         }
@@ -942,8 +947,8 @@ private:
 
             const pixel_t *srcData = (const pixel_t*)realTexelSource + realColorIndex;
 
-            prelum = srcData->lum;
-            prealpha = 0xFF;
+            destscalecolorn( srcData->lum, prelum );
+            prealpha = color_defaults <colorNumberType>::one;
 
             hasColor = true;
         }
@@ -957,8 +962,8 @@ private:
 
             const pixel_t *srcData = (const pixel_t*)realTexelSource + realColorIndex;
 
-            prelum = scalecolor( srcData->lum, 15, 255 );
-            prealpha = scalecolor( srcData->alpha, 15, 255 );
+            destscalecolor( srcData->lum, 15, prelum );
+            destscalecolor( srcData->alpha, 15, prealpha );
 
             hasColor = true;
         }
@@ -972,8 +977,8 @@ private:
 
             pixel_t srcData = *( (const endian::big_endian <pixel_t>*)realTexelSource + realColorIndex );
 
-            prelum = srcData.lum;
-            prealpha = srcData.alpha;
+            destscalecolorn( srcData.lum, prelum );
+            destscalecolorn( srcData.alpha, prealpha );
 
             hasColor = true;
         }
@@ -987,9 +992,10 @@ private:
         return hasColor;
     }
 
+    template <typename colorNumberType>
     AINLINE static bool gcputtexellum(
         void *dstTexels, uint32 colorIndex, eGCNativeTextureFormat internalFormat,
-        uint8 lum, uint8 alpha
+        colorNumberType lum, colorNumberType alpha
     )
     {
         bool couldSet = false;
@@ -998,7 +1004,7 @@ private:
         {
             PixelFormat::palette4bit *dstLum = (PixelFormat::palette4bit*)dstTexels;
 
-            uint8 scaledLUM = scalecolor( lum, 255, 15 );
+            uint8 scaledLUM = putscalecolor <uint8> ( lum, 15 );
 
             dstLum->setvalue( colorIndex, scaledLUM );
 
@@ -1012,7 +1018,7 @@ private:
             };
 
             pixel_t dstPixel;
-            dstPixel.lum = lum;
+            destscalecolorn( lum, dstPixel.lum );
 
             *( (pixel_t*)dstTexels + colorIndex ) = dstPixel;
 
@@ -1027,8 +1033,8 @@ private:
             };
 
             pixel_t dstTexel;
-            dstTexel.lum = scalecolor( lum, 255, 15 );
-            dstTexel.alpha = scalecolor( alpha, 255, 15 );
+            dstTexel.lum = putscalecolor <uint8> ( lum, 15 );
+            dstTexel.alpha = putscalecolor <uint8> ( alpha, 15 );
 
             *( (pixel_t*)dstTexels + colorIndex ) = dstTexel;
 
@@ -1043,8 +1049,8 @@ private:
             };
 
             pixel_t dstTexel;
-            dstTexel.lum = lum;
-            dstTexel.alpha = alpha;
+            destscalecolorn( lum, dstTexel.lum );
+            destscalecolorn( alpha, dstTexel.alpha );
 
             *( (endian::big_endian <pixel_t>*)dstTexels + colorIndex ) = dstTexel;
 
@@ -1055,7 +1061,8 @@ private:
     }
 
 public:
-    AINLINE bool getLuminance( const void *texelSource, uint32 colorIndex, uint8& lumOut, uint8& alphaOut ) const
+    template <typename colorNumberType>
+    AINLINE bool getLuminance( const void *texelSource, uint32 colorIndex, colorNumberType& lumOut, colorNumberType& alphaOut ) const
     {
         eColorModel ourModel = this->usedColorModel;
 
@@ -1063,7 +1070,7 @@ public:
 
         if ( ourModel == COLORMODEL_RGBA )
         {
-            uint8 red, green, blue;
+            colorNumberType red, green, blue;
 
             hasColor =
                 this->getRGBA( texelSource, colorIndex, red, green, blue, alphaOut );
@@ -1086,7 +1093,8 @@ public:
         return hasColor;
     }
 
-    AINLINE bool setLuminance( void *dstTexels, uint32 colorIndex, uint8 lum, uint8 alpha )
+    template <typename colorNumberType>
+    AINLINE bool setLuminance( void *dstTexels, uint32 colorIndex, colorNumberType lum, colorNumberType alpha )
     {
         eColorModel ourModel = this->usedColorModel;
 

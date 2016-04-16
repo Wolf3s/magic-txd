@@ -5,11 +5,9 @@
 namespace rw
 {
 
-inline uint8 linearInterpolateChannel( uint8 left, uint8 right, double mod )
+inline float linearInterpolateChannel( float left, float right, double mod )
 {
-    return packcolor(
-        ( unpackcolor( right ) - unpackcolor( left ) ) * mod + unpackcolor( left )
-    );
+    return (float)( ( right - left ) * mod + left );
 }
 
 inline abstractColorItem linearInterpolateColorItem(

@@ -358,16 +358,10 @@ AINLINE void fetchpackedcolor(
 
     const void *srcRow = getConstTexelDataRow( texels, rowSize, y );
 
-    uint8 sourceRedPacked, sourceGreenPacked, sourceBluePacked, sourceAlphaPacked;
     fetchDispatch.getRGBA(
         srcRow, x,
-        sourceRedPacked, sourceGreenPacked, sourceBluePacked, sourceAlphaPacked
+        redOut, greenOut, blueOut, alphaOut
     );
-
-    redOut = unpackcolor( sourceRedPacked );
-    blueOut = unpackcolor( sourceBluePacked );
-    greenOut = unpackcolor( sourceGreenPacked );
-    alphaOut = unpackcolor( sourceAlphaPacked );
 }
 
 AINLINE void getblendfactor(
@@ -459,7 +453,7 @@ bool Bitmap::browselum(uint32 x, uint32 y, uint8& lum, uint8& a) const
     return hasColor;
 }
 
-bool Bitmap::browsecolorex(uint32 x, uint32 y, abstractColorItem& colorItem) const
+bool Bitmap::browsecolorex(uint32 x, uint32 y, rwAbstractColorItem& colorItem) const
 {
     bool hasColor = false;
 
@@ -469,10 +463,21 @@ bool Bitmap::browsecolorex(uint32 x, uint32 y, abstractColorItem& colorItem) con
 
         colorModelDispatcher fetchDispatch( this->rasterFormat, this->colorOrder, this->depth, NULL, 0, PALETTE_NONE );
 
+        abstractColorItem sdkItem;
+
         fetchDispatch.getColor(
             srcRow, x,
-            colorItem
+            sdkItem
         );
+
+        // Push the color data as framework abstract color item.
+        colorItem.model = sdkItem.model;
+        destscalecolorn( sdkItem.rgbaColor.r, colorItem.rgbaColor.r );
+        destscalecolorn( sdkItem.rgbaColor.g, colorItem.rgbaColor.g );
+        destscalecolorn( sdkItem.rgbaColor.b, colorItem.rgbaColor.b );
+        destscalecolorn( sdkItem.rgbaColor.a, colorItem.rgbaColor.a );
+        destscalecolorn( sdkItem.luminance.lum, colorItem.luminance.lum );
+        destscalecolorn( sdkItem.luminance.alpha, colorItem.luminance.alpha );
 
         hasColor = true;
     }

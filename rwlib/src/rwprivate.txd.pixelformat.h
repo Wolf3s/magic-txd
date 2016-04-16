@@ -183,7 +183,7 @@ namespace PixelFormat
             pixelData->alpha = alpha;
         }
 
-        AINLINE void getcolor(uint32 index, uint8& red, uint8& green, uint8& blue, uint8& alpha)
+        AINLINE void getcolor(uint32 index, uint8& red, uint8& green, uint8& blue, uint8& alpha) const
         {
             const pixelstruct *pixelData = ( (const pixelstruct*)this + index );
 

@@ -57,44 +57,21 @@ enum eColorModel
     COLORMODEL_DEPTH
 };
 
-struct abstractColorItem
+struct rwAbstractColorItem
 {
     eColorModel model;
     union
     {
         struct
         {
-            uint8 r, g, b, a;
+            float r, g, b, a;
         } rgbaColor;
         struct
         {
-            uint8 lum;
-            uint8 alpha;
+            float lum;
+            float alpha;
         } luminance;
     };
-
-    AINLINE void setClearedColor( eColorModel model )
-    {
-        this->model = model;
-
-        if ( model == COLORMODEL_RGBA )
-        {
-            this->rgbaColor.r = 0;
-            this->rgbaColor.g = 0;
-            this->rgbaColor.b = 0;
-            this->rgbaColor.a = 0;
-        }
-        else if ( model == COLORMODEL_LUMINANCE )
-        {
-            this->luminance.lum = 0;
-            this->luminance.alpha = 0;
-        }
-        else
-        {
-            // TODO.
-            throw RwException( "failed to clear color data for unsupported color model" );
-        }
-    }
 };
 
 // Bitmap software rendering includes.
@@ -290,7 +267,7 @@ public:
 
     bool browsecolor(uint32 x, uint32 y, uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut) const;
     bool browselum(uint32 x, uint32 y, uint8& lum, uint8& a) const;
-    bool browsecolorex(uint32 x, uint32 y, abstractColorItem& colorItem ) const;
+    bool browsecolorex(uint32 x, uint32 y, rwAbstractColorItem& colorItem ) const;
 
     eColorModel getColorModel( void ) const;
 

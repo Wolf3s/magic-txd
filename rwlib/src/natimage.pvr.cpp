@@ -227,10 +227,10 @@ struct pvrColorDispatcher
     }
 
 private:
-    template <template <typename numberType> class endianness>
+    template <template <typename numberType> class endianness, typename colorNumberType>
     static AINLINE bool browsetexelrgba(
         const void *srcTexels, uint32 colorIndex, ePVRLegacyPixelFormat pixelFormat,
-        uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut
+        colorNumberType& redOut, colorNumberType& greenOut, colorNumberType& blueOut, colorNumberType& alphaOut
     )
     {
         if ( pixelFormat == ePVRLegacyPixelFormat::ARGB_4444 ||
@@ -265,7 +265,7 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            alphaOut = ( item.alpha ? 255 : 0 );
+            solve1bitalpha( item.alpha, alphaOut );
             destscalecolor( item.red, 31, redOut );
             destscalecolor( item.green, 31, greenOut );
             destscalecolor( item.blue, 31, blueOut );
@@ -286,7 +286,7 @@ private:
             destscalecolor( item.red, 31, redOut );
             destscalecolor( item.green, 63, greenOut );
             destscalecolor( item.blue, 31, blueOut );
-            alphaOut = 255;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::RGB_555 ||
@@ -305,7 +305,7 @@ private:
             destscalecolor( item.red, 31, redOut );
             destscalecolor( item.green, 31, greenOut );
             destscalecolor( item.blue, 31, blueOut );
-            alphaOut = 255;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::RGB_888 ||
@@ -320,10 +320,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.red, 255, redOut );
-            destscalecolor( item.green, 255, greenOut );
-            destscalecolor( item.blue, 255, blueOut );
-            alphaOut = 255;
+            destscalecolorn( item.red, redOut );
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.blue, blueOut );
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::ARGB_8888 ||
@@ -339,10 +339,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.alpha, 255, alphaOut );
-            destscalecolor( item.red, 255, redOut );
-            destscalecolor( item.green, 255, greenOut );
-            destscalecolor( item.blue, 255, blueOut );
+            destscalecolorn( item.alpha, alphaOut );
+            destscalecolorn( item.red, redOut );
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.blue, blueOut );
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::ARGB_8332 )
@@ -375,10 +375,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.blue, 255, blueOut );
-            destscalecolor( item.green, 255, greenOut );
-            destscalecolor( item.red, 255, redOut );
-            destscalecolor( item.alpha, 255, alphaOut );
+            destscalecolorn( item.blue, blueOut );
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.red, redOut );
+            destscalecolorn( item.alpha, alphaOut );
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::RGB332 )
@@ -395,7 +395,7 @@ private:
             destscalecolor( item.red, 7, redOut );
             destscalecolor( item.green, 7, greenOut );
             destscalecolor( item.blue, 3, blueOut );
-            alphaOut = 255;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::ABGR_2101010 )
@@ -444,10 +444,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.green, 65535, greenOut );
-            destscalecolor( item.red, 65535, redOut );
-            blueOut = 0;
-            alphaOut = 255;
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.red, redOut );
+            blueOut = color_defaults <decltype( blueOut )>::zero;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::ABGR_16161616 )
@@ -462,10 +462,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.alpha, 65535, alphaOut );
-            destscalecolor( item.blue, 65535, blueOut );
-            destscalecolor( item.green, 65535, greenOut );
-            destscalecolor( item.blue, 65535, blueOut );
+            destscalecolorn( item.alpha, alphaOut );
+            destscalecolorn( item.blue, blueOut );
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.blue, blueOut );
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::R_32F )
@@ -477,10 +477,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolorf( item.red, redOut );
-            blueOut = 0;
-            greenOut = 0;
-            alphaOut = 255;
+            destscalecolorn( item.red, redOut );
+            blueOut = color_defaults <decltype( blueOut )>::zero;
+            greenOut = color_defaults <decltype( greenOut )>::zero;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::GR_3232F )
@@ -493,10 +493,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolorf( item.green, greenOut );
-            destscalecolorf( item.red, redOut );
-            blueOut = 0;
-            alphaOut = 255;
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.red, redOut );
+            blueOut = color_defaults <decltype( blueOut )>::zero;
+            alphaOut = color_defaults <decltype( alphaOut )>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::ABGR_32323232F )
@@ -511,10 +511,10 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolorf( item.alpha, alphaOut );
-            destscalecolorf( item.blue, blueOut );
-            destscalecolorf( item.green, greenOut );
-            destscalecolorf( item.red, redOut );
+            destscalecolorn( item.alpha, alphaOut );
+            destscalecolorn( item.blue, blueOut );
+            destscalecolorn( item.green, greenOut );
+            destscalecolorn( item.red, redOut );
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::A8 )
@@ -526,20 +526,20 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.alpha, 255, alphaOut );
-            redOut = 0;
-            greenOut = 0;
-            blueOut = 0;
+            destscalecolorn( item.alpha, alphaOut );
+            redOut = color_defaults <decltype( redOut )>::zero;
+            greenOut = color_defaults <decltype( greenOut )>::zero;
+            blueOut = color_defaults <decltype( blueOut )>::zero;
             return true;
         }
 
         return false;
     }
 
-    template <template <typename numberType> class endianness>
+    template <template <typename numberType> class endianness, typename colorNumberType>
     static AINLINE bool puttexelrgba(
         void *dstTexels, uint32 colorIndex, ePVRLegacyPixelFormat pixelFormat,
-        uint8 red, uint8 green, uint8 blue, uint8 alpha
+        colorNumberType red, colorNumberType green, colorNumberType blue, colorNumberType alpha
     )
     {
         if ( pixelFormat == ePVRLegacyPixelFormat::ARGB_4444 ||
@@ -554,10 +554,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 15 );
-            item.red = putscalecolor( red, 15 );
-            item.green = putscalecolor( green, 15 );
-            item.blue = putscalecolor( blue, 15 );
+            item.alpha      = putscalecolor <uint8> ( alpha, 15 );
+            item.red        = putscalecolor <uint8> ( red, 15 );
+            item.green      = putscalecolor <uint8> ( green, 15 );
+            item.blue       = putscalecolor <uint8> ( blue, 15 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -574,10 +574,10 @@ private:
             };
 
             color item;
-            item.alpha = ( alpha == 255 );
-            item.red = putscalecolor( red, 31 );
-            item.green = putscalecolor( green, 31 );
-            item.blue = putscalecolor( blue, 31 );
+            item.alpha      = resolve1bitalpha( alpha );
+            item.red        = putscalecolor <uint8> ( red, 31 );
+            item.green      = putscalecolor <uint8> ( green, 31 );
+            item.blue       = putscalecolor <uint8> ( blue, 31 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -593,9 +593,9 @@ private:
             };
 
             color item;
-            item.red = putscalecolor( red, 31 );
-            item.green = putscalecolor( green, 63 );
-            item.blue = putscalecolor( blue, 31 );
+            item.red        = putscalecolor <uint8> ( red, 31 );
+            item.green      = putscalecolor <uint8> ( green, 63 );
+            item.blue       = putscalecolor <uint8> ( blue, 31 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -612,9 +612,9 @@ private:
             };
 
             color item;
-            item.red = putscalecolor( red, 31 );
-            item.green = putscalecolor( green, 31 );
-            item.blue = putscalecolor( blue, 31 );
+            item.red        = putscalecolor <uint8> ( red, 31 );
+            item.green      = putscalecolor <uint8> ( green, 31 );
+            item.blue       = putscalecolor <uint8> ( blue, 31 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -630,9 +630,9 @@ private:
             };
 
             color item;
-            item.red = putscalecolor( red, 255 );
-            item.green = putscalecolor( green, 255 );
-            item.blue = putscalecolor( blue, 255 );
+            destscalecolorn( red, item.red );
+            destscalecolorn( green, item.green );
+            destscalecolorn( blue, item.blue );
             
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -649,10 +649,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 255 );
-            item.red = putscalecolor( red, 255 );
-            item.green = putscalecolor( green, 255 );
-            item.blue = putscalecolor( blue, 255 );
+            destscalecolorn( alpha, item.alpha );
+            destscalecolorn( red, item.red );
+            destscalecolorn( green, item.green );
+            destscalecolorn( blue, item.blue );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -668,10 +668,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 255 );
-            item.red = putscalecolor( red, 7 );
-            item.green = putscalecolor( green, 7 );
-            item.blue = putscalecolor( blue, 3 );
+            item.alpha      = putscalecolor <uint8> ( alpha, 255 );
+            item.red        = putscalecolor <uint8> ( red, 7 );
+            item.green      = putscalecolor <uint8> ( green, 7 );
+            item.blue       = putscalecolor <uint8> ( blue, 3 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -687,10 +687,10 @@ private:
             };
 
             color item;
-            item.blue = putscalecolor( blue, 255 );
-            item.green = putscalecolor( green, 255 );
-            item.red = putscalecolor( red, 255 );
-            item.alpha = putscalecolor( alpha, 255 );
+            destscalecolorn( blue, item.blue );
+            destscalecolorn( green, item.green );
+            destscalecolorn( red, item.red );
+            destscalecolorn( alpha, item.alpha );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -705,9 +705,9 @@ private:
             };
 
             color item;
-            item.red = putscalecolor( red, 7 );
-            item.green = putscalecolor( green, 7 );
-            item.blue = putscalecolor( blue, 3 );
+            item.red        = putscalecolor <uint8> ( red, 7 );
+            item.green      = putscalecolor <uint8> ( green, 7 );
+            item.blue       = putscalecolor <uint8> ( blue, 3 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -723,10 +723,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 3 );
-            item.red = putscalecolor( red, 1023 );
-            item.green = putscalecolor( green, 1023 );
-            item.blue = putscalecolor( blue, 1023 );
+            item.alpha      = putscalecolor <uint8> ( alpha, 3 );
+            item.red        = putscalecolor <uint16> ( red, 1023 );
+            item.green      = putscalecolor <uint16> ( green, 1023 );
+            item.blue       = putscalecolor <uint16> ( blue, 1023 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -742,10 +742,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 3 );
-            item.red = putscalecolor( red, 1023 );
-            item.green = putscalecolor( green, 1023 );
-            item.blue = putscalecolor( blue, 1023 );
+            item.alpha      = putscalecolor <uint8> ( alpha, 3 );
+            item.red        = putscalecolor <uint16> ( red, 1023 );
+            item.green      = putscalecolor <uint16> ( green, 1023 );
+            item.blue       = putscalecolor <uint16> ( blue, 1023 );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -759,8 +759,8 @@ private:
             };
 
             color item;
-            item.green = putscalecolor( green, 65535 );
-            item.red = putscalecolor( red, 65535 );
+            destscalecolorn( green, item.green );
+            destscalecolorn( red, item.red );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -776,10 +776,10 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 65535 );
-            item.blue = putscalecolor( blue, 65535 );
-            item.green = putscalecolor( green, 65535 );
-            item.red = putscalecolor( red, 65535 );
+            destscalecolorn( alpha, item.alpha );
+            destscalecolorn( blue, item.blue );
+            destscalecolorn( green, item.green );
+            destscalecolorn( red, item.red );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -792,7 +792,7 @@ private:
             };
 
             color item;
-            destscalecolorf( red, item.red );
+            destscalecolorn( red, item.red );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -806,8 +806,8 @@ private:
             };
 
             color item;
-            destscalecolorf( red, item.red );
-            destscalecolorf( green, item.green );
+            destscalecolorn( red, item.red );
+            destscalecolorn( green, item.green );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -823,10 +823,10 @@ private:
             };
 
             color item;
-            destscalecolorf( alpha, item.alpha );
-            destscalecolorf( blue, item.blue );
-            destscalecolorf( green, item.green );
-            destscalecolorf( red, item.red );
+            destscalecolorn( alpha, item.alpha );
+            destscalecolorn( blue, item.blue );
+            destscalecolorn( green, item.green );
+            destscalecolorn( red, item.red );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -835,10 +835,10 @@ private:
         return false;
     }
 
-    template <template <typename numberType> class endianness>
+    template <template <typename numberType> class endianness, typename colorNumberType>
     static AINLINE bool browsetexellum(
         const void *srcTexels, uint32 colorIndex, ePVRLegacyPixelFormat pixelFormat,
-        uint8& lumOut, uint8& alphaOut
+        colorNumberType& lumOut, colorNumberType& alphaOut
     )
     {
         if ( pixelFormat == ePVRLegacyPixelFormat::I8 ||
@@ -852,8 +852,8 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.intensity, 255, lumOut );
-            alphaOut = 255;
+            destscalecolorn( item.intensity, lumOut );
+            alphaOut = color_defaults <colorNumberType>::one;
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::AI88 ||
@@ -868,8 +868,8 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.intensity, 255, lumOut );
-            destscalecolor( item.alpha, 255, alphaOut );
+            destscalecolorn( item.intensity, lumOut );
+            destscalecolorn( item.alpha, alphaOut );
             return true;
         }
         else if ( pixelFormat == ePVRLegacyPixelFormat::AL_44 )
@@ -895,18 +895,18 @@ private:
 
             color item = *( (const endianness <color>*)srcTexels + colorIndex );
 
-            destscalecolor( item.luminance, 65535, lumOut );
-            alphaOut = 255;
+            destscalecolorn( item.luminance, lumOut );
+            alphaOut = color_defaults <colorNumberType>::one;
             return true;
         }
 
         return false;
     }
 
-    template <template <typename numberType> class endianness>
+    template <template <typename numberType> class endianness, typename colorNumberType>
     static AINLINE bool puttexellum(
         void *dstTexels, uint32 colorIndex, ePVRLegacyPixelFormat pixelFormat,
-        uint8 lum, uint8 alpha
+        colorNumberType lum, colorNumberType alpha
     )
     {
         if ( pixelFormat == ePVRLegacyPixelFormat::I8 ||
@@ -919,7 +919,7 @@ private:
             };
 
             color item;
-            item.intensity = putscalecolor( lum, 255 );
+            destscalecolorn( lum, item.intensity );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -935,8 +935,8 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 255 );
-            item.intensity = putscalecolor( lum, 255 );
+            destscalecolorn( alpha, item.alpha );
+            destscalecolorn( lum, item.intensity );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -950,8 +950,8 @@ private:
             };
 
             color item;
-            item.alpha = putscalecolor( alpha, 15 );
-            item.lum = putscalecolor( lum, 15 );
+            item.alpha      = putscalecolor <uint8> ( alpha, 15 );
+            item.lum        = putscalecolor <uint8> ( lum, 15 );
             
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -964,7 +964,7 @@ private:
             };
 
             color item;
-            item.lum = putscalecolor( lum, 65535 );
+            destscalecolorn( lum, item.lum );
 
             *( (endianness <color>*)dstTexels + colorIndex ) = item;
             return true;
@@ -974,7 +974,8 @@ private:
     }
 
 public:
-    AINLINE bool getRGBA( const void *srcTexels, uint32 colorIndex, uint8& redOut, uint8& greenOut, uint8& blueOut, uint8& alphaOut )
+    template <typename colorNumberType>
+    AINLINE bool getRGBA( const void *srcTexels, uint32 colorIndex, colorNumberType& redOut, colorNumberType& greenOut, colorNumberType& blueOut, colorNumberType& alphaOut )
     {
         ePVRLegacyPixelFormatType colorModel = this->colorModel;
 
@@ -1001,7 +1002,7 @@ public:
         }
         else if ( colorModel == ePVRLegacyPixelFormatType::LUMINANCE )
         {
-            uint8 lum;
+            colorNumberType lum;
 
             gotColor = this->getLuminance( srcTexels, colorIndex, lum, alphaOut );
 
@@ -1020,7 +1021,8 @@ public:
         return gotColor;
     }
 
-    AINLINE bool getLuminance( const void *srcTexels, uint32 colorIndex, uint8& lumOut, uint8& alphaOut )
+    template <typename colorNumberType>
+    AINLINE bool getLuminance( const void *srcTexels, uint32 colorIndex, colorNumberType& lumOut, colorNumberType& alphaOut )
     {
         ePVRLegacyPixelFormatType colorModel = this->colorModel;
 
@@ -1028,7 +1030,7 @@ public:
 
         if ( colorModel == ePVRLegacyPixelFormatType::RGBA )
         {
-            uint8 red, green, blue;
+            colorNumberType red, green, blue;
 
             gotColor = this->getRGBA( srcTexels, colorIndex, red, green, blue, alphaOut );
 
@@ -1064,7 +1066,8 @@ public:
         return gotColor;
     }
 
-    AINLINE bool setRGBA( void *dstTexels, uint32 colorIndex, uint8 red, uint8 green, uint8 blue, uint8 alpha )
+    template <typename colorNumberType>
+    AINLINE bool setRGBA( void *dstTexels, uint32 colorIndex, colorNumberType red, colorNumberType green, colorNumberType blue, colorNumberType alpha )
     {
         ePVRLegacyPixelFormatType colorModel = this->colorModel;
 
@@ -1091,10 +1094,10 @@ public:
         }
         else if ( colorModel == ePVRLegacyPixelFormatType::LUMINANCE )
         {
-            uint8 lum = rgb2lum( red, green, blue );
+            colorNumberType lum = rgb2lum( red, green, blue );
 
             didPut =
-                false;
+                this->setLuminance( dstTexels, colorIndex, lum, alpha );
         }
         else
         {
@@ -1104,7 +1107,8 @@ public:
         return didPut;
     }
     
-    AINLINE bool setLuminance( void *dstTexels, uint32 colorIndex, uint8 lum, uint8 alpha )
+    template <typename colorNumberType>
+    AINLINE bool setLuminance( void *dstTexels, uint32 colorIndex, colorNumberType lum, colorNumberType alpha )
     {
         ePVRLegacyPixelFormatType colorModel = this->colorModel;
 

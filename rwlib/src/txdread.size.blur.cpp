@@ -33,10 +33,10 @@ struct resizeFilterBlurPlugin : public rasterResizeFilterInterface
 
         if ( model == COLORMODEL_RGBA )
         {
-            uint32 redSumm = 0;
-            uint32 greenSumm = 0;
-            uint32 blueSumm = 0;
-            uint32 alphaSumm = 0;
+            additive_expand <decltype( colorItem.rgbaColor.r )> redSumm = 0;
+            additive_expand <decltype( colorItem.rgbaColor.g )> greenSumm = 0;
+            additive_expand <decltype( colorItem.rgbaColor.b )> blueSumm = 0;
+            additive_expand <decltype( colorItem.rgbaColor.a )> alphaSumm = 0;
 
             // Loop through the texels and calculate a blur.
             uint32 addCount = 0;
@@ -68,18 +68,19 @@ struct resizeFilterBlurPlugin : public rasterResizeFilterInterface
             if ( addCount != 0 )
             {
                 // Calculate the real color.
-                colorItem.rgbaColor.r = std::min( redSumm / addCount, 255u );
-                colorItem.rgbaColor.g = std::min( greenSumm / addCount, 255u );
-                colorItem.rgbaColor.b = std::min( blueSumm / addCount, 255u );
-                colorItem.rgbaColor.a = std::min( alphaSumm / addCount, 255u );
+                // Also clamp it.
+                colorItem.rgbaColor.r = std::min( redSumm / addCount, color_defaults <decltype( redSumm )>::one );
+                colorItem.rgbaColor.g = std::min( greenSumm / addCount, color_defaults <decltype( greenSumm )>::one );
+                colorItem.rgbaColor.b = std::min( blueSumm / addCount, color_defaults <decltype( blueSumm )>::one );
+                colorItem.rgbaColor.a = std::min( alphaSumm / addCount, color_defaults <decltype( alphaSumm )>::one );
 
                 colorItem.model = COLORMODEL_RGBA;
             }
         }
         else if ( model == COLORMODEL_LUMINANCE )
         {
-            uint32 lumSumm = 0;
-            uint32 alphaSumm = 0;
+            additive_expand <decltype( colorItem.luminance.lum )> lumSumm = 0;
+            additive_expand <decltype( colorItem.luminance.alpha )> alphaSumm = 0;
 
             // Loop through the texels and calculate a blur.
             uint32 addCount = 0;
@@ -109,8 +110,8 @@ struct resizeFilterBlurPlugin : public rasterResizeFilterInterface
             if ( addCount != 0 )
             {
                 // Calculate the real color.
-                colorItem.luminance.lum = std::min( lumSumm / addCount, 255u );
-                colorItem.luminance.alpha = std::min( alphaSumm / addCount, 255u );
+                colorItem.luminance.lum = std::min( lumSumm / addCount, color_defaults <decltype( lumSumm )>::one );
+                colorItem.luminance.alpha = std::min( alphaSumm / addCount, color_defaults <decltype( alphaSumm )>::one );
 
                 colorItem.model = COLORMODEL_LUMINANCE;
             }
