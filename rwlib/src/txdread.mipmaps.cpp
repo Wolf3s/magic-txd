@@ -320,7 +320,14 @@ void Raster::generateMipmaps( uint32 maxMipmapCount, eMipmapGenerationMode mipGe
                             // Decide if we have alpha.
                             if ( srcColorModel == COLORMODEL_RGBA )
                             {
-                                if ( colorItem.rgbaColor.a != 255 )
+                                if ( colorItem.rgbaColor.a != color_defaults <decltype( colorItem.rgbaColor.a )>::one )
+                                {
+                                    hasAlpha = true;
+                                }
+                            }
+                            else if ( srcColorModel == COLORMODEL_LUMINANCE )
+                            {
+                                if ( colorItem.luminance.alpha != color_defaults <decltype( colorItem.luminance.alpha )>::one )
                                 {
                                     hasAlpha = true;
                                 }

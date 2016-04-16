@@ -141,11 +141,6 @@ AINLINE void copyPaletteItemGeneric(
     }
 }
 
-AINLINE uint8 scalecolor(uint8 color, uint32 curMax, uint32 newMax)
-{
-    return (uint8)( (double)color / (double)curMax * (double)newMax );
-}
-
 template <typename colorNumberType>
 using decide_quot_type = typename std::conditional <std::is_floating_point <colorNumberType>::value, colorNumberType, float>::type;
 

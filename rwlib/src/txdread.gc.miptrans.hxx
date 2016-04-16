@@ -147,10 +147,10 @@ AINLINE void readGCNativeColor(
 
             const alpha_red *srcTuple = (const alpha_red*)srcRow + src_pos_x;
 
-            colorItem.rgbaColor.a = srcTuple->alpha;
-            colorItem.rgbaColor.r = srcTuple->red;
-            colorItem.rgbaColor.g = 0;
-            colorItem.rgbaColor.b = 0;
+            destscalecolorn( srcTuple->alpha, colorItem.rgbaColor.a );
+            destscalecolorn( srcTuple->red, colorItem.rgbaColor.r );
+            colorItem.rgbaColor.g = color_defaults <decltype( colorItem.rgbaColor.g )>::zero;
+            colorItem.rgbaColor.b = color_defaults <decltype( colorItem.rgbaColor.b )>::zero;
 
             colorItem.model = COLORMODEL_RGBA;
         }
@@ -168,8 +168,8 @@ AINLINE void readGCNativeColor(
             // We want to update the color with green and blue.
             reCB( colorItem );
 
-            colorItem.rgbaColor.g = srcTuple->green;
-            colorItem.rgbaColor.b = srcTuple->blue;
+            destscalecolorn( srcTuple->green, colorItem.rgbaColor.g );
+            destscalecolorn( srcTuple->blue, colorItem.rgbaColor.b );
         }
         else
         {
