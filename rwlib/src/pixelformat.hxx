@@ -268,9 +268,6 @@ AINLINE bool resolve1bitalpha( colorNumberType channel )
     return ( channel != color_defaults <colorNumberType>::zero );
 }
 
-template <typename numberType>
-using bigger_numberType = numberType;
-
 template <typename arithType>
 using additive_expand = decltype( (arithType)0 + (arithType)0 );
 
