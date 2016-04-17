@@ -912,6 +912,12 @@ bool TxdGenModule::ApplicationMain( const run_config& cfg )
             {
                 try
                 {
+                    // Check for build root conflicts.
+                    if ( isBuildRootConflict( absGameRootTranslator, absOutputRootTranslator ) )
+                    {
+                        this->OnMessage( "build root conflict detected; might not process all files\n\n" );
+                    }
+
                     // File roots are prepared.
                     // We can start processing files.
                     gtaFileProcessor <_discFileSentry_txdgen> fileProc( this );

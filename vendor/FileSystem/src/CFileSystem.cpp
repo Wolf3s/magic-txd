@@ -574,6 +574,11 @@ AINLINE CFileTranslator* CFileSystemNative::GenCreateSystemMinimumAccessPoint( c
 CFileTranslator* CFileSystem::CreateSystemMinimumAccessPoint( const char *path, eDirOpenFlags flags )       { return ((CFileSystemNative*)this)->GenCreateSystemMinimumAccessPoint( path, flags ); }
 CFileTranslator* CFileSystem::CreateSystemMinimumAccessPoint( const wchar_t *path, eDirOpenFlags flags )    { return ((CFileSystemNative*)this)->GenCreateSystemMinimumAccessPoint( path, flags ); }
 
+CArchiveTranslator* CFileSystem::GetArchiveTranslator( CFileTranslator *fileTrans )
+{
+    return dynamic_cast <CArchiveTranslator*> ( fileTrans );
+}
+
 CFileTranslator* CFileSystem::GenerateTempRepository( void )
 {
     filePath tmpDirBase;

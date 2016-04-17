@@ -242,6 +242,15 @@ bool MassExportModule::ApplicationMain( const run_config& cfg )
         {
             if ( gotGameRoot && gotOutputRoot )
             {
+#if 0
+                // Warn the user if there is a build root path conflict.
+                // This usually means that certain files will not be processed due to recursion risk.
+                if ( isBuildRootConflict( gameRootTranslator, outputRootTranslator ) )
+                {
+                    this->OnMessage( "build root conflict detected; might not process all files\n\n" );
+                }
+#endif
+
                 gtaFileProcessor <_discFileSentry_txdexport> fileProc( this );
 
                 fileProc.setUseCompressedIMGArchives( true );

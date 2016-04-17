@@ -70,6 +70,27 @@ private:
     {
         _discFileTraverse *info = (_discFileTraverse*)userdata;
 
+        // Do not process files that we potentially could have created.
+        // This prevents infinite recursion.
+        CFileTranslator *buildRoot = info->buildRoot;
+
+        // We do a massive shortcut here in midst of reality.
+        // There can only be build root conflicts if both translators are inside the OS filesystem.
+        // This could change in the future; I will review this code by then.
+        if ( fileSystem->GetArchiveTranslator( info->discHandle ) == NULL &&
+             fileSystem->GetArchiveTranslator( buildRoot ) == NULL )
+        {
+            filePath buildRootRelative;
+
+            bool isBuildRootPath = buildRoot->GetRelativePathFromRoot( discFilePathAbs, true, buildRootRelative );
+
+            if ( isBuildRootPath )
+            {
+                // We cannot process this, because its a thing of creation.
+                return;
+            }
+        }
+
         MessageReceiver *module = info->module;
 
         bool anyWork = false;
@@ -267,7 +288,7 @@ private:
                     try
                     {
                         // Execute the sentry.
-                        bool hasDoneAnyWork = info->sentry->OnSingletonFile( info->discHandle, info->buildRoot, relPathFromRoot, fileName, extention, sourceStream, info->isInArchive );
+                        bool hasDoneAnyWork = info->sentry->OnSingletonFile( info->discHandle, buildRoot, relPathFromRoot, fileName, extention, sourceStream, info->isInArchive );
 
                         if ( hasDoneAnyWork )
                         {
@@ -387,4 +408,19 @@ inline bool obtainAbsolutePath( const wchar_t *path, CFileTranslator*& transOut,
     }
 
     return success;
+}
+
+inline bool isBuildRootConflict( CFileTranslator *inputRoot, CFileTranslator *outputRoot )
+{
+    filePath buildRootAbsolutePath;
+
+    outputRoot->GetFullPathFromRoot( L"", false, buildRootAbsolutePath );
+
+    // A build root conflict exists if the output root is inside the input root.
+    // This means we cannot process all the files from the input root, because they could have been created by the output algorithm.
+    filePath buildRootRelativeOfInput;
+
+    bool isOutputInsideInput = inputRoot->GetRelativePathFromRoot( buildRootAbsolutePath, false, buildRootRelativeOfInput );
+
+    return ( isOutputInsideInput == true );
 }

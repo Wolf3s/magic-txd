@@ -700,7 +700,7 @@ void BuildTXDArchives(
             // We can only continue if we actually have a valid location to write our TXD to.
             if ( hasTXDWritePath )
             {
-                // Send a status message about our building.
+                // Send a status message about our build process.
                 module->OnMessage( std::string( "building '" ) + txdWritePath.convert_ansi() + "'...\n" );
 
                 rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
