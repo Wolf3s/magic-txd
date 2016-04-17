@@ -138,6 +138,9 @@ bool MagicLanguage::loadText()
         return false;
 
     QTextStream in(&file);
+    in.setCodec( "UTF-8" );         // spotted by The_Hero!
+    in.setAutoDetectUnicode( true );
+
     in.readLine(); // skip header line
 
     while (!in.atEnd())
