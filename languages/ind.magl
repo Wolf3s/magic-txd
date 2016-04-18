@@ -1,0 +1,265 @@
+﻿MAGL|1|Indonesian|Bahasa Indonesia|IND|HYDRA FRE4K
+
+# translated by HYDRA FRE4K
+# http://hydra-freak.blogspot.com/
+# http://gtainside.com/user/HYDRA%20FRE4K/
+
+# language
+Lang.Lang              Bahasa:
+Lang.Authors           oleh _PARAM_1
+
+# textures list        
+Main.TexInfo.Level     Tingkat
+Main.TexInfo.Levels    tingkatan
+Main.TexInfo.NoTex     Tidak Ada Tekstur
+Main.TexInfo.Invalid   Ga Cocok!
+Main.Undo              Undo
+Main.Redo              Redo
+Main.Cut               Potong
+Main.Copy              Salin
+Main.Paste             Tempel
+Main.Delete            Hapus
+Main.SelectA           Pilih Semua
+
+# main menu            
+Main.File              File
+Main.Edit              Edit
+Main.Tools             Alat-alat
+Main.Export            Ekspor
+Main.View              Liat
+Main.Info              Info
+
+# main menu - File     
+Main.File.New          Baru
+Main.File.Open         Buka
+Main.File.Save         Simpan
+Main.File.SaveAs       Simpan sebagai...
+Main.File.Close        Tutup sekarang ini
+Main.File.Quit         Keluar
+
+# main menu - Edit   
+Main.Edit.Add          Tambah
+Main.Edit.Replace      Ganti
+Main.Edit.Remove       Hapus
+Main.Edit.Rename       Ubah Nama
+Main.Edit.Resize       Ubah Ukuran
+Main.Edit.Modify       Modif
+Main.Edit.SetupML      Setup tingkatan-mip
+Main.Edit.ClearML      Bersihkan tingkatan-mip
+Main.Edit.SetupRP      Setup Properti Render
+Main.Edit.SetupTV      Setup Versi TXD
+Main.Edit.Options      Pilihan
+
+# Rename
+Main.Rename.Desc       Nama Tekstur
+Main.Rename.Name       Nama:
+Main.Rename.Set        Atur
+Main.Rename.Cancel     Ga Jadi
+
+# Resize
+Main.Resize.Desc       Ubah Ukuran Tektur
+Main.Resize.Width      Lebar:
+Main.Resize.Height     Tinggi:
+Main.Resize.Set        Atur
+Main.Resize.Cancel     Ga Jadi
+
+# Modify
+Modify.Desc.Add        Tambah Tektur...
+Modify.Desc.Replace    Ganti Tekstur...
+Modify.Desc.Modify     Modif Tektur...
+Modify.Add             Tambah
+Modify.Replace         Ganti
+Modify.Modify          Modif
+Modify.TexName         Nama Tekstur:
+Modify.MskName         Nama Topeng:
+Modify.Plat            Platform:
+Modify.RasFmt          Format Raster:
+Modify.Origin          Original
+Modify.RawRas          Raster Mentah
+Modify.Comp            terkompresi
+Modify.Pal             dipaletin
+Modify.PixFmt          Format Piksel:
+Modify.GenML           Buat mipmaps
+Modify.Scaled          Skala
+Modify.Fill            Isi
+Modify.Bckgr           Latar Belakang
+Modify.Cancel          Ga Jadi
+
+[Modify.Help.DXTNotice]
+Lu udah milih kompresi DXT. DXT tuh jenis kompresi yang sangat efisien
+untuk dunia teksture. Tekstur disimpan dalam DXT dengan ruang yang sangat lebih sedikit, tapi
+mereka parah banget nurunin kualitas gambarnya. Gue ga ngerekomendasiin buat kompres tektur GUI.
+
+DXT1 bagus buat tekstur yang make alpha buat motong bagian-bagian.
+DXT2/3 bagus buat tekstur dengan alpha tajam.
+DXT4/5 bagus buat tekstur dengan alpha halus.
+Kalo gambar lo ga punya alpha, pilih DXT1 aja.
+
+Hati-hati mana tekstur yang lu kompres dan mana jenis yang lu pilih!
+[END]
+
+[Modify.Help.PALNotice]
+Lu udah milih format palet. Gambar dipaletin dengan memilih
+warna yang paling penting dan dan taro mereka ke dalam sebuah array. Sebenernya
+permukaan tekstur mengandung indeks ke dalam buffer palet, yang sangat
+mengurangi ukuran tekstur.
+
+Catatan format palet itu adalah teknologi warisan dan tidak lagi didukung
+oleh perangkat keras modern.
+[END]
+
+# Render Props
+Main.SetupRP.Desc      Alat Bantu Render
+Main.SetupRP.Filter    Penyaringan:
+Main.SetupRP.UAddr     Mengalamatkan U:
+Main.SetupRP.VAddr     Mengalamatkan V:
+Main.SetupRP.Set       Atur
+Main.SetupRP.Cancel    Ga Jadi
+
+# Setup TXD Version
+Main.SetupTV.Desc      Setup Versi TXD
+Main.SetupTV.Set       Atur
+Main.SetupTV.Plat      Platform
+Main.SetupTV.Data      Jenis data
+Main.SetupTV.Version   Versi
+Main.SetupTV.Build     Bangun
+Main.SetupTV.Accept    Oke Sip
+Main.SetupTV.Cancel    Ga Jadi
+Main.SetupTV.Custom    Kustom
+
+# Options
+Main.Options.Desc      Pilihan _MAGIC_TXD_NAME
+Main.Options.MainTab   Utama
+Main.Options.ShowLog   Tampilkan log on peringatan TXD
+Main.Options.DispIcn   Tampilkan ikon game
+Main.Options.AdvTab    Lanjutan
+Main.Options.SerSpc    Deserialisasi tanpa panjang blok
+Main.Options.WarnLvl   Tingkat peringatan
+Main.Options.WDisabled nonaktifkan
+Main.Options.WLow      rendah
+Main.Options.WMedium   sedang
+Main.Options.WHigh     tinggi
+Main.Options.WAll      semua
+Main.Options.Accept    Oke Sip
+Main.Options.Cancel    Ga Jadi
+
+# main menu - Tools    
+Main.Tools.MassCnv     Konvert Masal
+Main.Tools.MassExp     Expor Masal
+Main.Tools.MassBld     Bangun Masal
+
+# main menu - Export   
+Main.Export.ExpAll     Ekspor Semua
+Main.Export.Desc       Simpan _PARAM_1 sebagai...
+
+# Export All
+Main.ExpAll.Desc       Expor semua tekstur...
+Main.ExpAll.Format     Format:
+Main.ExpAll.Export     Expor
+Main.ExpAll.Cancel     Ga Jadi
+Main.ExpAll.ExpTarg    Pilih Target Ekspor...
+
+# Log
+Main.Log.Desc          Log
+Main.Log.Save          Simpan
+Main.Log.Copy          Salin
+Main.Log.CopyAll       Salin Semua
+Main.Log.Clear         Bersihkan
+Main.Log.Close         Tutup
+Main.Log.SaveAs        Simpan Log sebagai...
+
+# View   
+Main.View.FullImg      Tunjukkin gambar penuh
+Main.View.Backgr       Latar belakang
+Main.View.DispML       Tampilan tingkatan-mip
+Main.View.ShowLog      Tunjukkan log
+Main.View.DarkThm      Tema gelap
+Main.View.LightTm      Tema terang
+
+# Info     
+Main.Info.Website      Situs Web
+Main.Info.About        Tentang
+
+# File - Open
+Main.Open.Desc         Buka file TXD...
+
+# File - Save As
+Main.SaveAs.Desc       Simpan TXD sebagai...
+
+# Edit - Add
+Main.Edit.Add.Desc     Impor tekstur...
+
+# About
+Main.About.Desc        Tentang kita
+Main.About.Credits     dibuat oleh _AUTHOR_NAME_1 dan _AUTHOR_NAME_2
+Main.About.ComUse1     Alat ini TIDAK HARUS digunakan secara komersial tanpa eksplisit, izin tertulis dari semua pihak ketiga yang memberikan kontribusi untuk alat ini. Lihat lisensi makanya.
+Main.About.ComUse2     Tim _MAGIC_TXD_NAME menyambut dukungan kamu! Iya kamu!
+Main.About.SpecThx     Makasih banyak buat:
+
+# Save changes
+[Main.SavChange.Warn]
+Ada perubahan yang belum disimpen di arsip TXD yang kebuka.
+Mau simpen sekarang?
+[END]
+Main.SavChange.Save    Simpen
+Main.SavChange.Ignore  Bodo Amat
+Main.SavChange.Cancel  Ga Jadi
+Main.SavChange.Title   Perubahan yg belum disimpen
+
+# Tools
+Tools.Browse           Cari
+Tools.BrwDesc          Cari Direktori...
+Tools.GameRt           Root game:
+Tools.Output           Root keluaran:
+Tools.Plat             Platform
+Tools.Game             Game
+Tools.GenMips          Buat mipmaps
+Tools.MaxMips          Maks:
+
+# Mass export
+Tools.MassExp.Desc     Ekspor Masal
+Tools.MassExp.ImgFmt   Format gambar:
+Tools.MassExp.TxNmOnl  dengan hanya nama tekstur
+Tools.MassExp.PrTxdNm  pre-prended dengan nama TXD
+Tools.MassExp.SepFld   dalam folder terpisah
+Tools.MassExp.Export   Ekspor
+Tools.MassExp.Cancel   Ga Jadi
+
+# Mass build
+Tools.MassBld.Desc     Bangun Masal
+Tools.MassBld.Build    Bangun
+Tools.MassBld.Cancel   Ga Jadi
+Tools.MassBld.CloseOnCmplt  Tutup pas dah selesai
+Tools.MassBld.Cmprs    Dikompresi
+Tools.MassBld.DescQual Kualitas
+Tools.MassBld.DoPal    Dipaletin
+Tools.MassBld.DescPType    Jenis
+
+[Tools.MassBld.Welcome]
+Selamat datang di alat Bangun Masal! Alat ini menciptakan file TXD dari file<br>
+gambar dalam hirarki folder. Lu bisa pake file INI dalam folder ini<br>
+untuk mengkhususkan proses pembangunan. Coba bangun beberapa folder acak<br>
+dan liat hasilnya!<br><br>
+Wiki: <a href="http://www.gtamodding.com/wiki/Magic.TXD/Build_System/" style="color: #0063b1">http://www.gtamodding.com/wiki/Magic.TXD/Build_System/</a>
+[END]
+
+# Mass convert
+Tools.MassCnv.Desc     Konversi Masal
+Tools.MassCnv.ClearML  Bersihkan mipmap
+Tools.MassCnv.ImpFilt  Tingkatkan penyaringan
+Tools.MassCnv.CompTex  Kompres tekstur
+Tools.MassCnv.RecIMG   Konstruksi ulang arsip IMG
+Tools.MassCnv.CompIMG  IMG yg dikompresi
+Tools.MassCnv.Convert  Konvert
+Tools.MassCnv.Cancel   Ga Jadi
+
+# New txd
+New.Desc               Buat txd baru
+New.Name               Nama
+New.Create             Buat
+New.Cancel             Ga Jadi
+
+# Helper runtime generics.
+Helper.Confirm         OK
+Helper.Title           Pemberitahuan
+Helper.NotShowAgain    Jangan tampilin lagi
