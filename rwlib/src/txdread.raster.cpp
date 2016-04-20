@@ -286,7 +286,7 @@ const char* Raster::getNativeDataTypeName( void ) const
     PlatformTexture *platformTex = this->platformData;
 
     if ( !platformTex )
-        return false;
+        return NULL;
 
     Interface *engineInterface = this->engineInterface;
 

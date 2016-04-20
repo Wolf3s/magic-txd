@@ -61,7 +61,25 @@ public:
 
             size_t platformTexInfoLength = 0;
 
-            rasterInfo->getFormatString( platformTexInfoBuf, availableStringCharSpace, platformTexInfoLength );
+            try
+            {
+                rasterInfo->getFormatString( platformTexInfoBuf, availableStringCharSpace, platformTexInfoLength );
+            }
+            catch( rw::RwException& )
+            {
+                // If there was any failure, we just say its unknown.
+                static constexpr char error_message[] = "unknown";
+
+                static constexpr size_t error_message_len = ( sizeof( error_message ) - 1 );
+                
+                static_assert( sizeof( error_message ) < sizeof( platformTexInfoBuf ), "oh no, somebody does not care about buffer boundaries" );
+
+                memcpy( platformTexInfoBuf, error_message, error_message_len );
+
+                platformTexInfoLength = error_message_len;
+
+                // Just continue the runtime.
+            }
 
             // Get the trimmed string length.
             localPlatformTexInfoLength = std::min( platformTexInfoLength, availableStringCharSpace );
@@ -121,7 +139,7 @@ public:
                 textureInfo = getDefaultRasterInfoString( rasterInfo );
             }
 
-            this->texNameLabel->setText( tr( this->rwTextureHandle->GetName().c_str() ) );
+            this->texNameLabel->setText( ansi_to_qt( this->rwTextureHandle->GetName() ) );
             this->texInfoLabel->setText( textureInfo );
         }
         else
