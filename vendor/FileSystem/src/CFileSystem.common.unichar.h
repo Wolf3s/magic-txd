@@ -492,6 +492,44 @@ public:
     typedef utf32_encoding_iterator encoding_iterator;
 };
 
+template <typename charType>
+AINLINE static const charType GetDefaultConvFailureChar( void )
+{
+    static_assert( false, "invalid character type for default conv failure string" );
+}
+
+template <>
+AINLINE static const char GetDefaultConvFailureChar <char> ( void )
+{
+    return '_';
+}
+
+template <>
+AINLINE static const wchar_t GetDefaultConvFailureChar <wchar_t> ( void )
+{
+    return L'_';
+}
+
+template <>
+AINLINE static const char32_t GetDefaultConvFailureChar <char32_t> ( void )
+{
+    return U'_';
+}
+
+template <typename src_env, typename dst_env>
+AINLINE bool AcquireDirectUCP( typename src_env::ucp_t src_ucp, typename dst_env::ucp_t& dst_ucp )
+{
+    typename src_env::u_ucp_t unsigned_ucp = (typename src_env::u_ucp_t)src_ucp;
+
+    if ( unsigned_ucp < dst_env::ucp_max )
+    {
+        dst_ucp = (typename dst_env::ucp_t)unsigned_ucp;
+        return true;
+    }
+
+    return false;
+}
+
 // The main function of comparing characters.
 template <typename charType>
 inline bool IsCharacterEqual( charType left, charType right, bool caseSensitive )

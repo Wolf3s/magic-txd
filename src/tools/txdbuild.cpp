@@ -701,7 +701,7 @@ void BuildTXDArchives(
             if ( hasTXDWritePath )
             {
                 // Send a status message about our build process.
-                module->OnMessage( std::string( "building '" ) + txdWritePath.convert_ansi() + "'...\n" );
+                module->OnMessage( std::wstring( L"building '" ) + txdWritePath.convert_unicode() + L"'...\n" );
 
                 rw::TexDictionary *texDict = rw::CreateTexDictionary( rwEngine );
 

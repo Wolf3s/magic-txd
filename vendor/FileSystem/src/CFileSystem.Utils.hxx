@@ -415,23 +415,29 @@ public:
         tokenBuf.clear();
     }
 
-    inline filePattern_t* CreatePattern( const charType *buf )
+    template <typename inputCharType>
+    inline filePattern_t* CreatePattern( const inputCharType *buf )
     {
+        typedef character_env <charType> store_env;
+        typedef character_env <inputCharType> input_env;
+
         std::vector <charType> tokenBuf;
         filePatternCommand_t::eCommand pendCmd = filePatternCommand_t::FCMD_STRCMP; // by default, it is string comparison.
         filePattern_t *pattern = new filePattern_t;
 
-        while ( charType c = *buf )
-        {
-            buf++;
+        input_env::const_iterator input_iter( buf );
 
-            if ( c == '*' )
+        while ( !input_iter.IsEnd() )
+        {
+            const input_env::ucp_t code_pt = input_iter.ResolveAndIncrement();
+
+            if ( code_pt == L'*' )
             {
                 AddCommandToPattern( pattern, pendCmd, tokenBuf );
 
                 pendCmd = filePatternCommand_t::FCMD_WILDCARD;
             }
-            else if ( c == '?' )
+            else if ( code_pt == L'?' )
             {
                 AddCommandToPattern( pattern, pendCmd, tokenBuf );
 
@@ -442,7 +448,28 @@ public:
                 pendCmd = filePatternCommand_t::FCMD_STRCMP;
             }
             else
-                tokenBuf.push_back( c );
+            {
+                // Store the encoded character sequence.
+                store_env::ucp_t enc_code_pt;
+
+                if ( AcquireDirectUCP <input_env, store_env> ( code_pt, enc_code_pt ) )
+                {
+                    store_env::encoding_iterator enc_iter( &enc_code_pt, 1 );
+
+                    store_env::enc_result enc_data;
+                    enc_iter.Resolve( enc_data );
+
+                    for ( size_t n = 0; n < enc_data.numData; n++ )
+                    {
+                        tokenBuf.push_back( enc_data.data[n] );
+                    }
+                }
+                else
+                {
+                    // We store a failure character.
+                    tokenBuf.push_back( GetDefaultConvFailureChar <charType> () );
+                }
+            }
         }
 
         AddCommandToPattern( pattern, pendCmd, tokenBuf );

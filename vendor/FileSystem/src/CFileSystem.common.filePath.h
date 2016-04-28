@@ -162,30 +162,6 @@ protected:
     stringProvider *strData;
 
     template <typename charType>
-    AINLINE static const charType GetDefaultConvFailureChar( void )
-    {
-        static_assert( false, "invalid character type for default conv failure string" );
-    }
-
-    template <>
-    AINLINE static const char GetDefaultConvFailureChar <char> ( void )
-    {
-        return '_';
-    }
-
-    template <>
-    AINLINE static const wchar_t GetDefaultConvFailureChar <wchar_t> ( void )
-    {
-        return L'_';
-    }
-
-    template <>
-    AINLINE static const char32_t GetDefaultConvFailureChar <char32_t> ( void )
-    {
-        return U'_';
-    }
-
-    template <typename charType>
     AINLINE static const charType* GetDefaultConfErrorString( void )
     {
         static_assert( false, "invalid character type in default conversion error string routine" );
@@ -225,13 +201,13 @@ protected:
 
                 while ( !iter.IsEnd() )
                 {
-                    input_env::u_ucp_t codepoint = (input_env::u_ucp_t)iter.ResolveAndIncrement();
+                    input_env::ucp_t codepoint = iter.ResolveAndIncrement();
 
                     // Encode it into the output string, if possible.
-                    if ( codepoint < output_env::ucp_max )
-                    {
-                        output_env::ucp_t enc_codepoint = (output_env::ucp_t)codepoint;
+                    output_env::ucp_t enc_codepoint;
 
+                    if ( AcquireDirectUCP <input_env, output_env> ( codepoint, enc_codepoint ) )
+                    {
                         output_env::encoding_iterator enc_iter( &enc_codepoint, 1 );
                         {
                             output_env::enc_result result;

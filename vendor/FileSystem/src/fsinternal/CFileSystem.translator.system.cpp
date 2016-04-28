@@ -874,17 +874,7 @@ inline void copystr( wchar_t *dst, const wchar_t *src, size_t max )
 template <typename charType>
 struct FINDDATA_ENV
 {
-    typedef WIN32_FIND_DATA cont_type;
-
-    inline static HANDLE FindFirst( const filePath& path, cont_type *out )
-    {
-        return FindFirstFile( path.c_str(), out );
-    }
-
-    inline static BOOL FindNext( HANDLE hfind, cont_type *out )
-    {
-        return FindNextFile( hfind, out );
-    }
+    //
 };
 
 template <>
@@ -957,14 +947,14 @@ void CSystemFileTranslator::GenScanDirectory( const charType *directory, const c
     }
 
 #ifdef _WIN32
-    typedef FINDDATA_ENV <charType> find_prov;
+    typedef FINDDATA_ENV <wchar_t> find_prov;
 
     find_prov::cont_type    finddata;
     HANDLE                  handle;
 
-    PathPatternEnv <charType> patternEnv( true );
+    PathPatternEnv <wchar_t> patternEnv( true );
 
-    PathPatternEnv <charType>::filePattern_t *pattern = patternEnv.CreatePattern( wildcard );
+    PathPatternEnv <wchar_t>::filePattern_t *pattern = patternEnv.CreatePattern( wildcard );
 
     try
     {
@@ -1014,7 +1004,7 @@ void CSystemFileTranslator::GenScanDirectory( const charType *directory, const c
                         continue;
 
                     // Optimization :)
-                    if ( _File_IgnoreDirectoryScanEntry <charType> ( finddata.cFileName ) )
+                    if ( _File_IgnoreDirectoryScanEntry <wchar_t> ( finddata.cFileName ) )
                         continue;
 
                     filePath target = output;
