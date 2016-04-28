@@ -234,7 +234,11 @@ bool MagicLanguage::loadText()
 bool MagicLanguage::getLanguageInfo(QString filepath, LanguageInfo &info) {
     QFile file(filepath);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+
         QTextStream in(&file);
+        in.setCodec( "UTF-8" );         // spotted by The_Hero!
+        in.setAutoDetectUnicode( true );
+
         if (!in.atEnd()) {
             QString line = in.readLine();
             QStringList strList = line.split('|');

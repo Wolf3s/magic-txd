@@ -829,21 +829,29 @@ void MainWindow::UpdateExportAccessibility( void )
 
             if ( !hasSupport )
             {
-                if ( TexInfoWidget *curSelTex = this->currentSelectedTexture )
+                try
                 {
-                    if ( rw::Raster *texRaster = curSelTex->GetTextureHandle()->GetRaster() )
+                    if ( TexInfoWidget *curSelTex = this->currentSelectedTexture )
                     {
-                        std::string ansiMethodName = qt_to_ansi( exportAction->displayName );
+                        if ( rw::Raster *texRaster = curSelTex->GetTextureHandle()->GetRaster() )
+                        {
+                            std::string ansiMethodName = qt_to_ansi( exportAction->displayName );
 
-                        if ( stricmp( ansiMethodName.c_str(), "RWTEX" ) == 0 )
-                        {
-                            hasSupport = true;
-                        }
-                        else
-                        {
-                            hasSupport = texRaster->supportsImageMethod( ansiMethodName.c_str() );
+                            if ( stricmp( ansiMethodName.c_str(), "RWTEX" ) == 0 )
+                            {
+                                hasSupport = true;
+                            }
+                            else
+                            {
+                                hasSupport = texRaster->supportsImageMethod( ansiMethodName.c_str() );
+                            }
                         }
                     }
+                }
+                catch( rw::RwException& )
+                {
+                    // If we failed to request support capability, we just abort.
+                    hasSupport = false;
                 }
             }
             
@@ -1254,9 +1262,13 @@ void MainWindow::updateWindowTitle( void )
     {
         if (rw::TexDictionary *txd = this->currentTXD)
         {
+            const rw::LibraryVersion& txdVersion = txd->GetEngineVersion();
+
             QString text;
-            text.sprintf("%u.%u.%u.%u", txd->GetEngineVersion().rwLibMajor, txd->GetEngineVersion().rwLibMinor,
-                txd->GetEngineVersion().rwRevMajor, txd->GetEngineVersion().rwRevMinor);
+            text.sprintf("%u.%u.%u.%u",
+                txdVersion.rwLibMajor, txdVersion.rwLibMinor,
+                txdVersion.rwRevMajor, txdVersion.rwRevMinor
+            );
             this->rwVersionButton->setText(text);
             this->rwVersionButton->show();
         }
@@ -1321,11 +1333,29 @@ static CFile* OpenGlobalFile( MainWindow *mainWnd, const filePath& path, const f
 
     if ( accessPoint )
     {
-        theFile = accessPoint->Open( path, mode );
-
-        if ( theFile )
+        try
         {
-            theFile = CreateDecompressedStream( mainWnd, theFile );
+            theFile = accessPoint->Open( path, mode );
+
+            if ( theFile )
+            {
+                try
+                {
+                    theFile = CreateDecompressedStream( mainWnd, theFile );
+                }
+                catch( ... )
+                {
+                    delete theFile;
+
+                    throw;
+                }
+            }
+        }
+        catch( ... )
+        {
+            delete accessPoint;
+
+            throw;
         }
 
         delete accessPoint;
@@ -1550,22 +1580,23 @@ void MainWindow::updateTextureView( void )
 }
 
 void MainWindow::updateTextureViewport() {
-    if (this->imageWidget->pixmap()){
+    QLabel *imageWidget = this->imageWidget;
+    if (const QPixmap *widgetPixMap = imageWidget->pixmap()){
         if (this->showFullImage) {
             float w, h, border_w, border_h;
-            w = this->imageWidget->pixmap()->width(); h = this->imageWidget->pixmap()->height();
-            border_w = this->imageView->width();
-            border_h = this->imageView->height();
+            w = widgetPixMap->width(); h = widgetPixMap->height();
+            border_w = imageView->width();
+            border_h = imageView->height();
             float scaleFactor = std::min(border_w / w, border_h / h);
             if (scaleFactor < 1.0f) {
-                this->imageWidget->setFixedSize(scaleFactor * w, scaleFactor * h);
+                imageWidget->setFixedSize(scaleFactor * w, scaleFactor * h);
             }
             else {
-                this->imageWidget->setFixedSize(this->imageWidget->pixmap()->width(), this->imageWidget->pixmap()->height());
+                imageWidget->setFixedSize(widgetPixMap->width(), widgetPixMap->height());
             }
         }
         else {
-            this->imageWidget->setFixedSize(this->imageWidget->pixmap()->width(), this->imageWidget->pixmap()->height());
+            imageWidget->setFixedSize(widgetPixMap->width(), widgetPixMap->height());
         }
     }
 }
@@ -1644,19 +1675,38 @@ void MainWindow::onSetupMipmapLayers( bool checked )
         // Generate mipmaps of raster.
         if ( rw::Raster *texRaster = texture->GetRaster() )
         {
-            texRaster->generateMipmaps( 32, rw::MIPMAPGEN_DEFAULT );
+            bool hasModifiedRaster = false;
 
-            // Fix texture filtering modes.
-            texture->fixFiltering();
+            try
+            {
+                texRaster->generateMipmaps( 32, rw::MIPMAPGEN_DEFAULT );
 
-            // Make sure we update the info.
-            this->updateTextureMetaInfo();
+                // Fix texture filtering modes.
+                texture->fixFiltering();
 
-            // Update the texture view.
-            this->updateTextureView();
+                hasModifiedRaster = true;
+            }
+            catch( rw::RwException& except )
+            {
+                this->txdLog->addLogMessage(
+                    QString( "failed to generate mipmaps for raster: " ) + ansi_to_qt( except.message ),
+                    LOGMSG_ERROR
+                );
 
-            // We have modified the TXD.
-            this->NotifyChange();
+                // Just continue ahead.
+            }
+
+            if ( hasModifiedRaster )
+            {
+                // Make sure we update the info.
+                this->updateTextureMetaInfo();
+
+                // Update the texture view.
+                this->updateTextureView();
+
+                // We have modified the TXD.
+                this->NotifyChange();
+            }
         }
     }
 }
@@ -1671,19 +1721,39 @@ void MainWindow::onClearMipmapLayers( bool checked )
         // Clear the mipmaps from the raster.
         if ( rw::Raster *texRaster = texture->GetRaster() )
         {
-            texRaster->clearMipmaps();
+            bool hasModifiedRaster = false;
 
-            // Fix the filtering.
-            texture->fixFiltering();
+            try
+            {
+                texRaster->clearMipmaps();
 
-            // Update the info.
-            this->updateTextureMetaInfo();
+                // Fix the filtering.
+                texture->fixFiltering();
 
-            // Update the texture view.
-            this->updateTextureView();
+                hasModifiedRaster = true;
+            }
+            catch( rw::RwException& except )
+            {
+                this->txdLog->addLogMessage(
+                    QString( "failed to clear mipmaps for raster: " ) +
+                    ansi_to_qt( except.message ),
+                    LOGMSG_ERROR
+                );
 
-            // We have modified the TXD.
-            this->NotifyChange();
+                // Also continue ahead.
+            }
+
+            if ( hasModifiedRaster )
+            {
+                // Update the info.
+                this->updateTextureMetaInfo();
+
+                // Update the texture view.
+                this->updateTextureView();
+
+                // We have modified the TXD.
+                this->NotifyChange();
+            }
         }
     }
 }
@@ -1703,6 +1773,8 @@ bool MainWindow::saveCurrentTXDAt( QString txdFullPath )
 
         if ( newTXDStream )
         {
+            // TODO: add security measures to prevent overwriting a valid TXD with garbage.
+
             // Write the TXD into it.
             try
             {
@@ -1853,11 +1925,21 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
 
                 if ( newTexture )
                 {
-                    DefaultTextureAddAndPrepare(
-                        newTexture,
-                        params.add_raster.texName.c_str(),
-                        params.add_raster.maskName.c_str()
-                    );
+                    try
+                    {
+                        DefaultTextureAddAndPrepare(
+                            newTexture,
+                            params.add_raster.texName.c_str(),
+                            params.add_raster.maskName.c_str()
+                        );
+                    }
+                    catch( ... )
+                    {
+                        // We kinda should get rid of this texture.
+                        this->rwEngine->DeleteRwObject( newTexture );
+                        
+                        throw;
+                    }
                 }
                 else
                 {

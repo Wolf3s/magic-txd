@@ -80,7 +80,22 @@ void RwVersionDialog::OnRequestAccept( bool clicked )
         {
             for (rw::TexDictionary::texIter_t iter(currentTXD->GetTextureIterator()); !iter.IsEnd(); iter.Increment())
             {
-                iter.Resolve()->SetEngineVersion(libVer);
+                rw::TextureBase *theTexture = iter.Resolve();
+
+                try
+                {
+                    theTexture->SetEngineVersion(libVer);
+                }
+                catch( rw::RwException& except )
+                {
+                    this->mainWnd->txdLog->addLogMessage(
+                        QString( "failed to set version for texture \"" ) +
+                        ansi_to_qt( theTexture->GetName() ) +
+                        QString( "\": " ) +
+                        ansi_to_qt( except.message ),
+                        LOGMSG_WARNING
+                    );
+                }
 
                 // Pretty naive, but in the context very okay.
                 hasChangedVersion = true;
