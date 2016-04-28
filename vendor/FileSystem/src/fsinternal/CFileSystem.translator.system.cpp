@@ -923,6 +923,110 @@ struct FINDDATA_ENV <wchar_t>
     }
 };
 
+template <typename find_prov, typename pattern_env_type>
+AINLINE void Win32ScanDirectoryNative(
+    filePath absDirPath,
+    const pattern_env_type& patternEnv, typename pattern_env_type::filePattern_t *pattern,
+    bool recurse,
+    pathCallback_t dirCallback, pathCallback_t fileCallback,
+    void *userdata
+)
+{
+    // Create the query string to send to Windows.
+    filePath query = absDirPath;
+    query += GetAnyWildcardSelector <char> ();
+
+    find_prov::cont_type    finddata;
+
+    //first search for files only
+    if ( fileCallback )
+    {
+        HANDLE handle = find_prov::FindFirst( query, &finddata );
+
+        if ( handle != INVALID_HANDLE_VALUE )
+        {
+            try
+            {
+                do
+                {
+                    if ( finddata.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY) )
+                        continue;
+
+                    // Match the pattern ourselves.
+                    if ( patternEnv.MatchPattern( finddata.cFileName, pattern ) )
+                    {
+                        filePath filename = absDirPath;
+                        filename += finddata.cFileName;
+
+                        fileCallback( filename, userdata );
+                    }
+                } while ( find_prov::FindNext(handle, &finddata) );
+            }
+            catch( ... )
+            {
+                FindClose( handle );
+
+                throw;
+            }
+
+            FindClose( handle );
+        }
+    }
+
+    if ( dirCallback || recurse )
+    {
+        //next search for subdirectories only
+        HANDLE handle = find_prov::FindFirst( query, &finddata );
+
+        if ( handle != INVALID_HANDLE_VALUE )
+        {
+            try
+            {
+                do
+                {
+                    if ( finddata.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_TEMPORARY) )
+                        continue;
+
+                    if ( !(finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+                        continue;
+
+                    // Optimization :)
+                    if ( _File_IgnoreDirectoryScanEntry( finddata.cFileName ) )
+                        continue;
+
+                    filePath target = absDirPath;
+                    target += finddata.cFileName;
+                    target += '/';
+
+                    if ( dirCallback )
+                    {
+                        _File_OnDirectoryFound( patternEnv, pattern, finddata.cFileName, target, dirCallback, userdata );
+                    }
+
+                    if ( recurse )
+                    {
+                        Win32ScanDirectoryNative <find_prov> (
+                            std::move( target ),
+                            patternEnv, pattern,
+                            true, dirCallback, fileCallback,
+                            userdata
+                        );
+                    }
+
+                } while ( find_prov::FindNext(handle, &finddata) );
+            }
+            catch( ... )
+            {
+                FindClose( handle );
+
+                throw;
+            }
+
+            FindClose( handle );
+        }
+    }
+}
+
 template <typename charType>
 void CSystemFileTranslator::GenScanDirectory( const charType *directory, const charType *wildcard, bool recurse,
                                               pathCallback_t dirCallback,
@@ -949,95 +1053,25 @@ void CSystemFileTranslator::GenScanDirectory( const charType *directory, const c
 #ifdef _WIN32
     typedef FINDDATA_ENV <wchar_t> find_prov;
 
-    find_prov::cont_type    finddata;
-    HANDLE                  handle;
-
     PathPatternEnv <wchar_t> patternEnv( true );
 
     PathPatternEnv <wchar_t>::filePattern_t *pattern = patternEnv.CreatePattern( wildcard );
 
     try
     {
-        // Create the query string to send to Windows.
-        filePath query = output;
-        query += GetAnyWildcardSelector <charType> ();
-
-        //first search for files only
-        if ( fileCallback )
-        {
-            handle = find_prov::FindFirst( query, &finddata );
-
-            if ( handle != INVALID_HANDLE_VALUE )
-            {
-                do
-                {
-                    if ( finddata.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY) )
-                        continue;
-
-                    // Match the pattern ourselves.
-                    if ( patternEnv.MatchPattern( finddata.cFileName, pattern ) )
-                    {
-                        filePath filename = output;
-                        filename += finddata.cFileName;
-
-                        fileCallback( filename, userdata );
-                    }
-                } while ( find_prov::FindNext(handle, &finddata) );
-
-                FindClose( handle );
-            }
-        }
-
-        if ( dirCallback || recurse )
-        {
-            //next search for subdirectories only
-            handle = find_prov::FindFirst( query, &finddata );
-
-            if ( handle != INVALID_HANDLE_VALUE )
-            {
-                do
-                {
-                    if ( finddata.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_TEMPORARY) )
-                        continue;
-
-                    if ( !(finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-                        continue;
-
-                    // Optimization :)
-                    if ( _File_IgnoreDirectoryScanEntry <wchar_t> ( finddata.cFileName ) )
-                        continue;
-
-                    filePath target = output;
-                    target += finddata.cFileName;
-                    target += '/';
-
-                    if ( dirCallback )
-                    {
-                        _File_OnDirectoryFound( patternEnv, pattern, finddata.cFileName, target, dirCallback, userdata );
-                    }
-
-                    if ( recurse )
-                    {
-                        filePathLink <charType> scanPath( target );
-
-                        ScanDirectory( scanPath.to_char(), wcard, true, dirCallback, fileCallback, userdata );
-                    }
-
-                } while ( find_prov::FindNext(handle, &finddata) );
-
-                FindClose( handle );
-            }
-        }
+        Win32ScanDirectoryNative <find_prov> (
+            std::move( output ),
+            patternEnv, pattern,
+            recurse,
+            dirCallback, fileCallback,
+            userdata
+        );
     }
     catch( ... )
     {
         // Callbacks may throw exceptions
         patternEnv.DestroyPattern( pattern );
 
-        if ( handle != INVALID_HANDLE_VALUE )
-        {
-            FindClose( handle );
-        }
         throw;
     }
 
