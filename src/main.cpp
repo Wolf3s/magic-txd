@@ -213,11 +213,7 @@ int main(int argc, char *argv[])
 
         try
         {
-            QStringList paths = QCoreApplication::libraryPaths();
-            paths.append(".");
-            paths.append("imageformats");
-            paths.append("platforms");
-            QCoreApplication::setLibraryPaths(paths);
+            // removed library path stuff, because we statically link.
 
             MagicTXDApplication a(argc, argv);
             {

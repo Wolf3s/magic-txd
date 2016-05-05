@@ -470,7 +470,7 @@ namespace permutationUtilities
         uint32 srcRowAlignment, uint32 dstRowAlignment,
         uint32 clusterWidth, uint32 clusterHeight,
         bool doSwizzleOrUnswizzle,
-        void*& dstTexelsOut, uint32 dstDataSizeOut
+        void*& dstTexelsOut, uint32& dstDataSizeOut
     )
     {
         // Allocate the destination array.

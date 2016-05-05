@@ -650,8 +650,29 @@ inline bool TranscodeMipmapToPSPFormat(
     else
     {
         // We can just take the source texels, because we assume their format is good enough.
-        linearTransColors = srcTexels;
 
+        if ( !requiresSwizzle )
+        {
+            // Need to allocate a new layer because it will be directly given to the runtime.
+            allocatedTexels = engineInterface->PixelAllocate( srcDataSize );
+
+            if ( !allocatedTexels )
+            {
+                throw RwException( "failed to allocate PSP native texture internal color buffer" );
+            }
+
+            allocatedTexelsDataSize = srcDataSize;
+
+            memcpy( allocatedTexels, srcTexels, srcDataSize );
+
+            linearTransColors = allocatedTexels;
+        }
+        else
+        {
+            // We can go out optimized, because we will allocate a new layer in the swizzling logic.
+            linearTransColors = srcTexels;
+        }
+ 
         transRowAlignment = srcRowAlignment;
     }
 

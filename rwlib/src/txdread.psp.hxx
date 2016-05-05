@@ -284,7 +284,9 @@ struct NativeTexturePSP
         // Free all color buffer info.
         Interface *engineInterface = this->engineInterface;
 
-        for ( size_t n = 0; n < this->mipmaps.size(); n++ )
+        size_t mipmapCount = this->mipmaps.size();
+
+        for ( size_t n = 0; n < mipmapCount; n++ )
         {
             this->mipmaps[n].Deallocate( engineInterface );
         }
