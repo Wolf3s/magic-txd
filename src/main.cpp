@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
                         MB_OK
                     );
 
-                    // Continue excecution.
+                    // Continue execution.
                     iRet = -1;
                 }
                 catch( std::exception& except )

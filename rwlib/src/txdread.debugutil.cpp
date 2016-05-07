@@ -198,12 +198,24 @@ bool DebugDrawMipmaps( Interface *engineInterface, Raster *debugRaster, Bitmap& 
                     srcPaletteData, srcPaletteSize, srcPaletteType
                 );
 
-                // Draw it at its position.
-                bmpOut.draw(
-                    colorPipe, cursor_x, cursor_y,
-                    mipWidth, mipHeight,
-                    Bitmap::SHADE_ZERO, Bitmap::SHADE_ONE, Bitmap::BLEND_ADDITIVE
-                );
+                try
+                {
+                    // Draw it at its position.
+                    bmpOut.draw(
+                        colorPipe, cursor_x, cursor_y,
+                        mipWidth, mipHeight,
+                        Bitmap::SHADE_ZERO, Bitmap::SHADE_ONE, Bitmap::BLEND_ADDITIVE
+                    );
+                }
+                catch( ... )
+                {
+                    if ( isNewlyAllocated )
+                    {
+                        engineInterface->PixelFree( srcTexels );
+                    }
+
+                    throw;
+                }
 
                 // Delete if necessary.
                 if ( isNewlyAllocated )

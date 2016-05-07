@@ -938,7 +938,8 @@ void MainWindow::dragEnterEvent( QDragEnterEvent *evt )
                         // If we had a valid file already, we quit.
                         if ( hasValidFile )
                         {
-                            return;
+                            areLocationsLookingGood = false;
+                            break;
                         }
 
                         recognizedData = true;
@@ -963,7 +964,8 @@ void MainWindow::dragEnterEvent( QDragEnterEvent *evt )
                         // If we had a TXD file, there is no point.
                         if ( hasTXDFile )
                         {
-                            return;
+                            areLocationsLookingGood = false;
+                            break;
                         }
 
                         areLocationsLookingGood = true;
@@ -982,6 +984,10 @@ void MainWindow::dragEnterEvent( QDragEnterEvent *evt )
         if ( areLocationsLookingGood )
         {
             evt->acceptProposedAction();
+        }
+        else
+        {
+            evt->ignore();
         }
     }
 }
@@ -1797,6 +1803,10 @@ bool MainWindow::saveCurrentTXDAt( QString txdFullPath )
             // Close the stream.
             this->rwEngine->DeleteStream( newTXDStream );
         }
+        else
+        {
+            this->txdLog->addLogMessage( QString( "failed to make stream to TXD archive (maybe lack of permission)" ) );
+        }
     }
 
     return didSave;
@@ -1962,7 +1972,7 @@ void MainWindow::DoAddTexture( const TexAddDialog::texAddOperation& params )
     }
 }
 
-QString MainWindow::requestValidImagePath( void )
+QString MainWindow::requestValidImagePath( const QString *imageName )
 {
     // Get the name of a texture to add.
     // For that we want to construct a list of all possible image extensions.
@@ -1982,14 +1992,12 @@ QString MainWindow::requestValidImagePath( void )
 
     bool hasExtEntry = false;
 
-    for ( imageFormats_t::const_iterator iter = avail_formats.begin(); iter != avail_formats.end(); iter++ )
+    for ( const MainWindow::registered_image_format& entry : avail_formats )
     {
         if ( hasExtEntry )
         {
             imgExtensionSelect += ";";
         }
-
-        const registered_image_format& entry = *iter;
 
         bool needsExtSep = false;
 
@@ -2022,14 +2030,12 @@ QString MainWindow::requestValidImagePath( void )
 
     hasEntry = true;
 
-    for ( imageFormats_t::const_iterator iter = avail_formats.begin(); iter != avail_formats.end(); iter++ )
+    for ( const MainWindow::registered_image_format& entry : avail_formats )
     {
         if ( hasEntry )
         {
             imgExtensionSelect += ";;";
         }
-
-        const registered_image_format& entry = *iter;
 
         imgExtensionSelect += ansi_to_qt( entry.formatName ) + QString( " (" );
         
@@ -2063,7 +2069,64 @@ QString MainWindow::requestValidImagePath( void )
 
     hasEntry = true;
 
-    QString imagePath = QFileDialog::getOpenFileName( this, MAGIC_TEXT("Main.Edit.Add.Desc"), this->lastImageFileOpenDir, imgExtensionSelect );
+    // As a convenience feature the imageName parameter could be given so that we
+    // check if in the currently selected directory a file of that name exists, under a known image extension.
+    QString actualImageFileOpenPath = this->lastImageFileOpenDir;
+
+    if ( imageName )
+    {
+        QString maybeImagePath = actualImageFileOpenPath;
+        maybeImagePath += '/';
+        maybeImagePath += *imageName;
+
+        bool hasFoundKnownFile = false;
+        {
+            // We just check using image extensions we know and pick the first one we find.
+            // Might improve this in the future by actually picking what image format the user likes the most first.
+            for ( const MainWindow::registered_image_format& entry : avail_formats )
+            {
+                for ( const std::string& ext_name : entry.ext_array )
+                {
+                    // Check for this image file availability.
+                    QString pathToImageFile = maybeImagePath + '.' + ansi_to_qt( ext_name ).toLower();
+
+                    QFileInfo fileInfo( pathToImageFile );
+
+                    if ( fileInfo.exists() && fileInfo.isFile() )
+                    {
+                        // Just pick this one.
+                        actualImageFileOpenPath = std::move( pathToImageFile );
+
+                        hasFoundKnownFile = true;
+                        break;
+                    }
+                }
+
+                // Check for .rwtex, too.
+                if ( !hasFoundKnownFile )
+                {
+                    QString pathToImageFile = maybeImagePath + ".rwtex";
+
+                    QFileInfo fileInfo( pathToImageFile );
+
+                    if ( fileInfo.exists() && fileInfo.isFile() )
+                    {
+                        // We found a native texture, so pick that one.
+                        actualImageFileOpenPath = std::move( pathToImageFile );
+
+                        hasFoundKnownFile = true;
+                    }
+                }
+            }
+        }
+
+        if ( !hasFoundKnownFile )
+        {
+            actualImageFileOpenPath = std::move( maybeImagePath );
+        }
+    }
+
+    QString imagePath = QFileDialog::getOpenFileName( this, MAGIC_TEXT("Main.Edit.Add.Desc"), actualImageFileOpenPath, imgExtensionSelect );
 
     // Remember the directory.
     if ( imagePath.length() != 0 )
@@ -2118,7 +2181,9 @@ void MainWindow::onReplaceTexture( bool checked )
     // We need to have a texture selected to replace.
     if ( TexInfoWidget *curSelTexItem = this->currentSelectedTexture )
     {
-        QString replaceImagePath = this->requestValidImagePath();
+        QString overwriteTexName = ansi_to_qt( curSelTexItem->GetTextureHandle()->GetName() );
+
+        QString replaceImagePath = this->requestValidImagePath( &overwriteTexName );
 
         if ( replaceImagePath.length() != 0 )
         {
@@ -2177,8 +2242,6 @@ void MainWindow::onReplaceTexture( bool checked )
             params.img_path.imgPath = replaceImagePath;
 
             // Overwrite some properties.
-            QString overwriteTexName = ansi_to_qt( curSelTexItem->GetTextureHandle()->GetName() );
-
             params.overwriteTexName = &overwriteTexName;
 
             TexAddDialog *texAddTask = new TexAddDialog( this, params, std::move( cb_lambda ) );

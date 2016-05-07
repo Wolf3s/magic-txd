@@ -217,7 +217,7 @@ public slots:
     void onAboutUs(bool checked);
 
 private:
-    QString requestValidImagePath(void);
+    QString requestValidImagePath( const QString *imageName = NULL );
 
     void spawnTextureAddDialog( QString imgPath );
 
