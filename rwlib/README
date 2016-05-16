@@ -12,23 +12,17 @@ The aim of this fork is to provide stable PS2 support. Feel free to look into th
 LICENSE INFORMATION
 =========================
 
-1. AMD COMPRESS
+1. COMPRESSONATOR
 
 This software is using licensed software by Advanced Micro Devices Inc. ("AMD").
-By enabling and using the AMD Compress component in this software you agree
+By enabling and using the Compressonator component in this software you agree
 that...
 (a) you do not reverse-enginner the software
 (b) AMD is not responsible to damage caused to your system by using my toolchain
 (c) you agree to the export laws and regulations of the United States
-(d) you must comply to the terms of the AMD Compress license ("LibraryLicense.rtf"),
-which is a restricted license
+(d) you must comply to the terms of the Compressonator license(s)
 (e) AMD is a nice company :) Do not seek malicious intentions against them.
 (in fact they were really helpful when I requested updated libraries)
-
-When using the AMD Compress component you must not sublicense the AMD Compress
-component in any way under an open source license. I provide you with the libraries
-solely to be used with the "rwlib" toolchain found in this repository. Terms of open source
-licenses do not apply to that vendor.
 
 THE LICENSED MATERIALS ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.  
 AMD DISCLAIMS ALL WARRANTIES, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING BUT 

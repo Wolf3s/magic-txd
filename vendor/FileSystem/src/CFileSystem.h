@@ -82,7 +82,7 @@ public:
 
     // Function to cast a CFileTranslator into a CArchiveTranslator.
     // If not possible, it returns NULL.
-    CArchiveTranslator*     GetArchiveTranslator    ( CFileTranslator *translator ) override final;
+    CArchiveTranslator*     GetArchiveTranslator    ( CFileTranslator *translator );
 
     // Temporary directory generation for temporary data storage.
     CFileTranslator*        GetSystemTempTranslator ( void )                { return sysTmp; }

@@ -217,7 +217,7 @@ Tools.MaxMips          Max:
 Tools.MassExp.Desc     Mass Exporting
 Tools.MassExp.ImgFmt   Image format:
 Tools.MassExp.TxNmOnl  with texture name only
-Tools.MassExp.PrTxdNm  pre-prended with TXD name
+Tools.MassExp.PrTxdNm  pre-pended with TXD name
 Tools.MassExp.SepFld   in separate folders
 Tools.MassExp.Export   Export
 Tools.MassExp.Cancel   Cancel

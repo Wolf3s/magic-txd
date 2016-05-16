@@ -1,4 +1,4 @@
-This is the Portable release of Magic.TXD, build rc5_2 13.04.2016 RC5_2 version 1.0.
+This is the Portable release of Magic.TXD, build RC6_6 16.05.2016 version 1.0.
 It was created due to popular demand. Please do not abuse this by redistributing in an complete state.
 We would like to keep Magic.TXD as is, that concerns the theme and configuration files.
 
