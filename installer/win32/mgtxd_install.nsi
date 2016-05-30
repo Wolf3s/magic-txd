@@ -230,6 +230,14 @@ Function .onInit
     ReadRegStr $0 HKLM ${COMPONENT_REG_PATH} "InstallDir"
     
     ${If} $0 != ""
+        # We want to check for a corrupted Magic.TXD installation because this actually happened.
+        # Anti-Viri can go rogue too, so lets make sure.
+        IfFileExists "$0\uinst.exe" continueOkay 0
+        
+        MessageBox MB_ICONEXCLAMATION|MB_YESNO "Setup has detected a corrupted Magic.TXD installation (uninstaller is missing). Would you like to force installation?" /SD IDYES IDNO continueOkay
+        goto forceInstall
+
+continueOkay:
         MessageBox MB_ICONINFORMATION|MB_YESNO "Setup has detected through the registry that Magic.TXD has already been installed at $\"$0$\".$\nSetup cannot continue unless the old version is uninstalled.$\n$\nWould you like to uninstall now?" /SD IDYES IDNO quitInstall
         
         # The user agreed to uninstall, so we run the uninstaller.
@@ -240,10 +248,13 @@ Function .onInit
         ExecWait "$1 _?=$0" $1
         
         ${If} $1 != 0
-            MessageBox MB_ICONSTOP|MB_OK "Failed to uninstall Magic.TXD. Please try uninstalling Magic.TXD again and running this installer afterward,"
-            Quit
+            MessageBox MB_ICONEXCLAMATION|MB_YESNO "Failed to uninstall Magic.TXD. This can have many reasons, one of which a corrupted Magic.TXD installation.$\nWould you like to force installation?" /SD IDYES IDNO quitInstall
+            
+            # The user wants to continue the installation process.
+            # Let's pray that everything goes okay.
         ${EndIf}
         
+forceInstall:
         # Clean up after the uninstaller.
         # It could not complete a few steps.
         Delete "$0\uinst.exe"
