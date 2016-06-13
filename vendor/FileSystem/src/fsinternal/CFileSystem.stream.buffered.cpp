@@ -13,6 +13,9 @@
 // Include internal header.
 #include "CFileSystem.internal.h"
 
+// Sub modules.
+#include "CFileSystem.platform.h"
+
 /*===================================================
     CBufferedStreamWrap
 

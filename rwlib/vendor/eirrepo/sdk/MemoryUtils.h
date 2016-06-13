@@ -92,6 +92,73 @@ public:
         return true;
     }
 
+    inline bool ObtainSpaceAt( numberType offsetAt, numberType sizeOfBlock, allocInfo& infoOut )
+    {
+        // Skip all blocks that are before us.
+        memSlice_t newAllocSlice( offsetAt, sizeOfBlock );
+
+        blockIter_t appendNode = &blockList.root;
+
+        LIST_FOREACH_BEGIN( block_t, blockList.root, node )
+            // We are interested in how many blocks we actually have to skip.
+            const memSlice_t& blockSlice = item->slice;
+
+            memSlice_t::eIntersectionResult intResult = blockSlice.intersectWith( newAllocSlice );
+
+            if ( intResult != memSlice_t::INTERSECT_FLOATING_START )
+            {
+                break;
+            }
+
+            // We found something that is floating, so we have to check next block.
+            appendNode = iter;
+        LIST_FOREACH_END
+
+        // If we have any kind of next node, and it intersects violently, then we have no space :(
+        if ( appendNode->next != &blockList.root )
+        {
+            block_t *nextNode = LIST_GETITEM( block_t, appendNode->next, node );
+
+            const memSlice_t& maybeInterSlice = nextNode->slice;
+
+            memSlice_t::eIntersectionResult intResult = maybeInterSlice.intersectWith( newAllocSlice );
+
+            if ( intResult != memSlice_t::INTERSECT_FLOATING_END )
+            {
+                // There is a collision, meow.
+                return false;
+            }
+        }
+
+        // We are happy.
+        infoOut.slice = newAllocSlice;
+        infoOut.alignment = 1;
+        infoOut.blockToAppendAt = appendNode;
+        return true;
+    }
+
+    inline bool SetBlockSize( block_t *allocBlock, numberType newSize )
+    {
+        // Since we are sorted in address order, checking for block expansion is a piece of cake.
+        memSlice_t newBlockSlice( allocBlock->slice.GetSliceStartPoint(), newSize );
+
+        if ( allocBlock->node.next != &blockList.root )
+        {
+            block_t *nextBlock = LIST_GETITEM( block_t, allocBlock->node.next, node );
+
+            memSlice_t::eIntersectionResult intResult = newBlockSlice.intersectWith( allocBlock->slice );
+
+            if ( memSlice_t::isFloatingIntersect( intResult ) == false )
+                return false;
+        }
+
+        // We have no conflicts.
+        // Adjust the block.
+        allocBlock->slice = newBlockSlice;
+
+        return true;
+    }
+
     inline void PutBlock( block_t *allocatedStruct, allocInfo& info )
     {
         allocatedStruct->slice = info.slice;
@@ -103,6 +170,11 @@ public:
     inline void RemoveBlock( block_t *theBlock )
     {
         LIST_REMOVE( theBlock->node );
+    }
+
+    inline void Clear( void )
+    {
+        LIST_CLEAR( blockList.root );
     }
 
     inline numberType GetSpanSize( void ) const

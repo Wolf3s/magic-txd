@@ -13,6 +13,10 @@
 // Include internal header.
 #include "CFileSystem.internal.h"
 
+// Sub modules.
+#include "CFileSystem.platform.h"
+#include "CFileSystem.stream.raw.h"
+
 enum eNumberConversion
 {
     NUMBER_LITTLE_ENDIAN,

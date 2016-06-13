@@ -18,6 +18,12 @@
 // Include internal header.
 #include "fsinternal/CFileSystem.internal.h"
 
+// Sub modules.
+#include "fsinternal/CFileSystem.platform.h"
+#include "fsinternal/CFileSystem.stream.raw.h"
+#include "fsinternal/CFileSystem.translator.system.h"
+#include "fsinternal/CFileSystem.platformutils.hxx"
+
 // Include native platform utilities.
 #include "fsinternal/CFileSystem.internal.nativeimpl.hxx"
 

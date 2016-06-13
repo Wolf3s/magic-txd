@@ -12,6 +12,8 @@
 #ifndef _FILESYSTEM_IMG_ROCKSTAR_MANAGEMENT_INTERNAL_
 #define _FILESYSTEM_IMG_ROCKSTAR_MANAGEMENT_INTERNAL_
 
+#include <map>
+
 // Implement the GTAIII/GTAVC XBOX IMG archive compression.
 struct xboxIMGCompression : public CIMGArchiveCompressionHandler
 {
@@ -142,11 +144,11 @@ struct imgExtension
         assert( 0 );
     }
 
-    CIMGArchiveTranslatorHandle*    NewArchive  ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version );
-    CIMGArchiveTranslatorHandle*    OpenArchive ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess );
+    CIMGArchiveTranslatorHandle*    NewArchive  ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version, bool isLiveMode = false );
+    CIMGArchiveTranslatorHandle*    OpenArchive ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess, bool isLiveMode = false );
 
-    CIMGArchiveTranslatorHandle*    NewArchive  ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version );
-    CIMGArchiveTranslatorHandle*    OpenArchive ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess );
+    CIMGArchiveTranslatorHandle*    NewArchive  ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version, bool isLiveMode = false );
+    CIMGArchiveTranslatorHandle*    OpenArchive ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess, bool isLiveMode = false );
 
     // Private extension methods.
     CFileTranslator*            GetTempRoot     ( void );
@@ -171,35 +173,35 @@ class CIMGArchiveTranslator : public CSystemPathTranslator, public CFileTranslat
     friend class CFileSystem;
     friend struct imgExtension;
 public:
-                    CIMGArchiveTranslator( imgExtension& imgExt, CFile *contentFile, CFile *registryFile, eIMGArchiveVersion theVersion );
+                    CIMGArchiveTranslator( imgExtension& imgExt, CFile *contentFile, CFile *registryFile, eIMGArchiveVersion theVersion, bool isLiveMode );
                     ~CIMGArchiveTranslator( void );
 
-    bool            CreateDir( const char *path ) override;
-    CFile*          Open( const char *path, const char *mode, eFileOpenFlags flags ) override;
-    bool            Exists( const char *path ) const override;
-    bool            Delete( const char *path ) override;
-    bool            Copy( const char *src, const char *dst ) override;
-    bool            Rename( const char *src, const char *dst ) override;
-    size_t          Size( const char *path ) const override;
-    bool            Stat( const char *path, struct stat *stats ) const override;
+    bool            CreateDir( const char *path ) override final;
+    CFile*          Open( const char *path, const char *mode, eFileOpenFlags flags ) override final;
+    bool            Exists( const char *path ) const override final;
+    bool            Delete( const char *path ) override final;
+    bool            Copy( const char *src, const char *dst ) override final;
+    bool            Rename( const char *src, const char *dst ) override final;
+    size_t          Size( const char *path ) const override final;
+    bool            Stat( const char *path, struct stat *stats ) const override final;
 
 protected:
-    bool            OnConfirmDirectoryChange( const dirTree& tree ) override;
+    bool            OnConfirmDirectoryChange( const dirTree& tree ) override final;
 
 public:
     void            ScanDirectory( const char *directory, const char *wildcard, bool recurse,
                         pathCallback_t dirCallback,
                         pathCallback_t fileCallback,
-                        void *userdata ) const override;
+                        void *userdata ) const override final;
 
-    void            GetDirectories( const char *path, const char *wildcard, bool recurse, std::vector <filePath>& output ) const override;
-    void            GetFiles( const char *path, const char *wildcard, bool recurse, std::vector <filePath>& output ) const override;
+    void            GetDirectories( const char *path, const char *wildcard, bool recurse, std::vector <filePath>& output ) const override final;
+    void            GetFiles( const char *path, const char *wildcard, bool recurse, std::vector <filePath>& output ) const override final;
 
-    void            Save ( void ) override;
+    void            Save( void ) override final;
 
-    void            SetCompressionHandler( CIMGArchiveCompressionHandler *handler ) override;
+    void            SetCompressionHandler( CIMGArchiveCompressionHandler *handler ) override final;
 
-    eIMGArchiveVersion  GetVersion( void ) const override  { return m_version; }
+    eIMGArchiveVersion  GetVersion( void ) const override final     { return m_version; }
     
     // Members.
     imgExtension&   m_imgExtension;
@@ -207,9 +209,14 @@ public:
     CFile*          m_registryFile;
     eIMGArchiveVersion  m_version;
 
+    bool isLiveMode;    // if true then the archive is editable directly without saving.
+
     CIMGArchiveCompressionHandler*  m_compressionHandler;
 
 protected: 
+    // Allocator of space on the IMG file.
+    typedef InfiniteCollisionlessBlockAllocator <size_t> fileAddrAlloc_t;
+
     struct fileMetaData
     {
         VirtualFileSystem::fileInterface *fileNode;
@@ -234,6 +241,7 @@ protected:
             this->blockOffset = 0;
             this->resourceSize = 0;
             this->resourceName[0] = 0;
+            this->isAllocated = false;
             this->isExtracted = false;
             this->hasCompressed = false;
             this->lockCount = 0;
@@ -242,6 +250,7 @@ protected:
         inline ~fileMetaData( void )
         {
             assert( this->lockCount == 0 );
+            assert( this->isAllocated == false );   // make sure we are removed from the allocation table.
         }   
 
         inline void AddLock( void )
@@ -257,6 +266,15 @@ protected:
         size_t blockOffset;
         size_t resourceSize;
         char resourceName[24 + 1];
+        bool isAllocated;
+        fileAddrAlloc_t::block_t allocBlock;
+
+        typedef sliceOfData <size_t> imgBlockSlice_t;
+
+        inline imgBlockSlice_t GetDataSlice( void ) const
+        {
+            return imgBlockSlice_t( this->blockOffset, this->resourceSize );
+        }
 
         bool isExtracted;
         bool hasCompressed;     // temporary parameter during archive building.
@@ -307,18 +325,29 @@ protected:
 
         inline void CopyAttributesTo( fileMetaData& dstEntry ) const
         {
-            dstEntry.isExtracted = this->isExtracted;
-
-            if ( this->isExtracted )
+            if ( this->translator->isLiveMode )
             {
-                // There are no attributes to copy, for now.
+                // TODO.
             }
             else
             {
-                // The file is located inside of the container.
-                // We create a "hard link" to it.
-                dstEntry.blockOffset = this->blockOffset;
-                dstEntry.resourceSize = this->resourceSize;
+                dstEntry.isExtracted = this->isExtracted;
+
+                if ( this->isExtracted )
+                {
+                    // There are no attributes to copy, for now.
+                }
+                else
+                {
+                    // The file is located inside of the container.
+                    // We create a "hard link" to it.
+                    dstEntry.blockOffset = this->blockOffset;
+                    dstEntry.resourceSize = this->resourceSize;
+                    dstEntry.isAllocated = this->isAllocated;
+
+                    // NOTE: this is JUST an optimization.
+                    assert( this->translator->isLiveMode == false );
+                }
             }
         }
     };
@@ -372,7 +401,7 @@ public:
     }
 
     // Special VFS functions.
-    CFile* OpenNativeFileStream( file *fsObject, unsigned int openMode, unsigned int access );
+    CFile* OpenNativeFileStream( file *fsObject, eFileMode openMode, unsigned int access );
 
     // Extraction helper for data still inside the IMG archive.
     bool RequiresExtraction( CFile *stream );
@@ -421,16 +450,18 @@ protected:
         unsigned int m_accessMode;
     };
 
+    // Slice of file stream.
+    typedef sliceOfData <fsOffsetNumber_t> fileStreamSlice_t;
+
     // File stream inside of the IMG archive (read-only).
     struct dataSectorStream : public streamBase
     {
-        inline dataSectorStream( CIMGArchiveTranslator *translator, file *theFile, filePath thePath );
+        inline dataSectorStream( CIMGArchiveTranslator *translator, file *theFile, filePath thePath, unsigned int accessMode );
         inline ~dataSectorStream( void );
 
         inline fsOffsetNumber_t _getoffset( void ) const;
         inline fsOffsetNumber_t _getsize( void ) const;
         inline void TargetSourceFile( void );
-        inline size_t GetBytesLeftToRead( void ) const;
 
         size_t Read( void *buffer, size_t sElement, size_t iNumElements ) override;
         size_t Write( const void *buffer, size_t sElement, size_t iNumElements ) override;
@@ -493,6 +524,12 @@ protected:
         CFile *m_rawStream;
     };
 
+    // Methods for heavy-lifting of file entries.
+    bool ReallocateFileEntry( file *fileEntry, fsOffsetNumber_t fileSize );
+
+    // Files sorted in allocation-order.
+    fileAddrAlloc_t fileAddressAlloc;   // used for write-mode block alignment.
+
     // Private members.
     struct headerGenPresence
     {
@@ -503,7 +540,7 @@ protected:
 
     struct archiveGenPresence
     {
-       size_t currentBlockCount;
+        size_t currentBlockCount;
     };
 
     void            GenerateArchiveStructure( directory& baseDir, archiveGenPresence& genOut );

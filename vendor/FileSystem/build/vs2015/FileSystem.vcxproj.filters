@@ -105,6 +105,18 @@
     <ClInclude Include="..\..\src\fsinternal\CFileSystem.internal.lockutil.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\fsinternal\CFileSystem.platform.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fsinternal\CFileSystem.platformutils.hxx">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fsinternal\CFileSystem.FileDataPresence.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\fsinternal\CFileSystem.stream.memory.h">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\CFileSystem.cpp" />
@@ -132,6 +144,8 @@
     <ClCompile Include="..\..\src\fsinternal\CFileSystem.translator.widewrap.cpp" />
     <ClCompile Include="..\..\src\fsinternal\CFileSystem.config.cpp" />
     <ClCompile Include="..\..\src\fsinternal\CFileSystem.random.cpp" />
+    <ClCompile Include="..\..\src\fsinternal\CFileSystem.FileDataPresence.cpp" />
+    <ClCompile Include="..\..\src\fsinternal\CFileSystem.stream.memory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="fstypes.natvis" />

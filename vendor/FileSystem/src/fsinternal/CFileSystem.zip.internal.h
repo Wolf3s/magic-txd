@@ -254,11 +254,16 @@ public:
             date.tm_yday = 0;
         }
 
+#pragma warning(push)
+#pragma warning(disable: 4996)
+
         virtual void UpdateTime( void )
         {
             time_t curTime = time( NULL );
             SetModTime( *gmtime( &curTime ) );
         }
+
+#pragma warning(pop)
     };
 
     class stream;
@@ -462,7 +467,7 @@ public:
     }
 
     // Special functions for the VFS.
-    CFile* OpenNativeFileStream( file *fsObject, unsigned int openMode, unsigned int access );
+    CFile* OpenNativeFileStream( file *fsObject, eFileMode openMode, unsigned int access );
 
     // Implement the stream now.
     class stream abstract : public CFile

@@ -16,6 +16,9 @@
 
 #include <stdarg.h>
 
+#pragma warning(push)
+#pragma warning(disable: 4996)
+
 #define _FILESYSTEM_WIDEPATH_SUPPORT
 
 // File open flags.
@@ -259,34 +262,6 @@ public:
     virtual size_t          WriteFloat      ( fsFloat_t fFloat )        { return WriteStruct( fFloat ); }
     virtual size_t          WriteDouble     ( fsDouble_t dDouble )      { return WriteStruct( dDouble ); }
     virtual size_t          WriteBool       ( fsBool_t bBool )          { return WriteStruct( bBool ); }
-
-    /*===================================================
-        CFile::Printf
-
-        Arguments:
-            pFormat - ANSI string implementation pattern.
-            ... - VARG of necessary string implementation components.
-        Purpose:
-            ANSI C style interface which can be used to write
-            formatted strings into this file/stream. Returns the
-            amount of bytes written.
-    ===================================================*/
-    virtual	size_t          Printf( const char *pFormat, ... )
-    {
-        va_list args;
-        char cBuffer[1024];
-
-        va_start(args, pFormat);
-        _vsnprintf(cBuffer, 1023, pFormat, args);
-        va_end(args);
-
-        return Write(cBuffer, 1, strlen(cBuffer));
-    }
-
-    size_t                  WriteString( std::string input )
-    {
-        return Write( input.c_str(), 1, input.size() );
-    }
 
     /*===================================================
         CFile::GetString
@@ -1036,6 +1011,8 @@ public:
     }
 };
 
+#pragma warning(pop)
+
 #include "CFileSystem.common.stl.h"
 
 /*===================================================
@@ -1091,41 +1068,41 @@ public:
     virtual CArchiveTranslator* CreateZIPArchive    ( CFile& file ) = 0;
 
     // Standard IMG archive functions that should be used.
-    virtual CIMGArchiveTranslatorHandle* OpenIMGArchive         ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess ) = 0;
+    virtual CIMGArchiveTranslatorHandle* OpenIMGArchive         ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess, bool isLiveMode = false ) = 0;
 #ifdef _FILESYSTEM_WIDEPATH_SUPPORT
-    virtual CIMGArchiveTranslatorHandle* OpenIMGArchive         ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess ) = 0;
+    virtual CIMGArchiveTranslatorHandle* OpenIMGArchive         ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess, bool isLiveMode = false ) = 0;
 #endif
-    AINLINE CIMGArchiveTranslatorHandle* OpenIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, bool writeAccess )
+    AINLINE CIMGArchiveTranslatorHandle* OpenIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, bool writeAccess, bool isLiveMode = false )
     {
-        return filePath_dispatch( srcPath, [&] ( auto srcPath ) { return OpenIMGArchive( srcRoot, srcPath, writeAccess ); } );
+        return filePath_dispatch( srcPath, [&] ( auto srcPath ) { return OpenIMGArchive( srcRoot, srcPath, writeAccess, isLiveMode ); } );
     }
 
-    virtual CIMGArchiveTranslatorHandle* CreateIMGArchive       ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version ) = 0;
+    virtual CIMGArchiveTranslatorHandle* CreateIMGArchive       ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version, bool isLiveMode = false ) = 0;
 #ifdef _FILESYSTEM_WIDEPATH_SUPPORT
-    virtual CIMGArchiveTranslatorHandle* CreateIMGArchive       ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version ) = 0;
+    virtual CIMGArchiveTranslatorHandle* CreateIMGArchive       ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version, bool isLiveMode = false ) = 0;
 #endif
-    AINLINE CIMGArchiveTranslatorHandle* CreateIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, eIMGArchiveVersion version )
+    AINLINE CIMGArchiveTranslatorHandle* CreateIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, eIMGArchiveVersion version, bool isLiveMode = false )
     {
-        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return CreateIMGArchive( srcRoot, srcPath, version ); } );
+        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return CreateIMGArchive( srcRoot, srcPath, version, isLiveMode ); } );
     }
 
     // Special functions for IMG archives that should support compression.
-    virtual CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive        ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess ) = 0;
+    virtual CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive        ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess, bool isLiveMode = false ) = 0;
 #ifdef _FILESYSTEM_WIDEPATH_SUPPORT
-    virtual CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive        ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess ) = 0;
+    virtual CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive        ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess, bool isLiveMode = false ) = 0;
 #endif
-    AINLINE CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, bool writeAccess )
+    AINLINE CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, bool writeAccess, bool isLiveMode = false )
     {
-        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return OpenCompressedIMGArchive( srcRoot, srcPath, writeAccess ); } );
+        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return OpenCompressedIMGArchive( srcRoot, srcPath, writeAccess, isLiveMode ); } );
     }
 
-    virtual CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive      ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version ) = 0;
+    virtual CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive      ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version, bool isLiveMode = false ) = 0;
 #ifdef _FILESYSTEM_WIDEPATH_SUPPORT
-    virtual CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive      ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version ) = 0;
+    virtual CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive      ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version, bool isLiveMode = false ) = 0;
 #endif
-    AINLINE CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, eIMGArchiveVersion version )
+    AINLINE CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive( CFileTranslator *srcRoot, const filePath& srcPath, eIMGArchiveVersion version, bool isLiveMode = false )
     {
-        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return CreateCompressedIMGArchive( srcRoot, srcPath, version ); } );
+        return filePath_dispatch( srcPath, [&]( auto srcPath ) { return CreateCompressedIMGArchive( srcRoot, srcPath, version, isLiveMode ); } );
     }
 
     // Insecure, use with caution!

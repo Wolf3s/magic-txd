@@ -15,7 +15,8 @@
 enum eIMGArchiveVersion
 {
     IMG_VERSION_1,
-    IMG_VERSION_2
+    IMG_VERSION_2,
+    IMG_VERSION_FASTMAN92
 };
 
 // Interface to handle compression of IMG archive (for XBOX Vice City and III)

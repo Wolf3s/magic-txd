@@ -59,4 +59,25 @@ enum eFileException
     FILE_STREAM_TERMINATED  // user attempts to perform on a terminated file stream, ie. http timeout
 };
 
+namespace FSDataUtil
+{
+    template <typename dataType>
+    static inline void copy_impl( const dataType *srcPtr, const dataType *srcPtrEnd, dataType *dstPtr )
+    {
+        while ( srcPtr != srcPtrEnd )
+        {
+            *dstPtr++ = *srcPtr++;
+        }
+    }
+
+    template <typename dataType>
+    static inline void copy_backward_impl( const dataType *srcPtr, const dataType *srcPtrEnd, dataType *dstPtr )
+    {
+        while ( srcPtr != srcPtrEnd )
+        {
+            *(--dstPtr) = *(--srcPtrEnd);
+        }
+    }
+};
+
 #endif //_FILESYSTEM_COMMON_DEFINITIONS_

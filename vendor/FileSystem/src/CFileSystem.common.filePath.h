@@ -293,7 +293,7 @@ protected:
                 newDataSize = ( newStringLength + 1 ) * sizeof( charType );
                 newStringData = (charType*)malloc( newDataSize );
 
-                std::copy( right.stringData, right.stringData + newStringLength + 1, newStringData );
+                FSDataUtil::copy_impl( right.stringData, right.stringData + newStringLength + 1, newStringData );
             }
 
             this->stringData = newStringData;
@@ -438,7 +438,7 @@ protected:
                 const charType *conflictStartPtr = ( this->stringData + conflictStart );
                 const charType *conflictEndPtr = ( this->stringData + conflictEnd );
 
-                std::copy( conflictStartPtr, conflictEndPtr, conflictedMem );
+                FSDataUtil::copy_impl( conflictStartPtr, conflictEndPtr, conflictedMem );
             }
 
             // Reserve enough memory so that we can write to shit.
@@ -489,7 +489,7 @@ protected:
             }
             
             // Write the new data that should be inserted.
-            std::copy( src, src + srcLen, this->stringData + offset );
+           FSDataUtil::copy_impl( src, src + srcLen, this->stringData + offset );
 
             if ( needUpwardShift )
             {
@@ -498,13 +498,13 @@ protected:
                 const charType *sourceStartPtr = ( this->stringData + lastWritePos );
                 const charType *sourceEndPtr = sourceStartPtr + dataShiftUpwardCount;
 
-                std::copy_backward( sourceStartPtr, sourceEndPtr, ( this->stringData + lastWritePos + conflictedCount ) + dataShiftUpwardCount );
+                FSDataUtil::copy_backward_impl( sourceStartPtr, sourceEndPtr, ( this->stringData + lastWritePos + conflictedCount ) + dataShiftUpwardCount );
             }
 
             // Now write the conflicted region, if available.
             if ( hasDataConflict )
             {
-                std::copy( conflictedMem, conflictedMem + conflictedCount, this->stringData + lastWritePos );
+                FSDataUtil::copy_impl( conflictedMem, conflictedMem + conflictedCount, this->stringData + lastWritePos );
 
                 // Delete the conflicted memory.
                 delete conflictedMem;
@@ -532,7 +532,7 @@ protected:
                 // Just append the right string data.
                 charType *ourData = this->stringData;
 
-                std::copy( right, right + rightLength, ourData + ourLength );
+                FSDataUtil::copy_impl( right, right + rightLength, ourData + ourLength );
 
                 // Zero terminate ourselves.
                 *( ourData + ourLength + rightLength ) = '\0';

@@ -82,12 +82,17 @@ bool CZIPArchiveTranslator::fileDeflate::Stat( struct stat *stats ) const
     return true;
 }
 
+#pragma warning(push)
+#pragma warning(disable: 4996)
+
 void CZIPArchiveTranslator::fileDeflate::PushStat( const struct stat *stats )
 {
     tm *date = gmtime( &stats->st_mtime );
 
     m_info.metaData.SetModTime( *date );
 }
+
+#pragma warning(pop)
 
 void CZIPArchiveTranslator::fileDeflate::SetSeekEnd( void )
 {
@@ -218,11 +223,11 @@ bool CZIPArchiveTranslator::CreateDir( const char *path )
     return m_virtualFS.CreateDir( path );
 }
 
-CFile* CZIPArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int openMode, unsigned int access )
+CFile* CZIPArchiveTranslator::OpenNativeFileStream( file *fsObject, eFileMode openMode, unsigned int access )
 {
     CFile *dstFile = NULL;
 
-    if ( openMode == FILE_MODE_OPEN )
+    if ( openMode == eFileMode::OPEN )
     {
         const filePath& relPath = fsObject->relPath;
 
@@ -247,7 +252,7 @@ CFile* CZIPArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int
             }
         }
     }
-    else if ( openMode == FILE_MODE_CREATE )
+    else if ( openMode == eFileMode::CREATE )
     {
         // Attempt to get a handle to the realtime root.
         CFileTranslator *realtimeRoot = GetRealtimeRoot();
@@ -836,6 +841,11 @@ void CFileSystem::CompressZLIBStream( CFile *input, CFile *output, bool putHeade
     FileSystem::StreamParser( *input, *output, compressor );
 }
 
+static inline void WriteStreamString( CFile *stream, std::string string )
+{
+    stream->Write( string.c_str(), 1, string.size() );
+}
+
 void CZIPArchiveTranslator::SaveDirectory( directory& dir, size_t& size )
 {
     if ( dir.metaData.NeedsWriting() )
@@ -853,8 +863,8 @@ void CZIPArchiveTranslator::SaveDirectory( directory& dir, size_t& size )
         header.sizeReal = 0;
 
         m_file.WriteStruct( header );
-        m_file.WriteString( dir.relPath );
-        m_file.WriteString( dir.metaData.comment );
+        WriteStreamString( &m_file, dir.relPath );
+        WriteStreamString( &m_file, dir.metaData.comment );
     }
     
     directory::subDirs::iterator iter = dir.children.begin();
@@ -915,8 +925,8 @@ void CZIPArchiveTranslator::SaveDirectory( directory& dir, size_t& size )
             size += info.metaData.sizeCompressed;
 
             m_file.WriteStruct( header );
-            m_file.WriteString( info.relPath );
-            m_file.WriteString( info.metaData.comment );
+            WriteStreamString( &m_file, info.relPath );
+            WriteStreamString( &m_file, info.metaData.comment );
 
             CFile *src = unpackRoot->Open( info.relPath, "rb" );
 
@@ -934,8 +944,8 @@ void CZIPArchiveTranslator::SaveDirectory( directory& dir, size_t& size )
             header.crc32val     = 0;
 
             m_file.WriteStruct( header );
-            m_file.WriteString( info.relPath );
-            m_file.WriteString( info.metaData.comment );
+            WriteStreamString( &m_file, info.relPath );
+            WriteStreamString( &m_file, info.metaData.comment );
 
             CFile *src = realtimeRoot->Open( info.relPath, "rb", FILE_FLAG_WRITESHARE );
 
@@ -998,16 +1008,12 @@ unsigned int CZIPArchiveTranslator::BuildCentralFileHeaders( const directory& di
         header.sizeCompressed = 0;
         header.sizeReal = 0;
         header.internalAttr = 0;
-#ifdef _WIN32
-        header.externalAttr = FILE_ATTRIBUTE_DIRECTORY;
-#else
-        header.externalAttr = 0;
-#endif
+        header.externalAttr = 0x10;     // FILE_ATTRIBUTE_DIRECTORY (win32)
         
         m_file.WriteStruct( header );
-        m_file.WriteString( dir.relPath );
-        m_file.WriteString( dir.metaData.extra );
-        m_file.WriteString( dir.metaData.comment );
+        WriteStreamString( &m_file, dir.relPath );
+        WriteStreamString( &m_file, dir.metaData.extra );
+        WriteStreamString( &m_file, dir.metaData.comment );
         
         cnt++;
     }
@@ -1032,9 +1038,9 @@ unsigned int CZIPArchiveTranslator::BuildCentralFileHeaders( const directory& di
         header.externalAttr     = info.metaData.externalAttr;
 
         m_file.WriteStruct( header );
-        m_file.WriteString( info.relPath );
-        m_file.WriteString( info.metaData.extra );
-        m_file.WriteString( info.metaData.comment );
+        WriteStreamString( &m_file, info.relPath );
+        WriteStreamString( &m_file, info.metaData.extra );
+        WriteStreamString( &m_file, info.metaData.comment );
 
         size += sizeof( header ) + header.nameLen + header.extraLen + header.commentLen;
         cnt++;
@@ -1074,7 +1080,7 @@ void CZIPArchiveTranslator::Save( void )
     tail.commentLen = (fsUShort_t)m_comment.size();
 
     m_file.WriteStruct( tail );
-    m_file.WriteString( m_comment );
+    WriteStreamString( &m_file, m_comment );
 
     // Cap the stream
     m_file.SetSeekEnd();

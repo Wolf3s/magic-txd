@@ -21,7 +21,7 @@ static inline bool _File_ParseRelativePath( const charType *path, dirTree& tree,
     try
     {
         filePath entry;
-        entry.reserve( MAX_PATH );
+        entry.reserve( 260 );   // this is MAX_PATH on Windows, which should be a good value?
 
         typedef character_env <charType> char_env;
 
@@ -238,20 +238,20 @@ static inline bool _File_ParseRelativeTreeDeriviate( const charType *path, const
 }
 
 template <typename charType>
-inline bool _File_ParseMode( const CFileTranslator& root, const charType *path, const charType *mode, unsigned int& access, unsigned int& m )
+inline bool _File_ParseMode( const CFileTranslator& root, const charType *path, const charType *mode, unsigned int& access, eFileMode& m )
 {
     switch( *mode )
     {
     case 'w':
-        m = FILE_MODE_CREATE;
+        m = eFileMode::CREATE;
         access = FILE_ACCESS_WRITE;
         break;
     case 'r':
-        m = FILE_MODE_OPEN;
+        m = eFileMode::OPEN;
         access = FILE_ACCESS_READ;
         break;
     case 'a':
-        m = root.Exists( path ) ? FILE_MODE_OPEN : FILE_MODE_CREATE;
+        m = root.Exists( path ) ? eFileMode::OPEN : eFileMode::CREATE;
         access = FILE_ACCESS_WRITE;
         break;
     default:
@@ -605,60 +605,6 @@ inline void _File_OnDirectoryFound( const PathPatternEnv <charType>& patternEnv,
     {
         dirCallback( absPath, userdata );
     }
-}
-
-// Function for creating an OS native directory.
-inline bool _File_CreateDirectory( const filePath& thePath )
-{
-#ifdef __linux__
-    if ( mkdir( osPath, FILE_ACCESS_FLAG ) == 0 )
-        return true;
-
-    switch( errno )
-    {
-    case EEXIST:
-    case 0:
-        return true;
-    }
-
-    return false;
-#elif defined(_WIN32)
-    // Make sure a file with that name does not exist.
-    DWORD attrib = INVALID_FILE_ATTRIBUTES;
-
-    filePath pathToMaybeFile = thePath;
-    pathToMaybeFile.resize( pathToMaybeFile.size() - 1 );
-
-    if ( const char *ansiPath = pathToMaybeFile.c_str() )
-    {
-        attrib = GetFileAttributesA( ansiPath );
-    }
-    else if ( const wchar_t *widePath = pathToMaybeFile.w_str() )
-    {
-        attrib = GetFileAttributesW( widePath );
-    }
-
-    if ( attrib != INVALID_FILE_ATTRIBUTES )
-    {
-        if ( !( attrib & FILE_ATTRIBUTE_DIRECTORY ) )
-            return false;
-    }
-
-    BOOL dirSuccess = FALSE;
-
-    if ( const char *ansiPath = thePath.c_str() )
-    {
-        dirSuccess = CreateDirectoryA( ansiPath, NULL );
-    }
-    else if ( const wchar_t *widePath = thePath.w_str() )
-    {
-        dirSuccess = CreateDirectoryW( widePath, NULL );
-    }
-
-    return ( dirSuccess == TRUE || GetLastError() == ERROR_ALREADY_EXISTS );
-#else
-    return false;
-#endif //OS DEPENDANT CODE
 }
 
 #endif //_FILESYSUTILS_

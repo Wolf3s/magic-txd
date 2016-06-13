@@ -64,21 +64,21 @@ public:
     using CFileSystemInterface::OpenIMGArchive;
     using CFileSystemInterface::CreateIMGArchive;
 
-    CIMGArchiveTranslatorHandle*    OpenIMGArchive      ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess ) override final;
-    CIMGArchiveTranslatorHandle*    CreateIMGArchive    ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version ) override final;
+    CIMGArchiveTranslatorHandle*    OpenIMGArchive      ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess, bool isLiveMode ) override final;
+    CIMGArchiveTranslatorHandle*    CreateIMGArchive    ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version, bool isLiveMode ) override final;
 
-    CIMGArchiveTranslatorHandle*    OpenIMGArchive      ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess ) override final;
-    CIMGArchiveTranslatorHandle*    CreateIMGArchive    ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version ) override final;
+    CIMGArchiveTranslatorHandle*    OpenIMGArchive      ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess, bool isLiveMode ) override final;
+    CIMGArchiveTranslatorHandle*    CreateIMGArchive    ( CFileTranslator *srcRoot, const wchar_t *srcPath, eIMGArchiveVersion version, bool isLiveMode ) override final;
     
     using CFileSystemInterface::OpenCompressedIMGArchive;
     using CFileSystemInterface::CreateCompressedIMGArchive;
 
     // Special functions for IMG archives that should support compression.
-    CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive    ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess ) override final;
-    CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive  ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version ) override final;
+    CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive    ( CFileTranslator *srcRoot, const char *srcPath, bool writeAccess, bool isLiveMode ) override final;
+    CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive  ( CFileTranslator *srcRoot, const char *srcPath, eIMGArchiveVersion version, bool isLiveMode ) override final;
 
-    CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive    ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess ) override final;
-    CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive  ( CFileTranslator *srcRoot, const wchar_t *arcPath, eIMGArchiveVersion version ) override final;
+    CIMGArchiveTranslatorHandle*    OpenCompressedIMGArchive    ( CFileTranslator *srcRoot, const wchar_t *srcPath, bool writeAccess, bool isLiveMode ) override final;
+    CIMGArchiveTranslatorHandle*    CreateCompressedIMGArchive  ( CFileTranslator *srcRoot, const wchar_t *arcPath, eIMGArchiveVersion version, bool isLiveMode ) override final;
 
     // Function to cast a CFileTranslator into a CArchiveTranslator.
     // If not possible, it returns NULL.

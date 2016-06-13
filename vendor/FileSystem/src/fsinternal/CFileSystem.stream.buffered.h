@@ -159,7 +159,7 @@ public:
             // Write the actual data.
             if ( canWriteCount > 0 )
             {
-                std::copy( dataArray, dataArray + canWriteCount, storagePtr + sequenceOffset );
+                FSDataUtil::copy_impl( dataArray, dataArray + canWriteCount, storagePtr + sequenceOffset );
             }
 
             // Pass the amount of written data back to the calling runtime.
@@ -176,7 +176,7 @@ public:
             {
                 const bufType *dataSource = storagePtr + sequenceOffset;
 
-                std::copy( dataSource, dataSource + canReadCount, dataArray );
+                FSDataUtil::copy_impl( dataSource, dataSource + canReadCount, dataArray );
             }
 
             // Pass the amount of read data back to the callee.

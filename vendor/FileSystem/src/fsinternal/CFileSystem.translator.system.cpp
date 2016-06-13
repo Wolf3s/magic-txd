@@ -20,6 +20,12 @@
 // Include the internal definitions.
 #include "CFileSystem.internal.h"
 
+// Sub modules.
+#include "CFileSystem.platform.h"
+#include "CFileSystem.translator.system.h"
+#include "CFileSystem.stream.raw.h"
+#include "CFileSystem.platformutils.hxx"
+
 // Include common fs utilitites.
 #include "../CFileSystem.utils.hxx"
 
@@ -144,8 +150,8 @@ CFile* CSystemFileTranslator::GenOpen( const charType *path, const charType *mod
     dirTree tree;
     filePath output = m_root;
     CRawFile *pFile;
-    unsigned int dwAccess = 0;
-    unsigned int dwCreate = 0;
+    unsigned int frm_dwAccess = 0;
+    eFileMode frm_dwCreate = eFileMode::UNKNOWN;
     bool file;
 
     if ( !GetRelativePathTreeFromRoot( path, tree, file ) )
@@ -157,11 +163,11 @@ CFile* CSystemFileTranslator::GenOpen( const charType *path, const charType *mod
 
     _File_OutputPathTree( tree, true, output );
 
-    if ( !_File_ParseMode( *this, path, mode, dwAccess, dwCreate ) )
+    if ( !_File_ParseMode( *this, path, mode, frm_dwAccess, frm_dwCreate ) )
         return NULL;
 
     // Creation requires the dir tree!
-    if ( dwCreate == FILE_MODE_CREATE )
+    if ( frm_dwCreate == eFileMode::CREATE )
     {
         tree.pop_back();
 
@@ -172,6 +178,29 @@ CFile* CSystemFileTranslator::GenOpen( const charType *path, const charType *mod
     }
 
 #ifdef _WIN32
+    // Translate to native OS access and create mode.
+    DWORD win32AccessMode = 0;
+
+    if ( frm_dwAccess == FILE_ACCESS_READ )
+    {
+        win32AccessMode |= GENERIC_READ;
+    }
+    if ( frm_dwAccess == FILE_ACCESS_WRITE )
+    {
+        win32AccessMode |= GENERIC_WRITE;
+    }
+
+    DWORD win32CreateMode = 0;
+
+    if ( frm_dwCreate == eFileMode::OPEN )
+    {
+        win32CreateMode = OPEN_EXISTING;
+    }
+    else if ( frm_dwCreate == eFileMode::CREATE )
+    {
+        win32CreateMode = CREATE_ALWAYS;
+    }
+
     DWORD flagAttr = 0;
 
     if ( flags & FILE_FLAG_TEMPORARY )
@@ -182,20 +211,20 @@ CFile* CSystemFileTranslator::GenOpen( const charType *path, const charType *mod
 
     HANDLE sysHandle = INVALID_HANDLE_VALUE;
 
-    DWORD dwShareMode = FILE_SHARE_READ;
+    DWORD win32ShareMode = FILE_SHARE_READ;
 
     if ( ( flags & FILE_FLAG_WRITESHARE ) != 0 )
     {
-        dwShareMode |= FILE_SHARE_WRITE;
+        win32ShareMode |= FILE_SHARE_WRITE;
     }
 
     if ( const char *sysPath = output.c_str() )
     {
-        sysHandle = CreateFileA( sysPath, dwAccess, dwShareMode, NULL, dwCreate, flagAttr, NULL );
+        sysHandle = CreateFileA( sysPath, win32AccessMode, win32ShareMode, NULL, win32CreateMode, flagAttr, NULL );
     }
     else if ( const wchar_t *sysPath = output.w_str() )
     {
-        sysHandle = CreateFileW( sysPath, dwAccess, dwShareMode, NULL, dwCreate, flagAttr, NULL );
+        sysHandle = CreateFileW( sysPath, win32AccessMode, win32ShareMode, NULL, win32CreateMode, flagAttr, NULL );
     }
 
     if ( sysHandle == INVALID_HANDLE_VALUE )
@@ -237,7 +266,7 @@ CFile* CSystemFileTranslator::GenOpen( const charType *path, const charType *mod
 #endif //OS DEPENDANT CODE
 
     // Write shared file properties.
-    pFile->m_access = dwAccess;
+    pFile->m_access = frm_dwAccess;
 
     if ( *mode == 'a' )
         pFile->Seek( 0, SEEK_END );

@@ -120,7 +120,7 @@ void CIMGArchiveTranslator::dataCachedStream::Flush( void )
 
     IMG archive read-only data stream
 =======================================*/
-inline CIMGArchiveTranslator::dataSectorStream::dataSectorStream( CIMGArchiveTranslator *translator, file *theFile, filePath thePath ) : streamBase( translator, theFile, thePath, FILE_ACCESS_READ )
+inline CIMGArchiveTranslator::dataSectorStream::dataSectorStream( CIMGArchiveTranslator *translator, file *theFile, filePath thePath, unsigned int accessMode ) : streamBase( translator, theFile, thePath, accessMode )
 {
     this->m_currentSeek = 0;
 }
@@ -149,38 +149,53 @@ inline void CIMGArchiveTranslator::dataSectorStream::TargetSourceFile( void )
     this->m_translator->m_contentFile->SeekNative( imgArchiveRealSeek, SEEK_SET );
 }
 
-inline size_t CIMGArchiveTranslator::dataSectorStream::GetBytesLeftToRead( void ) const
-{
-    size_t realResourceSize = ( this->m_info->metaData.resourceSize * IMG_BLOCK_SIZE );
-
-    // Get the amount of bytes we may actually read from the file.
-    size_t bytesLeftToRead = ( realResourceSize - (size_t)this->m_currentSeek );
-
-    return bytesLeftToRead;
-}
-
 size_t CIMGArchiveTranslator::dataSectorStream::Read( void *buffer, size_t sElement, size_t iNumElements )
 {
     if ( !IsReadable() )
         return 0;
-    
-    size_t bytesLeftToRead = GetBytesLeftToRead();
 
-    // Make sure we do not try to read past the buffer.
-    size_t realReadSize = std::min( bytesLeftToRead, (size_t)( sElement * iNumElements ) );
+    size_t readByteCount = ( sElement * iNumElements );
 
-    if ( realReadSize == 0 )
-        return 0;
+    // Check the read region and respond accordingly.
+    fsOffsetNumber_t currentSeek = ( this->m_currentSeek );
 
-    TargetSourceFile();
+    fileStreamSlice_t currentSeekSlice( currentSeek, readByteCount );
 
-    // Attempt to read.
-    size_t actuallyRead = this->m_translator->m_contentFile->Read( buffer, 1, realReadSize );
+    size_t fileSize = _getsize();
 
-    // Advance the seek by the bytes that have been read.
-    this->m_currentSeek += actuallyRead;
+    fileStreamSlice_t fileBoundsSlice( 0, fileSize );
 
-    return ( actuallyRead / sElement );
+    fileStreamSlice_t::eIntersectionResult intResult = currentSeekSlice.intersectWith( fileBoundsSlice );
+
+    if ( intResult == fileStreamSlice_t::INTERSECT_EQUAL ||
+         intResult == fileStreamSlice_t::INTERSECT_INSIDE ||
+         intResult == fileStreamSlice_t::INTERSECT_BORDER_START )
+    {
+        // Get the count we can read.
+        // Make sure we do not try to read past the buffer.
+        size_t realReadSize = readByteCount;
+
+        if ( intResult == fileStreamSlice_t::INTERSECT_BORDER_START )
+        {
+            realReadSize = std::min( fileSize, realReadSize );
+        }
+
+        // This should be ensured by the slice logic.
+        assert( realReadSize != 0 );
+
+        TargetSourceFile();
+
+        // Attempt to read.
+        size_t actuallyRead = this->m_translator->m_contentFile->Read( buffer, 1, realReadSize );
+
+        // Advance the seek by the bytes that have been read.
+        this->m_currentSeek += actuallyRead;
+
+        return ( actuallyRead / sElement );
+    }
+
+    // No can do.
+    return 0;
 }
 
 size_t CIMGArchiveTranslator::dataSectorStream::Write( const void *buffer, size_t sElement, size_t iNumElements )
@@ -188,9 +203,40 @@ size_t CIMGArchiveTranslator::dataSectorStream::Write( const void *buffer, size_
     if ( !IsWriteable() )
         return 0;
 
-    // TODO: add support for this shit.
-    TargetSourceFile();
+    size_t writeByteCount = ( sElement * iNumElements );
 
+    // Check if we have enough space to be written out.
+    fileStreamSlice_t::eIntersectionResult intResult;
+    {
+        fsOffsetNumber_t currentSeek = ( this->m_currentSeek );
+
+        fileStreamSlice_t currentSeekSlice( currentSeek, writeByteCount );
+
+        fileStreamSlice_t fileBoundsSlice( 0, _getsize() );
+
+        intResult = currentSeekSlice.intersectWith( fileBoundsSlice );
+    }
+
+    // Intersect the write attempt with the file bounds.
+    if ( intResult == fileStreamSlice_t::INTERSECT_EQUAL ||
+         intResult == fileStreamSlice_t::INTERSECT_INSIDE ||
+         intResult == fileStreamSlice_t::INTERSECT_BORDER_START )
+    {
+        // If we intersected the starting border of the seek slice, it means that the end point is after the end of the file bounds.
+        // We have to expand this file region then.
+        // This may require relocating the file to a position of bigger available space.
+        if ( intResult == fileStreamSlice_t::INTERSECT_BORDER_START )
+        {
+
+        }
+
+        // TODO: add support for this shit.
+        TargetSourceFile();
+
+        return 0;
+    }
+
+    // No can do.
     return 0;
 }
 
@@ -213,10 +259,6 @@ int CIMGArchiveTranslator::dataSectorStream::Seek( long iOffset, int iType )
     }
 
     fsOffsetNumber_t newOffset = (fsOffsetNumber_t)( offsetBase + iOffset );
-
-    // Verify the offset.
-    if ( newOffset < 0 )
-        return -1;
 
     // Alright, set the new offset.
     this->m_currentSeek = newOffset;
@@ -244,10 +286,6 @@ int CIMGArchiveTranslator::dataSectorStream::SeekNative( fsOffsetNumber_t iOffse
 
     fsOffsetNumber_t newOffset = ( offsetBase + (fsOffsetNumber_t)iOffset );
 
-    // Verify the offset.
-    if ( newOffset < 0 )
-        return -1;
-
     // Update our offset.
     this->m_currentSeek = newOffset;
 
@@ -266,7 +304,7 @@ fsOffsetNumber_t CIMGArchiveTranslator::dataSectorStream::TellNative( void ) con
 
 bool CIMGArchiveTranslator::dataSectorStream::IsEOF( void ) const
 {
-    return ( GetBytesLeftToRead() == 0 );
+    return ( this->m_currentSeek >= _getsize() );
 }
 
 bool CIMGArchiveTranslator::dataSectorStream::Stat( struct stat *stats ) const
@@ -325,12 +363,14 @@ struct resourceFileHeader_ver2
 };
 
 
-CIMGArchiveTranslator::CIMGArchiveTranslator( imgExtension& imgExt, CFile *contentFile, CFile *registryFile, eIMGArchiveVersion theVersion )
+CIMGArchiveTranslator::CIMGArchiveTranslator( imgExtension& imgExt, CFile *contentFile, CFile *registryFile, eIMGArchiveVersion theVersion, bool isLiveMode )
     : CSystemPathTranslator( false ), m_imgExtension( imgExt ), m_contentFile( contentFile ), m_registryFile( registryFile ), m_virtualFS( true )
 {
     // Set up the virtual file system by giving the
     // translator pointer to it.
     m_virtualFS.hostTranslator = this;
+
+    this->isLiveMode = isLiveMode;
 
     // Fill out default fields.
     this->m_version = theVersion;
@@ -346,7 +386,20 @@ CIMGArchiveTranslator::CIMGArchiveTranslator( imgExtension& imgExt, CFile *conte
 
 CIMGArchiveTranslator::~CIMGArchiveTranslator( void )
 {
-    filePath path;
+    // Deallocate all files.
+    {
+        LIST_FOREACH_BEGIN( fileAddrAlloc_t::block_t, this->fileAddressAlloc.blockList.root, node )
+
+            fileMetaData *fileMeta = LIST_GETITEM( fileMetaData, item, allocBlock );
+
+            fileMeta->isAllocated = false;
+       
+        LIST_FOREACH_END
+
+        this->fileAddressAlloc.Clear();
+    }
+
+    filePath manageFilePath;
 
     // Unlock the archive file.
     delete this->m_contentFile;
@@ -360,7 +413,7 @@ CIMGArchiveTranslator::~CIMGArchiveTranslator( void )
 
     if ( m_fileRoot )
     {
-        m_fileRoot->GetFullPath( "@", false, path );
+        m_fileRoot->GetFullPath( "@", false, manageFilePath );
     }
 
     // Destroy the locks to our runtime management folders.
@@ -390,7 +443,7 @@ CIMGArchiveTranslator::~CIMGArchiveTranslator( void )
         // Delete all temporary files by deleting our entire folder structure.
         if ( CFileTranslator *sysTmpRoot = m_imgExtension.GetTempRoot() )
         {
-            sysTmpRoot->Delete( path );
+            sysTmpRoot->Delete( manageFilePath );
         }
     }
 }
@@ -451,7 +504,7 @@ bool CIMGArchiveTranslator::CreateDir( const char *path )
     return m_virtualFS.CreateDir( path );
 }
 
-CFile* CIMGArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int openMode, unsigned int access )
+CFile* CIMGArchiveTranslator::OpenNativeFileStream( file *fsObject, eFileMode openMode, unsigned int access )
 {
     CFile *outputStream = NULL;
 
@@ -459,7 +512,7 @@ CFile* CIMGArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int
 
     bool needsCachedWrap = false;
 
-    if ( openMode == FILE_MODE_OPEN )
+    if ( openMode == eFileMode::OPEN )
     {
         // If the data has been extracted already from the archive, we need to open a disk stream.
         if ( fsObject->metaData.isExtracted )
@@ -498,7 +551,7 @@ CFile* CIMGArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int
             }
 
             // Create our stream.
-            dataSectorStream *dataStream = new dataSectorStream( this, fsObject, relPath );
+            dataSectorStream *dataStream = new dataSectorStream( this, fsObject, relPath, access );
 
             if ( !needsExtraction )
             {
@@ -564,7 +617,7 @@ CFile* CIMGArchiveTranslator::OpenNativeFileStream( file *fsObject, unsigned int
             }
         }
     }
-    else if ( openMode == FILE_MODE_CREATE )
+    else if ( openMode == eFileMode::CREATE )
     {
         CFileTranslator *fileRoot = this->GetUnpackRoot();
 
@@ -841,6 +894,51 @@ void CIMGArchiveTranslator::GetFiles( const char *path, const char *wildcard, bo
     ScanDirectory( path, wildcard, recurse, NULL, (pathCallback_t)_scanFindCallback, &output );
 }
 
+template <typename numberType>
+inline fsUInt_t getDataBlockCount( numberType dataSize )
+{
+    return (fsUInt_t)ALIGN_SIZE( dataSize, (numberType)IMG_BLOCK_SIZE ) / (numberType)IMG_BLOCK_SIZE;
+}
+
+bool CIMGArchiveTranslator::ReallocateFileEntry( file *fileEntry, fsOffsetNumber_t fileSize )
+{
+    // We have to be in live editing mode to allocate reallocation based on physical data.
+    if ( !this->isLiveMode )
+        return false;
+
+    // Calculate the block count.
+    size_t newBlockCount = getDataBlockCount( fileSize );
+
+    size_t oldBlockCount = fileEntry->metaData.resourceSize;
+
+    // If the block count did not change, no point in continuing.
+    if ( newBlockCount == oldBlockCount )
+    {
+        return true;
+    }
+
+    // If we are some blocks shorter, then truncating is really simple (no-op).
+    // Otherwise we might get more complicated tasks.
+    {
+        // Check if we can reallocate in place.
+        // If we can, we just do that.
+        bool canReallocateInPlace = 
+            this->fileAddressAlloc.SetBlockSize( &fileEntry->metaData.allocBlock, newBlockCount );
+
+        if ( !canReallocateInPlace )
+        {
+            // Turns out we cannot simply reallocate our size.
+            // This means that we have to actually _move our data_.
+
+        }
+    }
+
+    // Update the boundaries, as they have been updated on physical storage.
+    fileEntry->metaData.resourceSize = newBlockCount;
+
+    return true;
+}
+
 void CIMGArchiveTranslator::GenerateFileHeaderStructure( directory& baseDir, headerGenPresence& genOut )
 {
     // Generate for all sub directories first.
@@ -851,7 +949,7 @@ void CIMGArchiveTranslator::GenerateFileHeaderStructure( directory& baseDir, hea
         GenerateFileHeaderStructure( *childDir, genOut );
     }
 
-    // Now perform operation on us.
+    // Now perform operations on us.
     // Just add together all the file counts.
     genOut.numOfFiles += baseDir.files.size();
 }
@@ -872,9 +970,6 @@ void CIMGArchiveTranslator::GenerateArchiveStructure( directory& baseDir, archiv
     for ( fileList::iterator iter = baseDir.files.begin(); iter != baseDir.files.end(); iter++ )
     {
         file *theFile = *iter;
-
-        // Position the file onto the archive.
-        size_t newBlockOffset = genOut.currentBlockCount;
 
         // Get the block count of this file entry.
         unsigned long blockCount = 0;
@@ -953,7 +1048,7 @@ void CIMGArchiveTranslator::GenerateArchiveStructure( directory& baseDir, archiv
         else
         {
             // We need to dump the file to disk.
-            CFile *srcStream = new dataSectorStream( this, theFile, theFile->relPath );
+            CFile *srcStream = new dataSectorStream( this, theFile, theFile->relPath, FILE_ACCESS_READ );
 
             if ( srcStream )
             {
@@ -1093,39 +1188,32 @@ void CIMGArchiveTranslator::GenerateArchiveStructure( directory& baseDir, archiv
             // Query its size and calculate the block could depending on it.
             fsOffsetNumber_t realFileSize = destinationHandle->GetSizeNative();
 
-            blockCount =
-                (unsigned long)ALIGN_SIZE( realFileSize, (fsOffsetNumber_t)IMG_BLOCK_SIZE ) / IMG_BLOCK_SIZE;
+            blockCount = getDataBlockCount( realFileSize );
 
             // Close it.
             delete destinationHandle;
         }
 
-        // Update the resource properties.
-        theFile->metaData.resourceSize = blockCount;
-        theFile->metaData.blockOffset = newBlockOffset;
-        theFile->metaData.hasCompressed = hasCompressed;
+        // We want to allocate some space for this file.
+        bool couldAllocateSpace = this->ReallocateFileEntry( theFile, blockCount );
 
-        // Update the generated block count.
-        genOut.currentBlockCount += blockCount;
+        assert( couldAllocateSpace == true );
     }
 }
 
 void CIMGArchiveTranslator::WriteFileHeaders( CFile *targetStream, directory& baseDir )
 {
-    // Write files of all sub directories first.
-    for ( directory::subDirs::iterator iter = baseDir.children.begin(); iter != baseDir.children.end(); iter++ )
-    {
-        directory *subDir = *iter;
-
-        WriteFileHeaders( targetStream, *subDir );
-    }
+    // We have to write files in address order, because that is part of the IMG specification.
 
     // Now write our files.
     eIMGArchiveVersion theVersion = this->m_version;
 
-    for ( fileList::iterator iter = baseDir.files.begin(); iter != baseDir.files.end(); iter++ )
-    {
-        file *theFile = *iter;
+    LIST_FOREACH_BEGIN( fileAddrAlloc_t::block_t, this->fileAddressAlloc.blockList.root, node )
+
+        file *theFile = LIST_GETITEM( file, item, metaData.allocBlock );
+
+        assert( theFile->metaData.isAllocated == true );
+        assert( theFile->metaData.blockOffset == item->slice.GetSliceStartPoint() );
 
         resourceFileHeader_ver1 _ver1Header;
         resourceFileHeader_ver2 _ver2Header;
@@ -1147,7 +1235,7 @@ void CIMGArchiveTranslator::WriteFileHeaders( CFile *targetStream, directory& ba
             namePointer = _ver1Header.name;
             maxName = sizeof( _ver1Header.name );
         }
-        else
+        else if ( theVersion == IMG_VERSION_2 )
         {
             headerPointer = &_ver2Header;
             headerSize = sizeof( _ver2Header );
@@ -1158,6 +1246,10 @@ void CIMGArchiveTranslator::WriteFileHeaders( CFile *targetStream, directory& ba
 
             namePointer = _ver2Header.name;
             maxName = sizeof( _ver2Header.name );
+        }
+        else if ( theVersion == IMG_VERSION_FASTMAN92 )
+        {
+            // TODO.
         }
        
         if ( namePointer )
@@ -1181,23 +1273,18 @@ void CIMGArchiveTranslator::WriteFileHeaders( CFile *targetStream, directory& ba
             // Write the header to the stream.
             targetStream->Write( headerPointer, 1, headerSize );
         }
-    }
+    
+    LIST_FOREACH_END
 }
 
 void CIMGArchiveTranslator::WriteFiles( CFile *targetStream, directory& baseDir )
 {
-    // Write files of all sub directories first.
-    for ( directory::subDirs::iterator iter = baseDir.children.begin(); iter != baseDir.children.end(); iter++ )
-    {
-        directory *subDir = *iter;
-
-        WriteFiles( targetStream, *subDir );
-    }
+    // Remember that we write files in address order.
 
     // Now write our files.
-    for ( fileList::iterator iter = baseDir.files.begin(); iter != baseDir.files.end(); iter++ )
-    {
-        file *theFile = *iter;
+    LIST_FOREACH_BEGIN( fileAddrAlloc_t::block_t, this->fileAddressAlloc.blockList.root, node )
+
+        file *theFile = LIST_GETITEM( file, item, metaData.allocBlock );
 
         // Seek to the required position.
         {
@@ -1237,7 +1324,8 @@ void CIMGArchiveTranslator::WriteFiles( CFile *targetStream, directory& baseDir 
 
             delete srcStream;
         }
-    }
+    
+    LIST_FOREACH_END
 }
 
 struct generalHeader
@@ -1245,11 +1333,6 @@ struct generalHeader
     fsUInt_t checksum;
     fsUInt_t numberOfEntries;
 };
-
-inline size_t getDataBlockCount( size_t dataSize )
-{
-    return ALIGN_SIZE <size_t> ( dataSize, IMG_BLOCK_SIZE ) / IMG_BLOCK_SIZE;
-}
 
 void CIMGArchiveTranslator::Save( void )
 {
@@ -1300,7 +1383,7 @@ void CIMGArchiveTranslator::Save( void )
 
             headerSize += resourceFileHeaderSize * headerGenMetaData.numOfFiles;
 
-            // Add this block count to the allocation.
+            // We have to allocate at position zero.
             genMetaData.currentBlockCount += getDataBlockCount( headerSize );
         }
         
@@ -1398,6 +1481,11 @@ bool CIMGArchiveTranslator::ReadArchive( void )
     
     eIMGArchiveVersion theVersion = this->m_version;
 
+    // Keep track of invalid file entries that need write-phase linear fixups.
+    RwList <fileAddrAlloc_t::block_t> fixupList;
+
+    LIST_CLEAR( fixupList.root );
+
     while ( true )
     {
         // Halting condition.
@@ -1492,12 +1580,37 @@ bool CIMGArchiveTranslator::ReadArchive( void )
                 fileEntry->metaData.blockOffset = resourceOffset;
                 fileEntry->metaData.resourceSize = resourceSize;
 
-                size_t maxFinalName = sizeof( fileEntry->metaData.resourceName );
+                const size_t maxFinalName = sizeof( fileEntry->metaData.resourceName );
 
-                assert( maxFinalName == sizeof( newPath ) );
+                static_assert( maxFinalName == sizeof( newPath ), "wrong array size for resource name" );
 
                 memcpy( fileEntry->metaData.resourceName, newPath, maxFinalName );
                 fileEntry->metaData.resourceName[ maxFinalName - 1 ] = '\0';
+
+                // Allocate an entry for this file.
+                // If we happen to collide with an existing entry, we have to
+                // solve this problem on next write-phase.
+                // Since problematic links can only be introduced during loading
+                // from disk, we try to put all the debug code here.
+                fileAddrAlloc_t::allocInfo allocInfo;
+
+                bool canPutObject = this->fileAddressAlloc.ObtainSpaceAt( resourceOffset, resourceSize, allocInfo );
+
+                if ( canPutObject )
+                {
+                    this->fileAddressAlloc.PutBlock( &fileEntry->metaData.allocBlock, allocInfo );
+
+                    fileEntry->metaData.isAllocated = true;
+                }
+                else
+                {
+                    // Remember as erratic.
+                    // We have to consider a write-phase fixup.
+                    LIST_APPEND( fixupList.root, fileEntry->metaData.allocBlock.node );
+                }
+                
+                // We are allocated.
+                fileEntry->metaData.isAllocated = true;
             }
         }
 
@@ -1505,9 +1618,40 @@ bool CIMGArchiveTranslator::ReadArchive( void )
         n++;
     }
 
-    if ( successLoadingFiles )
+    if ( !successLoadingFiles )
     {
-        return true;
+        return false;
     }
-    return false;
+
+    // Perform the fixups.
+    LIST_FOREACH_BEGIN( fileAddrAlloc_t::block_t, fixupList.root, node )
+
+        // We are a fileMetaData entry too.
+        fileMetaData *fileMeta = LIST_GETITEM( fileMetaData, item, allocBlock );
+
+        // Allocate it somewhere in the array.
+        // Note that this allocation will most likely be somewhere else than it originally was.
+        fileAddrAlloc_t::allocInfo allocInfo;
+
+        bool allocSuccess = this->fileAddressAlloc.FindSpace( fileMeta->resourceSize, allocInfo, 1 );
+
+        if ( allocSuccess )
+        {
+            this->fileAddressAlloc.PutBlock( &fileMeta->allocBlock, allocInfo );
+
+            fileMeta->isAllocated = true;
+        }
+        else
+        {
+            // I do not expect this to fail.
+            // If it does tho, then we are kind of screwed; we could try again later.
+        }
+
+        fileMeta->isAllocated = true;
+
+    LIST_FOREACH_END
+
+    // By now, every block should have, at least, a _promised archive position_.
+
+    return true;
 }

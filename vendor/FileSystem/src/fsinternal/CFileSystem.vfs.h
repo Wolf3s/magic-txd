@@ -14,7 +14,7 @@
 
 #include "CFileSystem.utils.hxx"
 
-#include <map>
+#include <unordered_map>
 
 // This class implements a virtual file system.
 // It consists of nodes which are either directories or files.
@@ -102,13 +102,18 @@ struct CVirtualFileSystem
         bool isDirectory, isFile;
     };
 
-    struct file : public fsActiveEntry, public VirtualFileSystem::fileInterface
+    struct file final : public fsActiveEntry, public VirtualFileSystem::fileInterface
     {
         file( const filePath& name ) : fsActiveEntry( name, filePath() )
         {
             metaData.SetInterface( this );
 
             this->isFile = true;
+        }
+
+        ~file( void )
+        {
+            metaData.SetInterface( NULL );
         }
 
         inline void OnRecreation( void )
@@ -128,7 +133,7 @@ struct CVirtualFileSystem
 
     typedef std::list <file*> fileList;
 
-    struct directory : public fsActiveEntry, public VirtualFileSystem::directoryInterface
+    struct directory final : public fsActiveEntry, public VirtualFileSystem::directoryInterface
     {
         inline directory( filePath fileName, filePath path ) : fsActiveEntry( fileName, path )
         {
@@ -168,6 +173,8 @@ struct CVirtualFileSystem
             {
                 deleteFile( *fileIter );
             }
+
+            metaData.SetInterface( NULL );
         }
 
         fsOffsetNumber_t GetDataSize( void ) const
@@ -191,8 +198,8 @@ struct CVirtualFileSystem
             return theDataSize;
         }
 
-        typedef std::map <std::string, file*> fileNameMap_t;
-        typedef std::map <std::string, directory*> childrenMap_t;
+        typedef std::unordered_map <std::string, file*> fileNameMap_t;
+        typedef std::unordered_map <std::string, directory*> childrenMap_t;
 
         fileNameMap_t fileNameMap;
         childrenMap_t childrenMap;
@@ -610,6 +617,7 @@ struct CVirtualFileSystem
         return NULL;
     }
 
+private:
     inline file* BrowseFile( const dirTree& tree, const filePath& fileName )
     {
         directory *dir = (directory*)GetDeriviateDir( *m_curDirEntry, tree );
@@ -622,6 +630,7 @@ struct CVirtualFileSystem
         return NULL;
     }
 
+public:
     inline bool RenameObject( const filePath& newName, const dirTree& tree, fsActiveEntry *object )
     {
         // Get the directory where to put the object.
@@ -789,18 +798,6 @@ struct CVirtualFileSystem
         stats->st_size = (off_t)entry->GetDataSize();
     }
 
-    // Only use this function if you know that there are no file name conflicts!
-    inline file* ConstructFileExclusive( const dirTree& tree, const filePath& fileName )
-    {
-        directory *targetDir = MakeDeriviateDir( *m_curDirEntry, tree );
-
-        if ( targetDir )
-        {
-            return &targetDir->AddFile( fileName );
-        }
-        return NULL;
-    }
-
     // Common purpose translator functions.
     inline bool CreateDir( const char *path )
     {
@@ -833,7 +830,7 @@ struct CVirtualFileSystem
         filePath name = tree.back();
         tree.pop_back();
 
-        unsigned int m;
+        eFileMode m;
         unsigned int access;
 
         if ( !_File_ParseMode( *hostTranslator, path, mode, access, m ) )
@@ -842,11 +839,11 @@ struct CVirtualFileSystem
         file *entry = NULL;
         bool newFileEntry = false;
 
-        if ( m == FILE_MODE_OPEN )
+        if ( m == eFileMode::OPEN )
         {
             entry = BrowseFile( tree, name );
         }
-        else if ( m == FILE_MODE_CREATE )
+        else if ( m == eFileMode::CREATE )
         {
             entry = ConstructFile( tree, name );
 
@@ -867,7 +864,7 @@ struct CVirtualFileSystem
 
             if ( outputFile )
             {
-                if ( m == FILE_MODE_OPEN )
+                if ( m == eFileMode::OPEN )
                 {
                     // Seek it
                     outputFile->Seek( 0, *mode == 'a' ? SEEK_END : SEEK_SET );
