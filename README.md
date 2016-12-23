@@ -1,3 +1,10 @@
+NOTE: this is a GitHub mirror of the official CodePlex codebase! we treat this as second-citizen with
+full merge-priviledges. To get the latest developer-based code fetch it from CodePlex instead.
+
+https://magictxd.codeplex.com/
+
+=========================================================
+
 This repository is a collaboration of GTAForums community developers to provide
 an amazing TXD editor that supports all known texture formats. We aim to create
 a very flexible and easy-to-use application.
