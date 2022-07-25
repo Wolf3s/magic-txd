@@ -31,3 +31,21 @@ PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, THAT THE LICENSED MATERIALS WILL
 RUN UNINTERRUPTED OR ERROR-FREE OR THOSE ARISING FROM CUSTOM OF TRADE OR 
 COURSE OF USAGE.  THE ENTIRE RISK ASSOCIATED WITH THE USE OF THE 
 LICENSED MATERIALS IS ASSUMED BY YOU. 
+
+======================
+TODO:
+======================
+---------------------------
+DFF------------------------
+---------------------------
+lights
+2dfx
+uvanim
+collision
+
+---------------------------
+TXD------------------------
+---------------------------
+uncompressed xbox
+write ps2 format (5 unknowns left)
+(write conversion functions)
