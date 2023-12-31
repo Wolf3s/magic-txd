@@ -29,6 +29,6 @@ For full description and tutorials visit: http://www.gtamodding.com/wiki/Magic.T
 
 # Forum threads
 
-* [ps2home](https://pnrtscr.com/video.mp4)
-* ~~[ps2home_old](http://ps2home.freeforums.net/thread/784/magic-txd-ps2-texture-editor)~~
+~~ * [ps2home](https://pnrtscr.com/video.mp4) ~~
+* [ps2home](http://ps2home.freeforums.net/thread/784/magic-txd-ps2-texture-editor)
 * [GTAforums](http://gtaforums.com/topic/851436-relopensrc-magictxd/)
